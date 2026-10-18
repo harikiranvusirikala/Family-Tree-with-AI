@@ -90,9 +90,9 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - `vercel.json` pins the framework to Next.js. With the wrong dashboard preset, Vercel fails with "No Output Directory named "public" found".
 - Vercel environment variables (owner-managed):
   - `MONGODB_DB` is `familytree` in Production and `familytree_preview` in Preview.
-  - `BETTER_AUTH_URL` is set only in Production (`https://family-tree-with-ai.vercel.app`); preview URLs vary per branch.
+  - `BETTER_AUTH_URL` is set only in Production (`https://family-tree-with-ai.vercel.app`); previews use Vercel's `VERCEL_BRANCH_URL` and `VERCEL_URL`.
   - `BETTER_AUTH_SECRET` differs between Production and Preview.
-  - `E2E_TEST_LOGIN` is never set on Vercel.
+  - `OAUTH_PROXY_SECRET` (from step 4) is the same in Production and Preview, for Google sign-in on previews.
 - CI (`.github/workflows/ci.yml`) runs lint, typecheck, `npm test`, `npm run test:db` and e2e, using the `MONGODB_URI` repository secret (a read/write test user).
 
 ## Testing conventions
@@ -104,5 +104,5 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - `test/fixtures/cruz-young.ts` holds the 36 people from the sample tree image: a same-sex couple, a divorce and remarriage, and in-law parents. It is the shared test data, and the §6 worked examples are its assertions. Import it as `@test/fixtures/...` (tsconfig alias). `test/fixtures/generated.ts` builds large synthetic families.
 - `src/app/dev/*` pages (e.g. `/dev/tree`, the layout playground) return 404 unless running `next dev` or built with `ENABLE_DEV_PAGES=1`. Playwright's web server sets that flag, so e2e tests can use them.
 - The tree e2e test saves `test-results/screenshots/tree.png`. View it after layout or card changes and compare with the sample image.
-- Planned: a test-only sign-in for Playwright, enabled only by `E2E_TEST_LOGIN=1` and never on Vercel.
+- Planned (step 4): signed-in e2e tests use a Playwright fixture built on Better Auth's `testUtils` plugin, which creates users and sessions directly in the run's database. The app has no test-login route, and `testUtils` is never imported under `src/`.
 - `samples/` (reference images) is git-ignored, so tests and CI must not depend on it.

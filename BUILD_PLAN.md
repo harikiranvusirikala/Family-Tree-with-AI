@@ -12,7 +12,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 1 | Project skeleton and auto-deploy | Done 2026-10-18 (merged to `main`). Live at https://family-tree-with-ai.vercel.app |
 | 2 | Sheet view and tree layout | Done 2026-10-18 (merged to `main`). ELK.js chosen; see the step 2 notes |
 | 3 | Database and the single write path | Done 2026-10-18 (merged to `main`). See the step 3 notes |
-| 4 | Google sign-in (F1) | Not started. Owner setup done: Google OAuth client and `.env.local`. Vercel variables pending (see Environments and secrets) |
+| 4 | Google sign-in (F1) | Not started. Owner setup done: Google OAuth client and `.env.local`. Pending: Vercel variables (see Environments and secrets) and publishing the Google app (see step 4) |
 | 5 | Groups, roles and opening a sheet (F2, F5) | Not started |
 | 6 | Editing the tree by hand (F6) | Not started |
 | 7 | Photos (F8) | Not started |
@@ -39,20 +39,20 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | Where | Variables |
 |---|---|
 | `.env.local` (local, git-ignored) | Everything in [.env.example](.env.example). `MONGODB_DB=familytree_dev`, `BETTER_AUTH_URL=http://localhost:3000` |
-| Vercel, Production | `MONGODB_URI`, `MONGODB_DB=familytree`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (own value), `BETTER_AUTH_URL=https://family-tree-with-ai.vercel.app` |
-| Vercel, Preview | `MONGODB_URI`, `MONGODB_DB=familytree_preview`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (a different value). No `BETTER_AUTH_URL`: preview URLs change per branch |
+| Vercel, Production | `MONGODB_URI`, `MONGODB_DB=familytree`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (own value), `BETTER_AUTH_URL=https://family-tree-with-ai.vercel.app`, `OAUTH_PROXY_SECRET` (same value as Preview) |
+| Vercel, Preview | `MONGODB_URI`, `MONGODB_DB=familytree_preview`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (a different value), `OAUTH_PROXY_SECRET` (same value as Production). No `BETTER_AUTH_URL`: the app uses Vercel's `VERCEL_BRANCH_URL` and `VERCEL_URL` |
 | Vercel, Development | Nothing; local work uses `.env.local` |
 | GitHub Actions secret | `MONGODB_URI` for a separate read/write test user (repo → Settings → Secrets and variables → Actions) |
 
 - Later steps add `CLOUDINARY_*` (step 7) and `ANTHROPIC_API_KEY`, `CHAT_MODEL`, `CHAT_DAILY_LIMIT` (step 9) to both Production and Preview, and `MONGODB_BACKUP_URI`, `BACKUP_ENCRYPTION_KEY` (step 11) as GitHub secrets.
-- Secrets are marked Sensitive in Vercel. `E2E_TEST_LOGIN` is never set on Vercel.
+- Secrets are marked Sensitive in Vercel.
 - Vercel variables only reach new deployments, so redeploy (or push) after changing them.
 
 ## How every step is tested
 
 - **Unit tests (Vitest, `npm test`):** pure logic, no network: sheet view, layout, operation rules (`planOperations`), and later `requireRole`, email normalisation, AI tool handlers and GEDCOM.
 - **Database tests (Vitest + Atlas, `npm run test:db`):** `*.db.test.ts` files for transactions, persistence and group isolation. Each file gets its own throwaway database.
-- **End-to-end tests (Playwright, `npm run test:e2e`):** a production build of the app. Each run seeds its own throwaway database with the sample family and removes it afterwards. From step 4, sign-in uses a test-only login, enabled only by `E2E_TEST_LOGIN=1` and never set on Vercel; a test checks that it returns 404 without the flag.
+- **End-to-end tests (Playwright, `npm run test:e2e`):** a production build of the app. Each run seeds its own throwaway database with the sample family and removes it afterwards. From step 4, signed-in tests use a Playwright fixture that creates users and sessions directly in the run's database (Better Auth's `testUtils` plugin). The app itself has no test-login route.
 - **CI (GitHub Actions):** lint, type-check, `npm test`, `npm run test:db` and e2e on every push, using the `MONGODB_URI` secret.
 - **Every step:** `npm run lint && npm run typecheck && npm test && npm run test:db && npm run test:e2e` pass locally, CI is green on the branch, and the "try this" list passes on the Vercel preview before merging.
 - Code additions beyond §4: `test/` (fixtures, database helpers, seed), `e2e/`, `scripts/` (`db:ping`, `db:setup`, `seed`), and `src/app/dev/*` pages. The dev pages return 404 unless run with `npm run dev` or built with `ENABLE_DEV_PAGES=1` (the e2e tests do this), so they never appear on Vercel.
@@ -137,14 +137,56 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - CI needs a `MONGODB_URI` repository secret: GitHub repo → Settings → Secrets and variables → Actions. Use a separate read/write test user. (Added 2026-10-18.)
 
 ## Step 4: Google sign-in (F1)
-- **Owner:** create a Google OAuth client and register redirect URIs for localhost and the production URL. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` to `.env.local` and Vercel.
+- **Owner:**
+  - Done: the Google OAuth client (redirect URIs `http://localhost:3000/api/auth/callback/google` and `https://family-tree-with-ai.vercel.app/api/auth/callback/google`) and `.env.local`.
+  - Vercel variables for Production and Preview (see Environments and secrets), including `OAUTH_PROXY_SECRET`, which must be the same in both.
+  - Google Auth Platform → Audience: publish the app. While it is in Testing, only listed test users can sign in. The app asks only for name, email and photo, so Google doesn't need to review it.
+  - Check that the Vercel function region (default `iad1`, Washington) is close to the Atlas cluster. If not, set `regions` in `vercel.json`: from now on every signed-in page reads the database.
 - **Build:**
-  - `src/server/auth.ts` (Better Auth, Google only, MongoDB adapter) and `api/auth/[...all]`.
-  - Landing page with "Sign in with Google", `requireUser()`, and `returnTo` so users come back to the link they opened.
-  - A `/dashboard` placeholder, a user menu with sign-out, and the test-only login.
-  - Settle §15 question 4 (Google sign-in on preview deployments): try Better Auth's OAuth proxy plugin first, else a fixed branch URL.
-- **Tests:** E2E: signed out → `/dashboard` redirects to sign-in → after the test login, back on `/dashboard`; `returnTo` is kept. Unit: the test login returns 404 without the flag.
-- **Owner checks:** a real Google sign-in on the preview deployment.
+  - `src/server/auth.ts` (Better Auth 1.7, Google only) and `api/auth/[...all]/route.ts`:
+    - MongoDB adapter given the shared client, so Better Auth's own writes use transactions. Collections are `users`, `sessions`, `accounts` and `verifications` (`usePlural: true`, as in §5). Settle this before the first real user signs up; renaming later means moving data.
+    - `db.ts` hands the adapter a client without connecting, so the build never touches the database.
+    - Base URL and trusted origins come from a pure `authUrls(env)`: `BETTER_AUTH_URL` locally and in production; on previews, exactly `VERCEL_BRANCH_URL` and `VERCEL_URL`. Never `*.vercel.app`, which would trust anyone's Vercel app.
+    - Google with `prompt: "select_account"`, so a shared family computer can switch accounts. A sign-in is refused if Google says the email isn't verified, because step 8 matches invites by email.
+    - Sessions last 30 days (Better Auth's default is 7) and are extended with use. Server Components can't write cookies, so Better Auth skips the refresh there. The user menu's `useSession()` calls `/api/auth/get-session`, which does refresh. Without that, people are signed out a fixed time after signing in, however active they are.
+    - The shared options live in a module without `import "server-only"`, so the e2e fixture can build an identical instance (cookie names must match).
+  - **Preview sign-in (§15 question 4): Better Auth's `oAuthProxy` plugin** in Production and Preview, with `productionURL` from `VERCEL_PROJECT_PRODUCTION_URL` and its own `secret` (`OAUTH_PROXY_SECRET`). Checked in the 1.7 source: production exchanges the Google code but creates no user, then hands the encrypted profile back to the preview, which signs in against `familytree_preview`. The databases and `BETTER_AUTH_SECRET` stay separate, and Google keeps just the two redirect URIs. It only works once production runs the plugin, so the step 4 preview can't sign in with Google (see Owner checks).
+  - `src/proxy.ts` (Next.js 16's name for middleware) only checks that a session cookie is present (`getSessionCookie`), with no database read:
+    - Deny by default, so later pages are covered without being listed. Public: `/`, `/api/auth/*` (the Google callback arrives without a session), `/dev/*`, `/_next/*` and static files.
+    - A signed-out page request gets a real 307 to `/?returnTo=<path and query>`. A `redirect()` inside `<Suspense>` would stream a client-side refresh instead. API routes and non-GET requests get 401.
+    - Never redirect *because* a cookie is present: a stale cookie would bounce between `/` and `/dashboard`.
+    - It's a convenience, not security. Pages, server actions and routes still check for themselves (§8).
+  - `src/server/permissions.ts`: `getUser()` (user or null) and `requireUser()` (redirects to `/`). Route handlers return 401 instead of redirecting. Step 5's `requireRole` builds on these. Neither uses `use cache: private`, because the role must be read fresh on each request.
+  - `safeReturnTo()` (pure): keeps same-site paths only (`/…`, but not `//…` or `/\…`). Anything else becomes `/dashboard`.
+  - The landing page stays static. "Sign in with Google" is a client component that reads `returnTo` when clicked and passes it to Better Auth as `callbackURL`. `errorCallbackURL` brings failures (consent cancelled, sign-in expired) back to `/` with a plain message.
+  - `/dashboard` placeholder that reads the session inside `<Suspense>`. A user menu with the name, initials and Sign out:
+    - Initials rather than the Google photo through `next/image`, which would need `remotePatterns` and uses Vercel's image quota.
+    - After signing out, a full page load of `/`, so no signed-in page stays in the browser's router cache.
+  - `ensureIndexes` adds TTL indexes on `sessions.expiresAt` and `verifications.expiresAt`, so expired rows don't fill the 512 MB cluster. Better Auth creates its other indexes on first write. Don't repeat those: the same keys under another index name fail.
+  - **Test-only sign-in without a route in the app.** Better Auth's `testUtils` plugin is used only from `e2e/`:
+    - A Playwright fixture `signIn(page, name)` creates a fresh user and session in the run's database and adds the signed cookie. Parallel tests never share a user, and steps 5 and 8 get as many users as they need.
+    - There is no backdoor to guard, so `E2E_TEST_LOGIN` and the step 11 check for it go away. ESLint forbids importing `testUtils` under `src/`.
+  - `playwright.config.ts` gives the web server its own auth settings:
+    - `BETTER_AUTH_URL=http://localhost:3100`. Otherwise `.env.local`'s port 3000 leaks in and Better Auth rejects the origin.
+    - A random `BETTER_AUTH_SECRET` per run, shared with the fixture. `next start` refuses Better Auth's default secret, and CI has none.
+    - Placeholder Google credentials.
+  - Docs in the same commit: ARCHITECTURE.md §5 (collection names, TTL indexes), §12, §13 (add `OAUTH_PROXY_SECRET`, drop `E2E_TEST_LOGIN`) and §15 question 4; Features.txt DECISIONS; `.env.example`; CLAUDE.md.
+- **Tests:**
+  - Unit:
+    - `safeReturnTo`: a path with a query is kept; `//evil.com`, `/\evil.com`, `https://evil.com`, `javascript:…` and empty give `/dashboard`.
+    - `authUrls` for local, e2e, preview and production, with no wildcard origins.
+    - The proxy's decision for public paths, pages, API routes and POSTs.
+  - Database: the TTL indexes exist (extend the indexes test).
+  - E2E:
+    - Signed out, `/dashboard?tab=x` answers 307 to `/?returnTo=%2Fdashboard%3Ftab%3Dx` (checked without following redirects).
+    - "Sign in with Google" posts `callbackURL=/dashboard?tab=x` and is sent to `accounts.google.com` with `redirect_uri=http://localhost:3100/api/auth/callback/google`. The test stops there and never contacts Google. With `returnTo=https://evil.example` it posts `/dashboard`.
+    - Signed in through the fixture, `/dashboard` shows the user's name. Sign out leads to `/`, and `/dashboard` redirects again.
+    - A garbage session cookie on `/dashboard` ends on `/` once, with no redirect loop.
+- **Owner checks:**
+  - Before merging, on `npm run dev` in the owner's terminal: a real Google sign-in and sign-out; the account chooser with a second Google account; `/dashboard?x=1` opened while signed out comes back after signing in. Use `localhost`, not `127.0.0.1`: Google and the cookies treat them as different sites.
+  - Before merging: `npm run db:setup` against `familytree_preview` and `familytree` (`MONGODB_DB` set to each), so the TTL indexes and step 3's indexes exist there.
+  - Right after merging: a real sign-in on production.
+  - Step 5's preview is the first that can sign in with Google through the proxy. Check it there.
 
 ## Step 5: Groups, roles and opening a sheet (F2, F5, §8)
 - **Build:**
@@ -228,7 +270,6 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 - **Build:**
   - A scheduled GitHub Actions job runs `mongodump` with the read-only user (`MONGODB_BACKUP_URI`), encrypts the dump with `BACKUP_ENCRYPTION_KEY`, and keeps it as an artifact for 90 days. A restore script goes with it.
   - Security headers.
-  - A check that `E2E_TEST_LOGIN` is refused when `VERCEL_ENV` is set.
   - A security review pass over the whole app.
 - **Tests:** run the workflow by hand → download, decrypt and restore into a scratch database → counts match. A final e2e smoke test against production.
 
