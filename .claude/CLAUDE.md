@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Three docs drive all work. Read the relevant parts before changing anything:
 
-- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Only step 1 (the skeleton) exists so far; most of the architecture below is still planned.
+- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Steps 1–2 exist (skeleton; sheet view, ELK.js layout and the tree canvas); most of the architecture below is still planned.
 - **[ARCHITECTURE.md](ARCHITECTURE.md)**: the blueprint (code layout §4, data model §5, sheet rules §6, layout §7, permissions §8, flows F1–F12, AI chat §10, environments §12, env vars §13, open questions §15). Folder names, collections and function names come from here.
 - **[Features.txt](Features.txt)**: the owner's requirements plus the agreed DECISIONS section.
 
@@ -55,6 +55,7 @@ npx playwright test e2e/home.spec.ts      # one e2e file (also builds first)
 - **One Next.js app is both UI and API.** Server-only code goes in `src/server/`. Pure tree logic goes in `src/tree/`, which runs in the browser and in unit tests with no I/O.
 - **Each person is stored once; sheets are views.** A sheet stores only `rootPersonId` and `extraPersonIds`. `buildSheetView()` computes who is shown, using the §6 rules: ancestors, then descendants of every ancestor, then partners (not partners' parents), then extras. Never copy people into a sheet.
 - **A union is a couple** (the ♥): 1–2 `partnerIds` plus `childIds`. A person is a child of at most one union. Unions map to GEDCOM `FAM` records.
+- **Layout** goes through `layoutEngine` (`src/tree/layout/index.ts`, ELK.js). The ELK adapter groups partners into side-by-side blocks with fixed connection points, then re-packs siblings with no family of their own eldest first (ARCHITECTURE.md §7). Hearts are placed by the shared `placeUnions()`, never by an engine itself.
 - **Single write path.** Manual edits, confirmed AI proposals and imports all become an `Operation[]` (§10, with temporary IDs like `new:1`) applied by `applyOperations(groupId, ops, actor)` in one transaction. Don't add other write paths.
 - **Permissions:**
   - Every server action, route handler and data load calls `requireRole(groupId, minRole)` itself. Layouts don't re-run on every navigation, and server actions can be called directly, so a check in a layout isn't enough.
@@ -70,8 +71,8 @@ npx playwright test e2e/home.spec.ts      # one e2e file (also builds first)
 
 - Unit tests sit next to the code as `*.test.ts(x)` under `src/`, or under `test/`. Vitest uses jsdom. `async` Server Components can't be unit-tested in Vitest, so cover them with e2e tests.
 - E2E specs live in `e2e/`.
-- Planned:
-  - `test/fixtures/cruz-young.ts` holds the 34 people from the sample tree image: a same-sex couple, a divorce and remarriage, and in-law parents. It is the shared test data, and §6's worked examples become its assertions.
-  - A test-only sign-in for Playwright, enabled only by `E2E_TEST_LOGIN=1` and never on Vercel.
-  - `src/app/dev/*` pages that return 404 outside `next dev`.
+- `test/fixtures/cruz-young.ts` holds the 36 people from the sample tree image: a same-sex couple, a divorce and remarriage, and in-law parents. It is the shared test data, and the §6 worked examples are its assertions. Import it as `@test/fixtures/...` (tsconfig alias). `test/fixtures/generated.ts` builds large synthetic families.
+- `src/app/dev/*` pages (e.g. `/dev/tree`, the layout playground) return 404 unless running `next dev` or built with `ENABLE_DEV_PAGES=1`. Playwright's web server sets that flag, so e2e tests can use them.
+- The tree e2e test saves `test-results/screenshots/tree.png`. View it after layout or card changes and compare with the sample image.
+- Planned: a test-only sign-in for Playwright, enabled only by `E2E_TEST_LOGIN=1` and never on Vercel.
 - `samples/` (reference images) is git-ignored, so tests and CI must not depend on it.

@@ -36,7 +36,7 @@ A web app where a family builds its tree together. People are added by hand or b
 | Language and framework | TypeScript, Next.js (App Router, server components, server actions) |
 | UI | Tailwind CSS, shadcn/ui |
 | Tree canvas | React Flow (`@xyflow/react`) |
-| Auto-layout | relatives-tree, behind an adapter so ELK.js can replace it ([§7](#7-tree-rendering-and-auto-layout)) |
+| Auto-layout | ELK.js (`layered`), behind an adapter ([§7](#7-tree-rendering-and-auto-layout)) |
 | Sign-in | Better Auth, Google provider only |
 | Database | MongoDB Atlas M0, official `mongodb` driver |
 | Validation | zod, shared by forms, server actions, AI tool inputs and imports |
@@ -60,6 +60,7 @@ src/
       members/page.tsx                   members, invites, access requests (Admin and up)
       settings/page.tsx                  rename, transfer ownership, delete (Owner)
     invite/[token]/page.tsx              accept or decline an invite
+    dev/tree/page.tsx                    developer-only layout playground (404 on Vercel)
     api/
       auth/[...all]/route.ts             Better Auth handler
       chat/route.ts                      AI chat (streaming)
@@ -76,7 +77,7 @@ src/
     import-export/                       json.ts, gedcom.ts
   tree/                                  pure functions, run in the browser and in tests
     sheet-view.ts                        which people and unions belong on a sheet
-    layout/                              LayoutEngine interface + relatives-tree / ELK adapters
+    layout/                              LayoutEngine interface + ELK.js adapter
   components/
     tree/                                FamilyCanvas, PersonNode, UnionNode (heart)
     chat/                                ChatWidget, ProposalCard
@@ -150,24 +151,33 @@ flowchart LR
     D --> E["Canvas<br/>pan, zoom, minimap, fit to screen"]
 ```
 
-- These steps run in the browser, so after any edit the whole tree is laid out again straight away. That is the "auto adjust" requirement. A family of a few hundred people takes milliseconds.
-- The layout engine sits behind an interface, so relatives-tree can be swapped for ELK.js without touching the canvas:
+- These steps run in the browser, so after any edit the whole tree is laid out again straight away. That is the "auto adjust" requirement. Layout takes about 30 ms for 100 people and about 250 ms for 300.
+- The layout engine sits behind an interface (`src/tree/layout/`), so it can be replaced without touching the canvas. It is async because ELK.js only offers an async API:
 
 ```ts
 interface LayoutEngine {
-  layout(view: SheetView): {
-    persons: { id: string; x: number; y: number }[];
-    unions: { id: string; x: number; y: number }[]; // heart positions
+  layout(view: SheetView): Promise<{
+    persons: { id: string; x: number; y: number }[]; // top-left of each card
+    unions: { id: string; x: number; y: number }[]; // heart centre (a single parent: bottom of the card)
     links: { from: string; to: string; kind: "partner" | "child" }[];
-  };
+    width: number;
+    height: number;
+  }>;
 }
 ```
+
+**Engine: ELK.js `layered`** (decided in step 2). relatives-tree was tried and rejected: it only draws the root's own relatives, so it dropped the in-law parents, and it separated Steve Cruz from his ex-partner. How the ELK adapter works:
+- Partners are grouped into **blocks** drawn side by side: a couple, or a chain such as ex-partner – person – partner. Each block is one ELK node, so partners can never be pulled apart.
+- Each block has fixed connection points: one under each heart, one above each person whose parents are on the sheet. ELK then arranges the blocks in generation rows and avoids crossing lines.
+- Hearts are placed from the final card positions by a shared helper, the same way for every engine.
+- **Sibling order:** avoiding crossing lines comes first, as in the sample image. Siblings with no family of their own below them are then re-packed eldest first, left to right. Siblings with families of their own keep the crossing-free position, so they may not be in birth order.
+- Node placement is `NETWORK_SIMPLEX`, which centres parents over their children. `BRANDES_KOEPF` is about 35% faster but hangs each family off one child, so it looks lopsided.
 
 Card design, from Features.txt and the sample:
 - Round photo using a Cloudinary face crop, or initials when there is no photo.
 - Border: light blue for male, light pink for female.
 - Name, then years. Living people show `1985`; people who have died show `1945 – 2022`. Unknown years are left out.
-- Partners side by side with ♥ between them (a broken heart if divorced). Children hang from the heart, ordered by birth year.
+- Partners side by side with ♥ between them (a broken heart if divorced). Children hang from the heart, eldest first where that adds no crossing lines (see Sibling order above).
 - A sheet picture (PNG/PDF) is captured from the canvas in the browser.
 
 ## 8. Permissions
@@ -571,6 +581,6 @@ Model and prompt:
 ## 15. Open questions
 
 1. ~~**Who approves access requests**~~ **Resolved 2026-10-18:** only Admins and the Owner, the same rule as invites.
-2. **Layout engine:** relatives-tree or ELK.js, to be decided by the layout test. That test is blocked until the npm registry serves `relatives-tree` and `@xyflow/react`.
+2. ~~**Layout engine**~~ **Resolved 2026-10-18 (step 2):** ELK.js. relatives-tree couldn't draw in-law parents ([§7](#7-tree-rendering-and-auto-layout)).
 3. **Better Auth organization plugin:** adopt it for groups, members and invites if it supports in-app invites without email.
 4. **Google sign-in on preview deployments:** a fixed branch URL, or the OAuth proxy plugin.

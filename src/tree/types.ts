@@ -1,0 +1,39 @@
+// Pure tree types shared by the browser, the server and tests.
+// Database records (ARCHITECTURE.md §5) add groupId, audit fields and deletedAt on top of these.
+
+export type Gender = "male" | "female";
+
+export interface Person {
+  id: string;
+  name: string;
+  gender: Gender;
+  birthYear?: number;
+  deathYear?: number; // absent = living
+  photoId?: string; // Cloudinary public ID
+}
+
+/** A couple (the heart), or a single parent when there is one partner. */
+export interface Union {
+  id: string;
+  partnerIds: [string] | [string, string];
+  status: "married" | "divorced";
+  childIds: string[];
+}
+
+export interface Sheet {
+  rootPersonId: string;
+  extraPersonIds: string[];
+}
+
+export interface FamilyData {
+  persons: Person[];
+  unions: Union[];
+}
+
+/** Who is drawn on one sheet. Built by buildSheetView(). */
+export interface SheetView {
+  rootPersonId: string;
+  persons: Person[];
+  /** Only unions whose partners are all on the sheet; childIds limited to people on the sheet. */
+  unions: Union[];
+}

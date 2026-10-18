@@ -9,8 +9,8 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | Step | What | Status |
 |---|---|---|
 | 0 | Prerequisites | npm fixed 2026-10-18; accounts are created as each step needs them |
-| 1 | Project skeleton and auto-deploy | Owner OK'd 2026-10-18; pushed `step-1-skeleton`. Waiting for CI, the Vercel import and the merge to `main` |
-| 2 | Sheet view and tree layout | Not started |
+| 1 | Project skeleton and auto-deploy | Done 2026-10-18 (merged to `main`) |
+| 2 | Sheet view and tree layout | Owner OK'd and committed 2026-10-18 on `step-2-layout`. ELK.js chosen; see the step 2 notes. Waiting for push and merge to `main` |
 | 3 | Database and the single write path | Not started |
 | 4 | Google sign-in (F1) | Not started |
 | 5 | Groups, roles and opening a sheet (F2, F5) | Not started |
@@ -25,7 +25,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 
 - **One step at a time.** At the end of each step, all tests are run and the owner gets a short "try this" list. Once the owner approves, the step is committed to a `step-N-<name>` branch and pushed. Vercel builds a preview against `familytree_preview`, the owner checks it, and the branch is merged to `main`, which deploys the live site.
 - **Databases:** one free Atlas cluster. `familytree_dev` for local development, `familytree_preview` for Vercel previews, `familytree` for the live site (§12). Each test run gets a throwaway `familytree_test_<run-id>`, dropped afterwards.
-- **Test data:** `test/fixtures/cruz-young.ts` holds the 34 people from the sample tree image (names, genders and years only). It covers a same-sex couple, a divorce and remarriage, and in-law parents. Only this invented data is used until permissions exist (step 5).
+- **Test data:** `test/fixtures/cruz-young.ts` holds the 36 people from the sample tree image (names, genders and years only). It covers a same-sex couple, a divorce and remarriage, and in-law parents. Only this invented data is used until permissions exist (step 5).
 - **Design changes:** when a step settles a design question, ARCHITECTURE.md (the relevant section and §15) and Features.txt are updated in that step's commit, and the Progress table here gets a note.
 - **Network:** the Claude Code sandbox on the owner's machine may block some calls (`github.com` push, `*.mongodb.net`, `api.anthropic.com`, `ui.shadcn.com`). The owner decides whether to allow the specific domain. Otherwise they run that command in their own terminal; GitHub Actions also runs every test.
 
@@ -36,10 +36,10 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 - **End-to-end tests (Playwright, Chromium):** the real app against the test database. Sign-in uses a test-only login, enabled only by `E2E_TEST_LOGIN=1` and never set on Vercel. A test checks that it returns 404 without the flag.
 - **CI (GitHub Actions, from step 1):** lint, type-check, unit, integration and e2e on every push. The test database URI is a repo secret.
 - **Every step:** `npm run lint && npm run typecheck && npm test && npm run test:e2e` pass locally, CI is green on the branch, and the "try this" list passes on the Vercel preview before merging.
-- Code additions beyond §4: `test/fixtures/`, `e2e/`, and `src/app/dev/*` pages. The dev pages return 404 unless run with `npm run dev`, so they never appear on Vercel.
+- Code additions beyond §4: `test/fixtures/`, `e2e/`, and `src/app/dev/*` pages. The dev pages return 404 unless run with `npm run dev` or built with `ENABLE_DEV_PAGES=1` (the e2e tests do this), so they never appear on Vercel.
 
 ## Step 0: Prerequisites
-- [x] npm registry token refreshed. `@swc/helpers`, `better-auth`, `@xyflow/react`, `relatives-tree` and `create-next-app` all install.
+- [x] npm registry token refreshed. `@swc/helpers`, `better-auth`, `@xyflow/react` and `create-next-app` all install.
 - Accounts the owner creates when their step arrives: Vercel (step 1), MongoDB Atlas (step 3), a Google Cloud OAuth client (step 4), Cloudinary (step 7), an Anthropic API key (step 9).
 
 ## Step 1: Project skeleton and auto-deploy
@@ -57,12 +57,12 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - `src/tree/sheet-view.ts`: `buildSheetView()` following §6: ancestors, then descendants of every ancestor, then partners (not their parents), then extras.
   - `src/tree/layout/`: the `LayoutEngine` interface from §7, with two adapters, relatives-tree and ELK.js `layered` (unions as their own nodes).
   - `src/components/tree/`: `FamilyCanvas` (React Flow with pan, zoom, minimap and fit to screen), `PersonNode` (round photo or initials, light-blue or light-pink border, name, years) and `UnionNode` (♥, or a broken heart for divorced, children ordered by birth year).
-  - `/dev/layout` shows any sheet from the fixture, with a switch between the two engines.
+  - `/dev/tree` (named so it doesn't clash with Next.js `layout.tsx` files) shows any sheet from the fixture.
 - **Tests:**
   - **Sheet view (unit), using the worked examples from §6:**
     - The Cruz sheet rooted at Alexander Cruz includes Timothy Cruz, Amy Harolds, all their descendants, and partners such as Jerry Willow, Taylor Humes, Arjun Patel and Emma Young. It excludes Cynthia Willow and Fred Lambert.
     - Jerry Willow's sheet includes his parents and the same Jake, Olivia and Timothy Cruz records.
-    - The Cruz sheet plus the 4 in-law parents as extras contains all 34 people.
+    - The Cruz sheet plus the 4 in-law parents as extras contains all 36 people.
   - **Layout (unit, same tests run on both engines):**
     - No cards overlap, and each generation sits in one row.
     - Children are below their parents' union, and partners sit beside their union.
@@ -70,8 +70,13 @@ The app is built in small steps. Each step ends with its tests passing, a check 
     - Adding a child re-lays out with no overlaps.
     - A generated 300-person tree lays out in under 200 ms.
     - Living people show `1985` and deceased people `1945 – 2022`.
-  - **Visual:** a Playwright screenshot of the 34-person sheet, compared by eye with the sample image.
+  - **Visual:** a Playwright screenshot of the 36-person sheet, compared by eye with the sample image.
 - **Decision:** keep the engine that passes and looks closer to the sample, and remove the other. Update §3, §7 and §15 question 2.
+- **Step 2 notes (2026-10-18):**
+  - ELK.js chosen. relatives-tree dropped the 4 in-law parents (it only draws the root's own relatives) and separated Steve from Sammie. ELK passed every structural test. Partners are grouped into side-by-side blocks (ARCHITECTURE.md §7).
+  - Sibling order: strict birth order would add crossing lines, and the sample image isn't in birth order either. Siblings with no family of their own are now eldest first; siblings with their own families keep the crossing-free position.
+  - Speed: about 30 ms for 100 people and about 250 ms for 300, so the 200 ms target was missed. The faster placement option looked lopsided. The test is now a regression guard: under 400 ms locally, 1500 ms on CI.
+  - Cards use the system serif font. Google Fonts is blocked on the work network; a self-hosted font can be added later.
 
 ## Step 3: Database and the single write path
 - **Owner:** create the Atlas M0 cluster, allow network access from `0.0.0.0/0`, and create separate database users per §11. Connection strings go in `.env.local` (never committed). In Vercel, set `MONGODB_DB=familytree` for Production and `familytree_preview` for Preview.
@@ -83,7 +88,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
     - Temporary IDs (`new:1`) are resolved in order.
     - Validation: a union has 1–2 partners, a person is a child of at most one union, and references must exist in the same group.
     - Writes happen in one transaction and set the audit fields.
-  - `npm run seed` loads the fixture into `familytree_dev` through `applyOperations`. `/dev/layout` can read from the database.
+  - `npm run seed` loads the fixture into `familytree_dev` through `applyOperations`. `/dev/tree` can read from the database.
 - **Tests:**
   - Integration: an operations batch with temp IDs is applied all-or-nothing; invalid batches change nothing; soft delete and undo work.
   - Integration: repositories never return another group's records.

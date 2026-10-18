@@ -47,7 +47,8 @@ Tech stack & deployment
   - Upload directly from the browser (avoids Vercel's request size limit).
   - Random file names (or signed URLs) so photos aren't guessable.
 - Tree drawing: React Flow for the canvas (pan/zoom/minimap, custom person cards).
-- Auto layout: relatives-tree; fall back to ELK.js if it can't handle in-law cases.
+- Auto layout: ELK.js (layered), chosen in step 2. relatives-tree only draws the root's own relatives,
+  so it dropped in-law parents. Siblings are eldest first where that adds no crossing lines.
 - UI: Tailwind CSS + shadcn/ui.
 - AI chat: Claude API via @anthropic-ai/sdk with tool calling, model claude-haiku-5-5.
   - Model name kept in an environment variable so it can be switched without code changes.
@@ -122,6 +123,6 @@ Import / export
 - PNG/PDF: picture of a sheet.
 
 First build step
-- Spike the tree layout (React Flow + relatives-tree) using the people from samples/Sample Family Tree.png,
+- Done in step 2 (ELK.js chosen). Was: spike the tree layout using the people from samples/Sample Family Tree.png,
   before building the rest - it is the riskiest part.
 

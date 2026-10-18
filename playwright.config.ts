@@ -30,5 +30,6 @@ export default defineConfig({
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !isCI,
     timeout: 180_000,
+    env: { ENABLE_DEV_PAGES: "1" }, // include /dev/* pages in the test build (src/app/dev/layout.tsx)
   },
 });
