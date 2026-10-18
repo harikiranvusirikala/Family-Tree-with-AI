@@ -1,6 +1,6 @@
 # Family Tree with AI — Architecture
 
-**Status:** design agreed, build in progress · **Requirements:** [Features.txt](Features.txt) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-18
+**Status:** steps 1–6 of 11 built and live (sign-in, groups and roles, sheets, editing by hand); photos, members and invites, AI chat, import/export and backups to come ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.txt](Features.txt) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-18
 
 A web app where a family builds its tree together. People are added by hand or by chatting with an AI assistant, laid out automatically in the style of [samples/Sample Family Tree.png](samples/Sample%20Family%20Tree.png), and shared privately with relatives through their Google accounts.
 
@@ -33,64 +33,80 @@ A web app where a family builds its tree together. People are added by hand or b
 
 | Layer | Choice |
 |---|---|
-| Language and framework | TypeScript, Next.js (App Router, server components, server actions) |
-| UI | Tailwind CSS, shadcn/ui |
+| Language and framework | TypeScript, Next.js 16 (App Router, server components, server actions, Cache Components, Turbopack), React 19 |
+| UI | Tailwind CSS v4 (shadcn/ui not needed so far) |
 | Tree canvas | React Flow (`@xyflow/react`) |
 | Auto-layout | ELK.js (`layered`), behind an adapter ([§7](#7-tree-rendering-and-auto-layout)) |
-| Sign-in | Better Auth, Google provider only |
+| Sign-in | Better Auth 1.7, Google provider only; OAuth proxy plugin for previews |
 | Database | MongoDB Atlas M0, official `mongodb` driver |
 | Validation | zod, shared by forms, server actions, AI tool inputs and imports |
 | Photos | Cloudinary (signed direct upload, face-aware crops) |
 | AI chat | Claude API via `@anthropic-ai/sdk`, model `claude-haiku-5-5`, tool calling, streaming |
-| Hosting and CI | Vercel Hobby, GitHub |
+| Hosting and CI | Vercel Hobby, GitHub Actions |
+| Tests | Vitest (unit, and database tests against Atlas), Playwright (end-to-end, against a production build) |
 | Backups | GitHub Actions (scheduled) |
 
 The reasons behind each choice are recorded in [Features.txt](Features.txt) under DECISIONS.
 
 ## 4. Code layout
 
+Built so far (steps 1–6). Items marked *(step N)* are still to come.
+
 ```
 src/
   app/                                   Next.js routes
-    page.tsx                             landing + "Sign in with Google"
-    dashboard/page.tsx                   My groups · Shared with me · invites · my access requests
+    page.tsx                             landing + "Sign in with Google" (static)
+    dashboard/                           My groups · Shared with me · create a group (F2); invites and requests (step 8)
+      page.tsx, actions.ts, NewGroupForm.tsx
     g/[groupId]/
-      page.tsx                           redirects to the first pinned sheet
-      s/[sheetId]/page.tsx               tree canvas + sheet tabs + AI chat
-      members/page.tsx                   members, invites, access requests (Admin and up)
-      settings/page.tsx                  rename, transfer ownership, delete (Owner)
-    invite/[token]/page.tsx              accept or decline an invite
+      page.tsx                           opens the first pinned sheet
+      actions.ts                         applyChangesAction: every edit made by hand (F6)
+      s/layout.tsx                       loads the group once and draws its sheets: tabs, canvas, panels (F5, F6)
+      s/GroupSheets.tsx                  the sheet tabs and editor in the browser
+      s/[sheetId]/page.tsx               empty: the layout above reads the sheet from the URL
+      settings/                          rename, delete (Owner); transfer ownership (step 8)
+      members/page.tsx                   members, invites, access requests, Admin and up (step 8)
+    invite/[token]/page.tsx              accept or decline an invite (step 8)
     dev/tree/                            developer-only pages (404 on Vercel): layout playground; db/ draws the seeded family
     api/
       auth/[...all]/route.ts             Better Auth handler
-      chat/route.ts                      AI chat (streaming)
-      uploads/sign/route.ts              Cloudinary upload signature
-      groups/[groupId]/export/route.ts   JSON / GEDCOM download
-      groups/[groupId]/import/route.ts   parse and preview an import
+      chat/route.ts                      AI chat, streaming (step 9)
+      uploads/sign/route.ts              Cloudinary upload signature (step 7)
+      groups/[groupId]/export/route.ts   JSON / GEDCOM download (step 10)
+      groups/[groupId]/import/route.ts   parse and preview an import (step 10)
   proxy.ts                               signed-out visitors → sign in, keeping the link (cookie check only)
   server/                                server-only code
-    db.ts                                MongoDB client, reused across invocations
+    db.ts                                MongoDB client, reused across invocations (lazyDatabase, getDatabase)
     auth.ts                              Better Auth instance
     auth-options.ts                      its settings, shared with the e2e sign-in fixture
-    auth-urls.ts                         base URL and trusted origins for each environment
+    auth-urls.ts                         base URL and trusted origins for each environment (pure)
     proxy-rules.ts                       what proxy.ts does with a request (pure)
     permissions.ts                       getUser, requireUser, requireRole
     roles.ts                             the §8 role table, NoAccessError (pure)
-    repositories/                        data access; every function takes groupId (groups.ts: groups and memberships)
-    operations/                          applyOperations: the single write path
-    ai/                                  system prompt, tool definitions, proposal builder
-    import-export/                       json.ts, gedcom.ts
+    group-changed.ts                     revalidates the dashboard and a group's pages after a change
+    repositories/                        data access; every function takes groupId
+      documents.ts                       document types, collections, ensureIndexes
+      family.ts                          loadGroupTree, toGroupTree (documents → tree types)
+      groups.ts                          roleInGroup, createGroup, applyGroupChanges, list, rename, delete
+    operations/                          the single write path
+      schema.ts, plan.ts, apply.ts       zod operations, the pure planner, applyOperations
+      new-group.ts, from-family.ts       F2's first records; family data → operations (seed, imports)
+    ai/                                  system prompt, tool definitions, proposal builder (step 9)
+    import-export/                       json.ts, gedcom.ts (step 10)
   tree/                                  pure functions, run in the browser and in tests
     sheet-view.ts                        which people and unions belong on a sheet
     edits.ts                             edits made by hand → operations; tab order
     layout/                              LayoutEngine interface + ELK.js adapter
   components/
     AppHeader.tsx, NoAccess.tsx          the signed-in header; the "no access" page
-    auth/                                SignInButton, UserMenu, Better Auth's browser client
+    initials.ts, use-hydrated.ts         shared helpers
+    auth/                                SignInButton, UserMenu, Better Auth's browser client, safeReturnTo
     tree/                                FamilyCanvas, PersonNode, UnionNode (heart)
-      edit/                              PersonPanel, CouplePanel, SheetTabs (editing, F6)
-    chat/                                ChatWidget, ProposalCard
-    ui/                                  shadcn components
+      edit/                              PersonPanel, CouplePanel, SheetTabs, person form (F6)
+    chat/                                ChatWidget, ProposalCard (step 9)
+test/                                    fixtures (the sample family), database helpers, planning.ts, seed
+e2e/                                     Playwright specs and fixtures (signIn, sampleGroup, addMember)
+scripts/                                 db:ping, db:setup, seed
 ```
 
 ## 5. Data model
@@ -192,6 +208,7 @@ Card design, from Features.txt and the sample:
 - Name, then years. Living people show `1985`; people who have died show `1945 – 2022`. Unknown years are left out.
 - Partners side by side with ♥ between them (a broken heart if divorced). Children hang from the heart, eldest first where that adds no crossing lines (see Sibling order above).
 - A sheet picture (PNG/PDF) is captured from the canvas in the browser.
+- For Maintain and up, each card and heart is also a button that opens its panel (F6). The click handlers and the selection reach the cards through a React context, so selecting someone doesn't lay the sheet out again. Without them (the dev pages, and Viewers' edit controls) the canvas is read-only.
 
 ## 8. Permissions
 
@@ -216,10 +233,10 @@ export async function requireRole(groupId: string, min: Role) {
 }
 ```
 
-Pages catch `NoAccessError` and show the same "You don't have access to this family tree" page for every case. Server actions return an error message instead.
+Pages catch `NoAccessError` and show the same "You don't have access to this family tree" page for every case. Server actions return an error message instead ("You don't have permission to change this tree" for edits). `roleInGroup` (in `repositories/groups.ts`) is the database part of the check, so database tests can call it directly.
 
 Rules:
-- Call `requireRole` in every server action, API route and data load, not only in `layout.tsx`. Next.js layouts don't re-run on every navigation, and server actions can be called directly.
+- Call `requireRole` in every server action, API route and data load, not only in `layout.tsx`. Next.js layouts don't re-run on every navigation, and server actions can be called directly. A layout that loads data checks for itself (the sheets layout does); a page never relies on a layout's check.
 - Repository functions require a `groupId`, so no query can read across groups.
 - The role is never stored in the session. Removing someone takes effect on their next request.
 - "No access" looks the same whether or not the group exists, so tree URLs can't be used to probe for groups.
@@ -274,7 +291,8 @@ sequenceDiagram
 - The pinned sheets are "<Father>'s family", rooted at the father, and "<Mother>'s family", rooted at the mother.
 - The user can add themselves as the couple's child in the same step.
 - One transaction: `createGroup` (`src/server/repositories/groups.ts`) inserts the group and the owner membership, then runs the family's operations through the same planner and writes as `applyOperations` (`applyInTransaction`). If any operation is invalid, nothing is saved, not even the group.
-- A group link (`/g/{groupId}`) opens the first pinned sheet.
+- A group link (`/g/{groupId}`) opens the first pinned sheet. The redirect is streamed (it happens inside `<Suspense>`), not a 307.
+- Server actions that change a group call `groupChanged()`, which revalidates the dashboard and the group's pages. Without it, Back or a link showed pages the browser had kept from before the change (found in step 5).
 
 ### F3. Invite someone
 
@@ -359,6 +377,7 @@ sequenceDiagram
 
 - The whole group's data is loaded once (fine up to a few thousand people), so switching sheet tabs is instant. A tab changes the URL with `history.pushState`, which Next.js's router follows, and the server isn't asked again.
 - Tabs: pinned sheets first (Father's, then Mother's), then the rest in their saved order.
+- The sheets are drawn by the layout `g/[groupId]/s/layout.tsx`, not the `[sheetId]` page, so they stay mounted while tabs change `[sheetId]`. Otherwise the next save's refresh would render a new page and close any open panel. An unknown sheet id shows the first sheet and corrects the address bar.
 
 ### F6. Edit the tree by hand
 
@@ -368,20 +387,22 @@ sequenceDiagram
     participant B as Browser
     participant App as Next.js app
     participant DB as MongoDB
-    M->>B: Add a child under a couple
-    B->>App: Server action applyOperations(groupId, ops)
+    M->>B: Add a child (person panel)
+    B->>B: Build the batch (src/tree/edits.ts)
+    B->>App: Server action applyChangesAction(groupId, ops)
+    App->>DB: requireUser, then roleInGroup(maintain)
     App->>App: Validate the operations (zod)
-    App->>DB: requireRole(maintain)
-    App->>DB: Transaction: insert the person, add to the union's children, set audit fields
-    App-->>B: Updated group data
+    App->>DB: Transaction: load the group, plan, insert the person, add to the couple's children, set audit fields
+    App->>App: groupChanged(groupId)
+    App-->>B: The page re-renders with the new group data
     B->>B: Rebuild view and layout, the tree re-arranges itself
 ```
 
 - The same `applyOperations` handles AI proposals ([F7](#f7-ai-chat-priya-married-into-our-family)) and imports ([F10](#f10-import)).
-- Delete is a soft delete with Undo.
-- As built (step 6): clicking a card opens a person panel (details for everyone; Edit details, Add parents, Add partner, Add child, Show on another sheet and Delete for Maintain and up). Clicking a heart opens the couple's panel (Married or Divorced, Add child). The tabs have "+ New sheet" and a menu to rename, pin and move the current tab.
-- Each form becomes one batch, built by the pure helpers in `src/tree/edits.ts` and sent to the server action `applyChangesAction`. That action calls `applyGroupChanges`: `roleInGroup(…, maintain)`, then `applyOperations`. The page then re-renders with the new data (`groupChanged`).
-- Deleting shows "Name deleted · Undo" for 10 seconds. A sheet's root can't be deleted.
+- Clicking a card opens the person panel: details for everyone, and for Maintain and up Edit details, Add parents (or "Add the other parent"), Add partner (with "Create their own sheet", checked by default), Add child, Show on another sheet and Delete. Clicking a heart opens the couple panel: Married or Divorced, and Add child.
+- The tabs have "+ New sheet" and a menu to rename, pin and move the current tab (buttons, not drag-and-drop).
+- Each form becomes one batch, so it's applied completely or not at all. Form errors show in the panel; the server's reason shows above the canvas.
+- Delete is a soft delete with a 10-second Undo. A sheet's root can't be deleted. Deleted people count as absent ([§10](#10-ai-chat-design)), so after deleting someone's parents, new ones can be added.
 - Viewers get the panels without any edit controls; the server action is the real check.
 
 ### F7. AI chat: "Priya married into our family"
@@ -412,8 +433,8 @@ sequenceDiagram
     App-->>C: "Shown to the user, waiting for confirmation"
     C-->>B: Summary and a proposal card
     U->>B: Confirm
-    B->>App: Server action applyOperations(groupId, proposal)
-    App->>DB: requireRole(maintain), transaction
+    B->>App: Server action applyChangesAction(groupId, proposal), the same as F6
+    App->>DB: roleInGroup(maintain), transaction
     App-->>B: Updated data, the tree re-lays out and a new sheet tab appears
 ```
 
@@ -554,6 +575,8 @@ How `applyOperations` works (`src/server/operations/`, built in step 3):
 - Added in step 6: `addPartner` only for a couple with one partner, and the new partner can't be one of the couple's descendants; `reorderSheets` must list every sheet exactly once; a person who is a sheet's root can't be deleted (the sheet would be empty). Tabs show pinned sheets first, then the saved order.
 - Deleted people stay in their couples (so Undo restores them fully) but count as absent, exactly as the browser shows them (`toGroupTree`): a couple whose partners are all deleted isn't anyone's parents, so its children can be given new parents (they leave the old couple, so restoring the old parents can't give them two sets); and a new partner can take a deleted partner's place (`addPartner`).
 - All or nothing: one invalid operation rejects the batch. Concurrent edits are safe: on a write conflict MongoDB retries the transaction, which re-reads the group.
+- `parseOperations` and `applyInTransaction` let a caller write more in the same transaction: `createGroup` adds the group and its owner membership (F2).
+- `OperationError` carries the failing change's index and its `reason`; a form shows the reason as a sentence.
 
 Model and prompt:
 - The model comes from `CHAT_MODEL` (`claude-haiku-5-5`), and responses are streamed.
@@ -565,10 +588,11 @@ Model and prompt:
 
 - **Sign-in:** Google only. No passwords are stored. Only Google-verified email addresses are accepted. Sessions are httpOnly cookies backed by the `sessions` collection.
 - **Test sign-in:** e2e tests sign in through a Playwright fixture that writes users and sessions straight into the test database (Better Auth's `testUtils`). The app has no test-login route, and ESLint forbids importing `testUtils` under `src/`.
-- **Permissions:** checked on the server for every request ([§8](#8-permissions)).
+- **Permissions:** checked on the server for every request ([§8](#8-permissions)). `src/proxy.ts` sends signed-out visitors to sign in (deny by default), but it only looks for a session cookie; it's a convenience, not the check.
+- **Sign-in limits:** Better Auth rate-limits sign-in attempts in production (3 per 10 seconds per IP).
 - **Group isolation:** `groupId` is on every record and in every query.
 - **Photos:** random public IDs under `groups/{groupId}/`. If stronger privacy is needed later, switch to Cloudinary's signed delivery.
-- **Secrets:** only in Vercel environment variables and GitHub Secrets, never committed. `.env.local` is git-ignored.
+- **Secrets:** only in Vercel environment variables and GitHub Secrets, never committed. `.env.local` is git-ignored. Keep local settings there only: Next.js also loads a `.env` file as a fallback.
 - **Database network access:** Vercel and GitHub Actions use changing IP addresses, so Atlas must allow connections from anywhere (`0.0.0.0/0`). This is offset by a separate database user per purpose (the app gets read/write on its own database, the backup gets read-only) and long random passwords.
 - **Preview deployments** use their own database, so testing can't damage real data.
 - **Backups** are encrypted.
@@ -580,10 +604,12 @@ Model and prompt:
 |---|---|---|---|
 | Local | `npm run dev` | `http://localhost:3000` | `familytree_dev` |
 | Preview | Push to any branch other than `main`, or a PR | A `*.vercel.app` URL per branch | `familytree_preview` |
-| Production | Push to `main` | `<project>.vercel.app` or a custom domain | `familytree` |
+| Production | Push to `main` | https://family-tree-with-ai.vercel.app | `familytree` |
+| End-to-end tests | `npm run test:e2e` (locally and on CI) | `http://localhost:3100` (a production build) | `familytree_test_<time>_e2e`, seeded and removed per run |
 
 - `vercel.json` sets the framework to Next.js, which overrides the Framework Preset in the Vercel dashboard.
 - All three databases live in the one free Atlas cluster and share its 512 MB.
+- From a laptop far from the cluster, each save takes 1–5 seconds (a transaction plus a re-render), so the e2e tests wait up to 15 seconds per check. On Vercel the functions should run near the cluster: `vercel.json` doesn't set `regions`, so they run in Vercel's default `iad1` (Washington); set it if the cluster is elsewhere.
 - Tests use throwaway `familytree_test_<time>_<label>` databases in the same cluster: one per database-test file and one per e2e run. They remove themselves afterwards, and leftovers from crashed runs are cleared after an hour.
 - Google only accepts exact redirect URLs, so only two are registered: `http://localhost:3000/api/auth/callback/google` and the production one.
 - **Google sign-in on previews** goes through production, using Better Auth's OAuth proxy plugin (decided in step 4):
@@ -609,6 +635,8 @@ Model and prompt:
 | `CHAT_DAILY_LIMIT` | App | Messages per user per day, for example 50 |
 | `MONGODB_BACKUP_URI` | GitHub Actions | Read-only database user |
 | `BACKUP_ENCRYPTION_KEY` | GitHub Actions | Stored in GitHub Secrets |
+| `ENABLE_DEV_PAGES` | Tests only | `1` includes the `/dev/*` pages in a production build (set by `playwright.config.ts`); never on Vercel |
+| `E2E_MONGODB_DB`, `E2E_BASE_URL`, `E2E_AUTH_SECRET` | Tests only | Set by `playwright.config.ts` for each run and shared by the web server and the test workers |
 
 ## 14. Limits and when to upgrade
 
@@ -619,10 +647,12 @@ Model and prompt:
 | Cloudinary | Monthly credits shared by storage, bandwidth and transformations | Thousands of large photos or heavy traffic | Resize on upload, or a paid plan |
 | Claude API | Paid per use | Many active chat users | Daily cap and spend limit already in place |
 | Data per page | The whole group is loaded at once | Several thousand people in one group | Load each sheet's people from the server |
+| Atlas M0 speed | Shared, throttled cluster | Slow saves from far away; many editors at once | Functions in the cluster's region; a paid tier |
 
 ## 15. Open questions
 
 1. ~~**Who approves access requests**~~ **Resolved 2026-10-18:** only Admins and the Owner, the same rule as invites.
 2. ~~**Layout engine**~~ **Resolved 2026-10-18 (step 2):** ELK.js. relatives-tree couldn't draw in-law parents ([§7](#7-tree-rendering-and-auto-layout)).
 3. ~~**Better Auth organization plugin**~~ **Resolved 2026-10-18 (step 5):** our own `groups`, `memberships` and `invites`. The plugin does allow invites without email, but in 1.7.10 it writes in its own transaction (F2 needs the group, owner membership and family in one), matches invite emails by lowercase only (F3 also ignores gmail dots and `+tags`), allows several owners (§8: exactly one), and adds about 40 HTTP endpoints that change members outside `requireRole`.
-4. ~~**Google sign-in on preview deployments**~~ **Resolved 2026-10-18 (step 4):** Better Auth's OAuth proxy plugin, with its own `OAUTH_PROXY_SECRET`. Previews keep their own database and secret, and Google keeps just two redirect URIs ([§12](#12-environments)).
+4. ~~**Google sign-in on preview deployments**~~ **Resolved 2026-10-18 (step 4):** Better Auth's OAuth proxy plugin, with its own `OAUTH_PROXY_SECRET`. Previews keep their own database and secret, and Google keeps just two redirect URIs ([§12](#12-environments)). Checked working on step 5's preview.
+5. **Deleting a sheet, and hiding an extra person from a sheet:** left out of step 6 to keep it small. When they're added, each needs a UI-only operation; deleting a sheet must never delete people ([§6](#6-sheets-views-not-copies)).

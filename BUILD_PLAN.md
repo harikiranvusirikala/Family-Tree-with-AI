@@ -14,7 +14,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 3 | Database and the single write path | Done 2026-10-18 (merged to `main`). See the step 3 notes |
 | 4 | Google sign-in (F1) | Done 2026-10-18 (merged to `main`). Real Google sign-in checked on production; indexes set up in `familytree_preview` and `familytree`. See the step 4 notes |
 | 5 | Groups, roles and opening a sheet (F2, F5) | Done 2026-10-18 (merged to `main`). §15 question 3 settled: our own collections. Google sign-in through the OAuth proxy checked on its preview. See the step 5 notes |
-| 6 | Editing the tree by hand (F6) | Owner OK'd and committed 2026-10-18 on `step-6-editing` (lint, typecheck, unit, db and e2e tests pass). Waiting for push and merge to `main` |
+| 6 | Editing the tree by hand (F6) | Done 2026-10-18 (merged to `main`). See the step 6 notes |
 | 7 | Photos (F8) | Not started |
 | 8 | Members, invites and access requests (F3, F4) | Not started |
 | 9 | AI chat (F7) | Not started |
@@ -58,162 +58,153 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 - Code additions beyond §4: `test/` (fixtures, database helpers, seed), `e2e/`, `scripts/` (`db:ping`, `db:setup`, `seed`), and `src/app/dev/*` pages. The dev pages return 404 unless run with `npm run dev` or built with `ENABLE_DEV_PAGES=1` (the e2e tests do this), so they never appear on Vercel.
 
 ## Step 0: Prerequisites
-- [x] npm registry token refreshed. `@swc/helpers`, `better-auth`, `@xyflow/react` and `create-next-app` all install.
-- [x] Commands that need ports or MongoDB allowlisted in the sandbox (see How we work).
-- [x] MongoDB Atlas cluster reachable from the owner's machine (`npm run db:ping`).
-- [x] Stale environment fixed. An old `.env` file plus VS Code's `python.terminal.useEnvFile` setting had loaded empty values into the session, and tools never override variables that are already set. Both were removed and the session restarted.
-- Accounts the owner creates when their step arrives: Vercel (step 1, done), MongoDB Atlas (step 3, done), a Google Cloud OAuth client (step 4, done), Cloudinary (step 7), an Anthropic API key (step 9).
+- An npm registry token that installs `@swc/helpers`, `better-auth`, `@xyflow/react` and `create-next-app` through the mirror.
+- The commands that need ports or MongoDB allowlisted in the sandbox as `exact_match` (see How we work).
+- A MongoDB Atlas cluster reachable from the owner's machine (`npm run db:ping`).
+- A clean session environment: no stale `.env` file, and VS Code's `python.terminal.useEnvFile` off. Tools never override variables that are already set, so a stale file's empty values would win over `.env.local`.
+- Accounts are created when their step arrives: Vercel (step 1), MongoDB Atlas (step 3), a Google Cloud OAuth client (step 4), Cloudinary (step 7), an Anthropic API key (step 9).
 
 ## Step 1: Project skeleton and auto-deploy
-- **Build:**
-  - `create-next-app` (TypeScript, App Router, Tailwind, ESLint, `src/`), plus Vitest and Playwright.
-  - `.env*` added to `.gitignore`; `.env.example` lists every variable in §13.
-  - README with setup steps, a CI workflow, and a placeholder landing page at `src/app/page.tsx`.
-  - Mark §15 question 1 resolved (Admins and the Owner approve access requests).
-- **Tests:** a unit test runs, a Playwright smoke test opens `/`, `npm run build` succeeds, CI passes.
 - **Owner:** import the GitHub repo into Vercel (Hobby plan).
-- **Done when:** a push to `main` updates the live `*.vercel.app` URL and a branch push gets its own preview URL.
+- **Build:**
+  - Next.js 16.4 from `create-next-app` (TypeScript, App Router, Tailwind v4, ESLint, `src/`), React 19, Vitest and Playwright.
+  - `.env*` in `.gitignore`; `.env.example` lists every variable in §13.
+  - README with setup steps, a CI workflow, and a placeholder landing page at `src/app/page.tsx`.
+  - §15 question 1 resolved: Admins and the Owner approve access requests.
+- **Tests:** a unit test of the landing page, a Playwright smoke test of `/`, `npm run build`, and CI.
+- **Done when:** a push to `main` updates https://family-tree-with-ai.vercel.app and a branch push gets its own preview URL.
 - **Step 1 notes (2026-10-18):**
-  - Next.js 16.4 with Turbopack, Tailwind v4 and React 19. Cache Components and Partial Prefetching are on by default, so database and cookie reads in pages go inside `<Suspense>`.
+  - Cache Components and Partial Prefetching are on in Next.js 16.4, so database and cookie reads in pages go inside `<Suspense>`.
   - `create-next-app` refuses a folder that already has files, so the project was generated in a scratch folder and copied in.
   - `.npmrc` keeps `package-lock.json` free of registry download URLs: a mirror locally, the public registry on Vercel and CI, and no internal hostnames in the repo. It also sets `legacy-peer-deps=false`, which surfaced a real conflict (`@types/node` 20 vs Vitest 5), fixed by moving to Node 24 types.
   - The system font stack replaces `next/font/google` (blocked locally).
   - Playwright runs against the installed Chrome locally and its own Chromium on CI.
   - `npm audit`'s 5 "high" findings are in dev tooling only (`braces`); runtime dependencies have none.
-  - After step 3, `vercel.json` pinned the framework to Next.js (`dce3c66`). The dashboard had detected "Other", so Vercel treated the app as a static site and failed with "No Output Directory named "public" found".
+  - `vercel.json` pins the framework to Next.js (`dce3c66`, after step 3). The dashboard had detected "Other", so Vercel treated the app as a static site and failed with "No Output Directory named "public" found".
 
-## Step 2: Sheet view and tree layout (the riskiest part; no database yet)
+## Step 2: Sheet view and tree layout
 - **Build:**
   - `src/tree/sheet-view.ts`: `buildSheetView()` following §6: ancestors, then descendants of every ancestor, then partners (not their parents), then extras.
-  - `src/tree/layout/`: the `LayoutEngine` interface from §7, with two adapters, relatives-tree and ELK.js `layered` (unions as their own nodes).
-  - `src/components/tree/`: `FamilyCanvas` (React Flow with pan, zoom, minimap and fit to screen), `PersonNode` (round photo or initials, light-blue or light-pink border, name, years) and `UnionNode` (♥, or a broken heart for divorced, children ordered by birth year).
-  - `/dev/tree` (named so it doesn't clash with Next.js `layout.tsx` files) shows any sheet from the fixture.
+  - `src/tree/layout/`: the `LayoutEngine` interface from §7 and the ELK.js `layered` adapter. Partners are grouped into side-by-side blocks, and hearts are placed by the shared `placeUnions()`. Only `layoutEngine` in `index.ts` names the engine.
+  - `src/components/tree/`: `FamilyCanvas` (React Flow with pan, zoom, minimap and fit to screen), `PersonNode` (round photo or initials, light-blue or light-pink border, name, years) and `UnionNode` (♥, or a broken heart for divorced).
+  - `/dev/tree`: a layout playground over the fixture, with controls to change the root, show or hide the in-law parents, and add a child.
 - **Tests:**
-  - **Sheet view (unit), using the worked examples from §6:**
+  - **Sheet view (unit), the worked examples from §6:**
     - The Cruz sheet rooted at Alexander Cruz includes Timothy Cruz, Amy Harolds, all their descendants, and partners such as Jerry Willow, Taylor Humes, Arjun Patel and Emma Young. It excludes Cynthia Willow and Fred Lambert.
     - Jerry Willow's sheet includes his parents and the same Jake, Olivia and Timothy Cruz records.
     - The Cruz sheet plus the 4 in-law parents as extras contains all 36 people.
-  - **Layout (unit, same tests run on both engines):**
+  - **Layout (unit):**
     - No cards overlap, and each generation sits in one row.
-    - Children are below their parents' union, and partners sit beside their union.
-    - Steve Cruz's two unions and the Alexander + Jerry couple both work.
-    - Adding a child re-lays out with no overlaps.
-    - A generated 300-person tree lays out in under 200 ms.
-    - Living people show `1985` and deceased people `1945 – 2022`.
-  - **Visual:** a Playwright screenshot of the 36-person sheet, compared by eye with the sample image.
-- **Decision:** keep the engine that passes and looks closer to the sample, and remove the other. Update §3, §7 and §15 question 2.
+    - Children are below their parents' heart, and partners sit beside it.
+    - Steve Cruz's two couples and the Alexander + Jerry couple both work.
+    - Adding a child lays the sheet out again with no overlaps.
+    - Siblings with no family of their own are eldest first.
+    - A generated 300-person tree stays under 400 ms locally (1500 ms on CI).
+    - Living people show `1985` and people who have died `1945 – 2022`.
+  - **Visual:** the e2e test saves `test-results/screenshots/tree.png` of the 36-person sheet, compared by eye with the sample image.
 - **Step 2 notes (2026-10-18):**
-  - ELK.js chosen. relatives-tree dropped the 4 in-law parents (it only draws the root's own relatives) and separated Steve from Sammie. ELK passed every structural test. Partners are grouped into side-by-side blocks (ARCHITECTURE.md §7). Only `layoutEngine` in `src/tree/layout/index.ts` names the engine.
-  - Sibling order: strict birth order would add crossing lines, and the sample image isn't in birth order either. Siblings with no family of their own are now eldest first; siblings with their own families keep the crossing-free position. A test checks this on the sample (Carrie, Carlo, Tay; Amelia, Jake, Timothy; Taylor, Anna).
-  - Speed: about 30 ms for 100 people and about 250 ms for 300, so the 200 ms target was missed. The faster placement option (Brandes–Köpf) looked lopsided. The test is now a regression guard: under 400 ms locally, 1500 ms on CI.
+  - ELK.js was chosen over relatives-tree (§15 question 2), after building both behind the same interface and running the same tests on each. relatives-tree dropped the 4 in-law parents (it only draws the root's own relatives) and separated Steve from Sammie; ELK passed every structural test.
+  - Sibling order: strict birth order would add crossing lines, and the sample image isn't in birth order either. Siblings with families of their own keep the crossing-free position; the rest are re-packed eldest first. A test checks this on the sample (Carrie, Carlo, Tay; Amelia, Jake, Timothy; Taylor, Anna).
+  - Speed: about 30 ms for 100 people and about 250 ms for 300, so the planned 200 ms target was missed. The faster placement option (Brandes–Köpf) looked lopsided, so the speed test is a regression guard instead.
   - The minimap needed fixed node sizes: controlled React Flow nodes aren't measured, and the minimap skips nodes without a size.
-  - `/dev/tree` has controls to change the root person, show or hide the in-law parents, and add a child. The e2e test saves `test-results/screenshots/tree.png`.
-  - Cards use the system serif font. Google Fonts is blocked on the work network; a self-hosted font can be added later.
+  - The playground is `/dev/tree` so it doesn't clash with Next.js `layout.tsx` files. Cards use the system serif font (Google Fonts is blocked on the work network).
 
 ## Step 3: Database and the single write path
-- **Owner:** create the Atlas M0 cluster, allow network access from `0.0.0.0/0`, and create separate database users per §11. Connection strings go in `.env.local` (never committed). Vercel variables: see Environments and secrets.
+- **Owner:** create the Atlas M0 cluster, allow network access from `0.0.0.0/0`, and create separate database users per §11. The connection string goes in `.env.local` (never committed). CI needs a `MONGODB_URI` repository secret for a separate read/write test user (repo → Settings → Secrets and variables → Actions).
 - **Build:**
-  - `src/server/db.ts`: one client, reused across serverless invocations.
-  - zod schemas for the operations (see the notes for why not per collection).
-  - `src/server/repositories/`: every function requires `groupId`; soft delete via `deletedAt`; the §5 indexes are created by a script.
-  - `src/server/operations/`: `applyOperations(groupId, ops, actor)` with the `Operation` type from §10.
-    - Temporary IDs (`new:1`) are resolved in order.
-    - Validation: a union has 1–2 partners, a person is a child of at most one union, and references must exist in the same group.
-    - Writes happen in one transaction and set the audit fields.
-  - `npm run seed` loads the fixture into `familytree_dev` through `applyOperations`. `/dev/tree/db` draws it from the database.
+  - `src/server/db.ts`: one shared client, reused across requests and serverless invocations; `openDatabase(name)` for tests and scripts.
+  - `src/server/operations/`: `applyOperations(database, groupId, ops, actor)` = zod (`schema.ts`), then the pure planner `planOperations` (`plan.ts`) against the group's records, then bulk writes, all in one transaction.
+    - Temporary ids (`new:1`) resolve in order. Errors name the failing change ("Change 3: …").
+    - Rules: references must exist in the same group; a couple has 1–2 different people and can't be created twice; a person has at most one set of parents and can't become their own ancestor; a death year can't be before the birth year. Repeating `addChild` or `addToSheet` changes nothing.
+    - Writes set the audit fields. `restorePerson` undoes a soft delete; `createSheet` can pin.
+  - `src/server/repositories/`: document types (`documents.ts`, every content record has `groupId`), `loadGroupTree` (documents → the tree types, without deleted people), and `ensureIndexes` for the ��5 indexes.
+  - Scripts (`.mts`, run with `node --import tsx`): `db:ping`, `db:setup` (indexes) and `seed` (the sample family into `familytree_dev` through `applyOperations`). `/dev/tree/db` draws it from the database.
 - **Tests:**
   - Unit (23): one batch recreates the whole sample family with the same sheet views; every rule rejects bad batches with the failing change's number; the schema rejects malformed input.
-  - Database (7): an operations batch with temp IDs is applied all-or-nothing; invalid batches change nothing; soft delete and undo work; groups are isolated; two concurrent edits to the same couple both land; indexes exist.
+  - Database (7): a batch with temporary ids is applied all-or-nothing; invalid batches change nothing; soft delete and undo work; groups are isolated; two concurrent edits to the same couple both land; indexes exist.
   - E2E: the seeded family renders from the database: 36 people on "Cruz family", 32 on "Jerry Willow's family".
 - **Step 3 notes (2026-10-18):**
-  - Validation lives in the operations (zod), not on the documents. Documents are only written through `applyOperations`, so they are typed in TypeScript (`src/server/repositories/documents.ts`). `applyOperations` = zod, then a pure planner (`planOperations`, unit-tested without a database), then one transaction (ARCHITECTURE.md §10).
-  - More rules than planned: no duplicate couples, nobody becomes their own ancestor, death year not before birth year. Repeating `addChild` or `addToSheet` changes nothing.
-  - Added a `restorePerson` operation (Undo for delete) and an optional `pinned` on `createSheet` (F2 needs pinned sheets). Sheets got audit fields like the other records.
-  - IDs: documents use `ObjectId`; tree types and operations use hex strings. Conversion happens only in `loadGroupTree` and `planOperations`.
-  - Tests are split. `npm test` is unit tests only and works offline. `npm run test:db` runs the `*.db.test.ts` integration tests against Atlas. Each test file and each e2e run gets its own `familytree_test_<time>_<label>` database.
-  - The app's database user can't drop databases (good: read/write only), so tests remove their database by dropping its collections. Leftovers older than an hour are cleared at the start of each run.
-  - Scripts (`db:ping`, `db:setup`, `seed`) are `.mts` files run with `node --import tsx`. The `tsx` command itself opens a local pipe that the sandbox blocks.
-  - Until groups exist (step 5), the sample family lives in a fixed group, `000000000000000000000001`, in `familytree_dev`. `/dev/tree/db` draws it, reading inside `<Suspense>` after `await connection()` so the build never touches the database.
-  - CI needs a `MONGODB_URI` repository secret: GitHub repo → Settings → Secrets and variables → Actions. Use a separate read/write test user. (Added 2026-10-18.)
+  - Validation lives in the operations (zod), not on the documents. Documents are only written through `applyOperations`, so they are typed in TypeScript.
+  - IDs: documents use `ObjectId`; tree types and operations use 24-character hex strings. Conversion happens only in `loadGroupTree` and `planOperations`, through `toObjectId()`, whose `InvalidIdError` callers treat as "not found".
+  - `npm test` is unit tests only and works offline; `npm run test:db` runs the `*.db.test.ts` files against Atlas. Each test file and each e2e run gets its own `familytree_test_<time>_<label>` database.
+  - The app's database user can't drop databases (read/write only), so tests empty their database collection by collection. Leftovers older than an hour are cleared at the start of each run.
+  - The `tsx` command itself opens a local pipe that the sandbox blocks, hence `node --import tsx`.
+  - The seeded sample family lives in a fixed group, `000000000000000000000001`, in `familytree_dev`. `/dev/tree/db` reads it inside `<Suspense>` after `await connection()`, so the build never touches the database.
 
 ## Step 4: Google sign-in (F1)
 - **Owner:**
-  - Done: the Google OAuth client (redirect URIs `http://localhost:3000/api/auth/callback/google` and `https://family-tree-with-ai.vercel.app/api/auth/callback/google`) and `.env.local`.
-  - Done: Vercel variables for Production and Preview (see Environments and secrets), including `OAUTH_PROXY_SECRET`, which must be the same in both.
-  - Done: Google Auth Platform → Audience: the app is published. While it was in Testing, only listed test users could sign in. The app asks only for name, email and photo, so Google doesn't need to review it.
-  - Check that the Vercel function region (default `iad1`, Washington) is close to the Atlas cluster. If not, set `regions` in `vercel.json`: from now on every signed-in page reads the database.
+  - A Google OAuth client with the redirect URIs `http://localhost:3000/api/auth/callback/google` and `https://family-tree-with-ai.vercel.app/api/auth/callback/google`, and the sign-in variables in `.env.local`.
+  - Vercel variables for Production and Preview (see Environments and secrets), including `OAUTH_PROXY_SECRET`, which must be the same in both. Vercel's system variables must be exposed ("Automatically expose System Environment Variables"). Set them before pushing: Better Auth won't start without `BETTER_AUTH_SECRET`.
+  - Google Auth Platform → Audience: publish the app. While it is in Testing, only listed test users can sign in. The app asks only for name, email and photo, so Google doesn't need to review it.
+  - `npm run db:setup` against `familytree_preview` and `familytree` (`MONGODB_DB` set to each), for the TTL indexes and step 3's indexes.
+  - Check that the Vercel function region (default `iad1`, Washington) is close to the Atlas cluster. If not, set `regions` in `vercel.json`, since every signed-in page reads the database.
 - **Build:**
-  - `src/server/auth.ts` (Better Auth 1.7, Google only) and `api/auth/[...all]/route.ts`:
-    - MongoDB adapter given the shared client, so Better Auth's own writes use transactions. Collections are `users`, `sessions`, `accounts` and `verifications` (`usePlural: true`, as in §5). Settle this before the first real user signs up; renaming later means moving data.
-    - `db.ts` hands the adapter a client without connecting, so the build never touches the database.
-    - Base URL and trusted origins come from a pure `authUrls(env)`: `BETTER_AUTH_URL` locally and in production; on previews, exactly `VERCEL_BRANCH_URL` and `VERCEL_URL`. Never `*.vercel.app`, which would trust anyone's Vercel app.
-    - Google with `prompt: "select_account"`, so a shared family computer can switch accounts. A sign-in is refused if Google says the email isn't verified, because step 8 matches invites by email.
-    - Sessions last 30 days (Better Auth's default is 7) and are extended with use. Server Components can't write cookies, so Better Auth skips the refresh there. The user menu's `useSession()` calls `/api/auth/get-session`, which does refresh. Without that, people are signed out a fixed time after signing in, however active they are.
-    - The shared options live in a module without `import "server-only"`, so the e2e fixture can build an identical instance (cookie names must match).
-  - **Preview sign-in (§15 question 4): Better Auth's `oAuthProxy` plugin** in Production and Preview, with `productionURL` from `VERCEL_PROJECT_PRODUCTION_URL` and its own `secret` (`OAUTH_PROXY_SECRET`). Checked in the 1.7 source: production exchanges the Google code but creates no user, then hands the encrypted profile back to the preview, which signs in against `familytree_preview`. The databases and `BETTER_AUTH_SECRET` stay separate, and Google keeps just the two redirect URIs. It only works once production runs the plugin, so the step 4 preview can't sign in with Google (see Owner checks).
-  - `src/proxy.ts` (Next.js 16's name for middleware) only checks that a session cookie is present (`getSessionCookie`), with no database read:
+  - `src/server/auth.ts` (Better Auth 1.7.10, Google only) and `api/auth/[...all]/route.ts`. The settings are in `auth-options.ts`, without `server-only`, so the e2e fixture can build an identical instance (same cookie names and signatures).
+    - MongoDB adapter on the shared client, so Better Auth's own writes use transactions. Collections `users`, `sessions`, `accounts` and `verifications` (`usePlural: true`); user ids are `ObjectId`s. Renaming these later would mean moving data.
+    - `lazyDatabase()` in `db.ts` hands the adapter a client that connects on first use, so the build never touches the database.
+    - Base URL and trusted origins come from the pure `authUrls(env)`: `BETTER_AUTH_URL` locally and in production; on previews, exactly `VERCEL_BRANCH_URL` and `VERCEL_URL`. Never `*.vercel.app`, which would trust anyone's Vercel app.
+    - Google with `prompt: "select_account"`, so a shared family computer can switch accounts. `user.validateUserInfo` refuses an email Google hasn't verified, because step 8 matches invites by email.
+    - Sessions last 30 days (Better Auth's default is 7) and are extended while in use. Server code reads the session with `disableRefresh`; only `/api/auth/get-session` (the user menu's `useSession()`) extends it, because it can set the cookie.
+  - **Preview sign-in (§15 question 4): Better Auth's `oAuthProxy` plugin**, on Vercel only, with `productionURL` from `VERCEL_PROJECT_PRODUCTION_URL` and its own `secret` (`OAUTH_PROXY_SECRET`). Production exchanges the Google code but creates no user, then hands the encrypted profile back to the preview, which signs in against `familytree_preview`. The databases and `BETTER_AUTH_SECRET` stay separate, and Google keeps just the two redirect URIs. It works once production runs the plugin, so step 5's preview is the first that can sign in with Google.
+  - `src/proxy.ts` (Next.js 16's middleware), deciding with the pure `proxyDecision()` in `src/server/proxy-rules.ts`. It only checks that a session cookie is present, with no database read:
     - Deny by default, so later pages are covered without being listed. Public: `/`, `/api/auth/*` (the Google callback arrives without a session), `/dev/*`, `/_next/*` and static files.
-    - A signed-out page request gets a real 307 to `/?returnTo=<path and query>`. A `redirect()` inside `<Suspense>` would stream a client-side refresh instead. API routes and non-GET requests get 401.
-    - Never redirect *because* a cookie is present: a stale cookie would bounce between `/` and `/dashboard`.
+    - A signed-out page load gets a real 307 to `/?returnTo=<path and query>`. API calls and POSTs get 401.
+    - It never redirects *because* a cookie is present, so a stale cookie can't bounce between `/` and `/dashboard`.
     - It's a convenience, not security. Pages, server actions and routes still check for themselves (§8).
-  - `src/server/permissions.ts`: `getUser()` (user or null) and `requireUser()` (redirects to `/`). Route handlers return 401 instead of redirecting. Step 5's `requireRole` builds on these. Neither uses `use cache: private`, because the role must be read fresh on each request.
-  - `safeReturnTo()` (pure): keeps same-site paths only (`/…`, but not `//…` or `/\…`). Anything else becomes `/dashboard`.
-  - The landing page stays static. "Sign in with Google" is a client component that reads `returnTo` when clicked and passes it to Better Auth as `callbackURL`. `errorCallbackURL` brings failures (consent cancelled, sign-in expired) back to `/` with a plain message.
-  - `/dashboard` placeholder that reads the session inside `<Suspense>`. A user menu with the name, initials and Sign out:
-    - Initials rather than the Google photo through `next/image`, which would need `remotePatterns` and uses Vercel's image quota.
-    - After signing out, a full page load of `/`, so no signed-in page stays in the browser's router cache.
-  - `ensureIndexes` adds TTL indexes on `sessions.expiresAt` and `verifications.expiresAt`, so expired rows don't fill the 512 MB cluster. Better Auth creates its other indexes on first write. Don't repeat those: the same keys under another index name fail.
-  - **Test-only sign-in without a route in the app.** Better Auth's `testUtils` plugin is used only from `e2e/`:
-    - A Playwright fixture `signIn(page, name)` creates a fresh user and session in the run's database and adds the signed cookie. Parallel tests never share a user, and steps 5 and 8 get as many users as they need.
-    - There is no backdoor to guard, so `E2E_TEST_LOGIN` and the step 11 check for it go away. ESLint forbids importing `testUtils` under `src/`.
-  - `playwright.config.ts` gives the web server its own auth settings:
-    - `BETTER_AUTH_URL=http://localhost:3100`. Otherwise `.env.local`'s port 3000 leaks in and Better Auth rejects the origin.
-    - A random `BETTER_AUTH_SECRET` per run, shared with the fixture. `next start` refuses Better Auth's default secret, and CI has none.
-    - Placeholder Google credentials.
-  - Docs in the same commit: ARCHITECTURE.md §5 (collection names, TTL indexes), §12, §13 (add `OAUTH_PROXY_SECRET`, drop `E2E_TEST_LOGIN`) and §15 question 4; Features.txt DECISIONS; `.env.example`; CLAUDE.md.
-- **Tests:**
+  - `src/server/permissions.ts`: `getUser()` (user or null) and `requireUser()` (redirects to `/`). Route handlers use `getUser()` and answer 401. Neither uses `use cache: private`, because roles must be read fresh on each request.
+  - `safeReturnTo()` (pure): same-site paths only, so no `//…`, `/\…`, other origins or control characters. Anything else, and `/` itself, becomes `/dashboard`.
+  - The landing page stays static. "Sign in with Google" reads `returnTo` when clicked and passes it as `callbackURL`. Failures (consent cancelled, sign-in expired) come back to `/` with a plain message, keeping `returnTo`.
+  - `/dashboard` (a placeholder until step 5) and a user menu with initials, name and Sign out. Signing out ends with a full page load of `/`.
+  - `ensureIndexes` adds TTL indexes on `sessions.expiresAt` and `verifications.expiresAt`, so expired rows don't fill the 512 MB cluster. Better Auth creates its other indexes on first write; repeating them under another name would fail.
+  - **Test-only sign-in without a route in the app:** the Playwright fixture `signIn(page, name)` creates a fresh user and session in the run's database with Better Auth's `testUtils` and adds the signed cookie. Parallel tests never share a user. ESLint forbids importing `testUtils` under `src/`, so there is no backdoor to guard (no `E2E_TEST_LOGIN`).
+  - `playwright.config.ts` gives the web server `BETTER_AUTH_URL=http://localhost:3100` (otherwise `.env.local`'s port 3000 leaks in and Better Auth rejects the origin), a fresh `BETTER_AUTH_SECRET` per run shared with the fixture, and placeholder Google credentials.
+- **Tests (77 unit, 7 database and 10 e2e tests in the suite after this step):**
   - Unit:
-    - `safeReturnTo`: a path with a query is kept; `//evil.com`, `/\evil.com`, `https://evil.com`, `javascript:…` and empty give `/dashboard`.
+    - `safeReturnTo`: a path with a query is kept; `//evil.com`, `/\evil.com`, `https://evil.com`, `javascript:…`, a tab trick, `/` and empty give `/dashboard`.
     - `authUrls` for local, e2e, preview and production, with no wildcard origins.
     - The proxy's decision for public paths, pages, API routes and POSTs.
-  - Database: the TTL indexes exist (extend the indexes test).
+  - Database: the TTL indexes exist.
   - E2E:
     - Signed out, `/dashboard?tab=x` answers 307 to `/?returnTo=%2Fdashboard%3Ftab%3Dx` (checked without following redirects).
     - "Sign in with Google" posts `callbackURL=/dashboard?tab=x` and is sent to `accounts.google.com` with `redirect_uri=http://localhost:3100/api/auth/callback/google`. The test stops there and never contacts Google. With `returnTo=https://evil.example` it posts `/dashboard`.
+    - A failed sign-in comes back with a plain message.
     - Signed in through the fixture, `/dashboard` shows the user's name. Sign out leads to `/`, and `/dashboard` redirects again.
     - A garbage session cookie on `/dashboard` ends on `/` once, with no redirect loop.
 - **Owner checks:**
-  - Before merging, on `npm run dev` in the owner's terminal: a real Google sign-in and sign-out; the account chooser with a second Google account; `/dashboard?x=1` opened while signed out comes back after signing in. Use `localhost`, not `127.0.0.1`: Google and the cookies treat them as different sites.
-  - Before merging: `npm run db:setup` against `familytree_preview` and `familytree` (`MONGODB_DB` set to each), so the TTL indexes and step 3's indexes exist there.
+  - On `npm run dev`: a real Google sign-in and sign-out; the account chooser with a second Google account; `/dashboard?x=1` opened while signed out comes back after signing in. Use `localhost`, not `127.0.0.1`: Google and the cookies treat them as different sites.
   - Right after merging: a real sign-in on production.
-  - Step 5's preview is the first that can sign in with Google through the proxy. Check it there.
+  - On step 5's preview: Google sign-in through the proxy.
 - **Step 4 notes (2026-10-18):**
-  - Checked in the Better Auth 1.7.10 source:
-    - `oAuthProxy` takes its own `secret`, and production creates no user.
-    - The Mongo adapter uses transactions when given the client.
-    - `user.validateUserInfo` receives Google's fresh `emailVerified` on every sign-in, not only the first.
-    - Better Auth defines no index on `expiresAt`, so the TTL indexes don't clash with its own.
-  - Server code reads the session with `disableRefresh`. Better Auth's `nextCookies` plugin skips the refresh only for client-side navigations (the `RSC` header). On a full page load, a Server Component would extend the session in the database while the cookie write failed silently, and the next `get-session` would see a fresh session and not refresh the cookie either. `nextCookies` isn't used at all: sign-in and sign-out run in the browser.
-  - The fixture's Better Auth instance leaves out `validateUserInfo`. `testUtils` creates users outside a request, where Better Auth refuses to run the hook (`validation_context_missing`). Cookie names and signatures don't depend on it.
-  - `testUtils` generates ids that aren't valid `ObjectId`s, which the adapter would store as strings. The fixture passes a real `ObjectId`.
-  - The sign-in button and user menu stay disabled until React has hydrated (`useHydrated`), so an early click isn't silently lost. It also keeps the e2e tests from flaking.
-  - Sign out ends with `location.replace("/")`: a full page load, and the signed-in page leaves the Back history. (ESLint's Next.js rule flags `location.assign` with a relative path.)
+  - Checked in the Better Auth 1.7.10 source before building: `oAuthProxy` takes its own `secret` and production creates no user; the Mongo adapter uses transactions when given the client; `validateUserInfo` gets Google's fresh `emailVerified` on every sign-in, not only the first; Better Auth defines no index on `expiresAt`, so the TTL indexes don't clash.
+  - Why `disableRefresh`: Better Auth's `nextCookies` plugin skips the refresh only for client-side navigations (the `RSC` header). On a full page load a Server Component would extend the session in the database while the cookie write failed silently, and the next `get-session` would then see a fresh session and not refresh the cookie either. `nextCookies` isn't used: sign-in and sign-out run in the browser.
+  - The fixture's Better Auth instance leaves out `validateUserInfo` (`testUtils` creates users outside a request, where the hook can't run) and passes real `ObjectId`s (its generated ids would be stored as strings). Cookie names and signatures don't depend on either.
+  - The sign-in button and user menu stay disabled until React has hydrated (`useHydrated`), so an early click isn't silently lost and the e2e tests don't flake.
+  - Sign out uses `location.replace("/")`: a full page load, and the signed-in page leaves the Back history. (ESLint's Next.js rule flags `location.assign` with a relative path.)
+  - Initials rather than the Google photo: `next/image` would need `remotePatterns` and uses Vercel's image quota. `initials()` lives in `src/components/initials.ts`, shared with the cards.
   - Next.js's route announcer also has `role="alert"`, so tests filter alerts by text.
-  - Better Auth rate-limits `/sign-in/*` in production builds to 3 attempts per 10 seconds per IP, and the e2e server is a production build. Signed-in tests use the fixture, not the button.
-  - `initials()` moved from `PersonNode` to `src/components/initials.ts`, shared with the user menu.
+  - Better Auth rate-limits `/sign-in/*` in production builds to 3 attempts per 10 seconds per IP, and the e2e server is a production build, so signed-in tests use the fixture, not the button.
 
 ## Step 5: Groups, roles and opening a sheet (F2, F5, §8)
+- **Owner:**
+  - Choose how groups are stored (§15 question 3); see the notes.
+  - `npm run db:setup` against `familytree_preview` and `familytree`, for the membership indexes.
 - **Build:**
-  - First settle §15 question 3: adopt Better Auth's organization plugin if it supports in-app invites without email, otherwise use our own `groups`/`memberships`.
-  - `src/server/permissions.ts`: `requireRole` exactly as in §8, raising `NoAccessError` whether or not the group exists.
-  - Dashboard showing My groups and Shared with me.
-  - F2 create group: group name, father's name and mother's name (optionally yourself as their child). One transaction creates the group, the owner membership, both parents, their union and two pinned sheets.
-  - `/g/[groupId]` redirects to the first pinned sheet. `/g/[groupId]/s/[sheetId]` loads the whole group once and has instant sheet tabs (F5).
-  - `/g/[groupId]/settings`: rename and delete (Owner only).
-- **Tests:**
-  - Unit: the full §8 role × action table.
-  - Integration: a non-member gets the same `NoAccessError` for an existing group and a made-up one.
-  - E2E: a new user sees an empty dashboard → creates a group → lands on the father's sheet with both tabs; a second test user sees nothing from the first user's groups.
+  - Our own `groups` and `memberships`, with indexes unique `{groupId, userId}` and `{userId}`.
+  - `src/server/roles.ts` (pure): `RANK`, `MIN_ROLE` (the §8 table), `can(role, action)` and `NoAccessError`.
+  - `requireRole(groupId, min)` in `permissions.ts` = `requireUser()` + `roleInGroup()` from `repositories/groups.ts`. A malformed id, a made-up group, a deleted group, a non-member and a too-low role all give the same `NoAccessError`. Pages show one identical "You don't have access to this family tree" page; server actions return a message.
+  - Dashboard: My groups (Owner), Shared with me (other roles), and the create form.
+  - F2: group name, father's and mother's names, and optionally "Add me as their child" (name and gender). `createGroup` writes the group, the owner membership, both parents, their couple, the child and two pinned sheets ("<Father>'s family", "<Mother>'s family") in one transaction, through the same planner as `applyOperations` (`parseOperations` + `applyInTransaction`). Then it opens the father's sheet.
+  - `/g/[groupId]` opens the first pinned sheet. The sheets load the whole group once, and tabs switch in the browser with `history.pushState`, which Next.js's router follows (F5). Pinned tabs come first.
+  - `/g/[groupId]/settings` (Owner only): rename, and delete (a soft delete, confirmed by typing the group's name). Transfer ownership comes in step 8, with members.
+  - `groupChanged(groupId)` (`src/server/group-changed.ts`): server actions that change a group revalidate the dashboard and the group's pages.
+- **Tests (131 unit, 13 database and 13 e2e tests in the suite after this step):**
+  - Unit: all 48 cells of the §8 role × action table; the new-group operations and their validation.
+  - Database: `createGroup` writes everything in one go, and a failing batch leaves no group or membership; the same `NoAccessError` for a non-member, a made-up group and a malformed id; a too-low role is refused; one membership per user per group; rename and soft delete.
+  - E2E:
+    - A new user sees an empty dashboard → creates a group → lands on the father's sheet with both tabs. Switching tabs sends no request. Back and the header link show the new group.
+    - A second user sees nothing of the first user's groups, and the "no access" text is identical on six URLs (real and made-up groups, sheets and settings).
+    - Rename and delete show everywhere, including pages the browser kept.
+- **Owner checks:** on `npm run dev`, create a group (with yourself as the child), switch tabs and go Back, return to the dashboard by the header link and by Back, rename and delete it, and open your sheet's URL from a second Google account.
 - **Step 5 notes (2026-10-18):**
   - §15 question 3: our own `groups`, `memberships` and `invites`, chosen by the owner. The organization plugin (checked in the 1.7.10 source) does allow invites without email, which was the plan's test, but:
     - it creates the organization and owner in its own transaction, so F2 couldn't be one transaction with the family;
@@ -221,86 +212,68 @@ The app is built in small steps. Each step ends with its tests passing, a check 
     - it allows several owners, and only stops the last one leaving (§8: exactly one Owner);
     - it adds about 40 `/api/auth/organization/*` endpoints that change members outside `requireRole`;
     - it requires a unique `slug`.
-  - `applyOperations` is split into `parseOperations` and `applyInTransaction`, so `createGroup` writes the group, the owner membership and the family in one transaction through the same planner. An invalid batch leaves no group behind (database test).
-  - `roleInGroup` (repository) does the database part of `requireRole`, so the database tests can check "no access" without a request. A malformed id, a made-up group, a deleted group, a non-member and a too-low role all give the same `NoAccessError`, and the e2e test checks that the page text is identical for six such URLs.
-  - The §8 table is `MIN_ROLE` in `src/server/roles.ts`. The unit test spells out all 48 cells, so a change to `MIN_ROLE` has to match it.
-  - Deleting a group is a soft delete (`deletedAt`). The owner confirms by typing the group's name.
-  - `/g/[groupId]` redirects inside `<Suspense>`, so the redirect is streamed rather than a 307. `export const instant = false` doesn't change that: it only switches off Next.js's instant-navigation checks, and the page is still partially prerendered.
-  - Sheet tabs change the URL with `history.pushState`. The e2e test checks that switching tabs sends no request for `/g/…`.
-  - Next.js 16 keeps recently visited pages in the DOM, hidden (React Activity). `getByLabel` can match those hidden inputs, so e2e tests locate inputs with `getByRole`, which skips hidden elements.
-  - Transfer ownership is in step 8, with members (Settings has rename and delete for now).
-  - Found by the owner's "try this": after creating a group, Back (or the header link) showed the dashboard from before, with no groups. The browser keeps pages it has shown, and Back/Forward reuses them. Server actions that change a group now call `groupChanged()` (`src/server/group-changed.ts`), which calls `revalidatePath` for `/dashboard` and the group's pages. The e2e tests now go back with Back and the header link instead of reloading, and were checked to fail without the fix.
-  - The "no access looks the same" e2e test compares `textContent`. `innerText` changed with timing: React briefly holds streamed content in a hidden element, where `innerText` loses its line breaks.
+  - `roleInGroup` holds the database part of `requireRole`, so database tests can check "no access" without a request.
+  - The §8 table is `MIN_ROLE`, and the unit test spells out all 48 cells, so a change to `MIN_ROLE` has to match it.
+  - `/g/[groupId]` redirects inside `<Suspense>`, so the redirect is streamed rather than a 307. `export const instant = false` doesn't change that: it only switches off Next.js's instant-navigation checks.
+  - Found in the owner's check: after creating a group, Back (or the header link) showed the dashboard from before, with no groups. The browser keeps pages it has shown and Back/Forward reuses them; `groupChanged()` fixes it. The e2e tests go back with Back and the header link instead of reloading, and were checked to fail without the fix.
+  - Next.js 16 keeps recently visited pages in the DOM, hidden (React Activity), so e2e tests locate inputs with `getByRole`, which skips hidden elements; `getByLabel` doesn't.
+  - The "no access looks the same" test compares `textContent`. `innerText` changed with timing: React briefly holds streamed content in a hidden element, where `innerText` loses its line breaks.
 
 ## Step 6: Editing the tree by hand (F6)
-- **Owner:** nothing to set up.
+- **Owner:** review the detailed plan and decide its open questions (see Decisions).
 - **Build:**
-  - **The write action.** `applyChangesAction(groupId, ops)` in `src/app/g/[groupId]/actions.ts`:
-    - `requireUser()`, then `applyGroupChanges(database, groupId, userId, ops)` in `src/server/repositories/groups.ts`: `roleInGroup(…, MIN_ROLE.edit)`, then `applyOperations`. The role check sits in the repository function so a database test can call it as a Viewer.
-    - Returns `{ idMap }`, or `{ error }` with a plain message. A Viewer gets "You can view this tree but not change it". An invalid change gets the planner's reason without the "Change 2:" prefix, because one form is one batch.
-    - Then `groupChanged(groupId)`: the sheet page re-renders with the new data, and the canvas lays itself out again.
-  - **New operations** (ARCHITECTURE.md §10). They are for the UI only and are not offered to the AI:
-    - `addPartner { unionId, personId }` gives a single parent a partner: the "other parent".
-      - Rules: the couple has one partner now; the new partner is a different person; the two aren't already a couple; the new partner isn't a descendant of the couple (no one becomes their own ancestor).
+  - **One write action.** `applyChangesAction(groupId, ops)` in `src/app/g/[groupId]/actions.ts`: `requireUser()`, then `applyGroupChanges` (`roleInGroup(…, maintain)`, then `applyOperations`), then `groupChanged(groupId)`. The role check sits in the repository function so a database test can call it as a Viewer.
+    - It returns `{ idMap }` or `{ error }`: "You don't have permission to change this tree" for a Viewer, a non-member or a made-up group alike, or the planner's reason as a sentence (without "Change 2:", because one form is one batch).
+  - **New operations** (§10, UI only, never offered to the AI):
+    - `addPartner { unionId, personId }`: gives a single parent a partner, the "other parent". The couple must have one partner; the new partner must be a different person, not already their partner, and not one of the couple's descendants.
     - `updateSheet { sheetId, set: { title?, pinned? } }`: rename, pin and unpin.
-    - `reorderSheets { sheetIds }`: the group's whole tab order. It must list every sheet exactly once. Pinned tabs still show first.
-    - New rule (decision 1): `deletePerson` is refused for a person who is a sheet's root ("Jerry Willow is the root of the sheet Jerry Willow's family"). Otherwise that sheet would show nothing.
+    - `reorderSheets { sheetIds }`: the group's whole tab order, listing every sheet exactly once. Pinned tabs still show first.
+  - **New rules:** a person who is a sheet's root can't be deleted ("Jerry Willow is the root of the sheet Jerry Willow's family"). Deleted people count as absent, the way the browser shows them: a couple whose partners are all deleted isn't anyone's parents (a child given new parents leaves it), and a new partner can take a deleted partner's place.
   - **Form → operations builders**, pure, in `src/tree/edits.ts`. They run in the browser, are unit-tested, and the server re-validates everything:
     - Add parents. With no parents: one or two new people, their couple, then `addChild`. With one parent: a new person, then `addPartner`.
-    - Add partner: a new person and a couple (married or divorced), plus `createSheet` "<Name>'s family" when "Create their own sheet" is checked (checked by default: decision 2).
-    - Add child: to the chosen couple. A person with no couple first gets a single-parent couple.
-    - Edit details, married/divorced, delete and restore, new sheet, show on another sheet, rename, pin and move a tab.
-  - **UI** (`src/components/tree/`, the sheet page):
-    - Clicking a card (or Enter on it) opens a **person panel** on the right: name, years, parents, partners and children. Maintain and up also get:
-      - Edit details (name, gender, birth and death year; a year can be cleared).
-      - Add parents (only when they have fewer than two).
+    - Add partner: a new person and a couple (married or divorced), plus `createSheet` "<Name>'s family" when "Create their own sheet" is checked.
+    - Add child: to the chosen couple. A person with no couple gets a single-parent couple first, reused for the next child.
+    - Edit details (only what changed; an empty year is cleared), married/divorced, delete and restore, new sheet, show on another sheet, rename, pin and move a tab.
+  - **UI** (`src/components/tree/edit/`):
+    - Clicking a card (or Enter on it) opens the **person panel** on the right: name, years, and parents, partners and children as links. Maintain and up also get:
+      - Edit details (name, gender, birth and death year).
+      - Add parents, or "Add the other parent" when there is one.
       - Add partner, with married or divorced and "Create their own sheet".
-      - Add child. With several couples, choose which: "with Taylor Humes", or "on their own".
+      - Add child. With several couples, choose the other parent ("with Taylor Humes", or "on their own").
       - Show on another sheet.
-      - Delete.
-    - Clicking a heart opens the couple's panel: Married or Divorced, and Add child.
-    - Deleting shows a notice, "Alex Cruz deleted · Undo", for 10 seconds. Undo restores them (`restorePerson`).
-    - Tabs get "+ New sheet": choose a person; the title defaults to "<Name>'s family". The current tab gets a menu: Rename, Pin/Unpin, Move left, Move right. These are buttons, not drag-and-drop, so they work from the keyboard and in tests.
-    - Viewers: the panel shows details only, with no "+ New sheet" and no tab menu. Hiding these is for convenience; the server action is the real check.
-    - While a change is saving, the panel's buttons are disabled. Errors show in the panel. Forms use the same zod rules as the server (names, years).
-  - **E2E fixture** (until step 8 adds invites):
-    - `groupFor(user)` creates a group owned by the user, holding the sample family with its two sheets ("Cruz family" with the in-law parents, and "Jerry Willow's family"), through `createGroup`.
-    - `addMember(groupId, user, role)` gives another test user a role.
-  - Docs in the same commit:
-    - ARCHITECTURE.md §10 (the new operations and the root rule) and F6.
-    - Features.txt DECISIONS: how editing works, and the answers to the open questions.
-    - CLAUDE.md.
-- **Tests:**
+      - Delete, with "Name deleted. Undo" for 10 seconds.
+    - Clicking a heart opens the **couple panel**: Married or Divorced, the children, and Add child.
+    - Tabs get "+ New sheet" (choose a person; the title defaults to "<Name>'s family") and a menu on the current tab: Rename, Pin/Unpin, Move left, Move right. These are buttons, not drag-and-drop, so they work from the keyboard and in tests.
+    - Form errors show in the panel; the server's reason shows above the canvas. While a change saves, the buttons are disabled. Forms use the server's zod rules (names, years).
+    - Viewers see the panels with no edit controls, no "+ New sheet" and no tab menu. Hiding these is for convenience; the server action is the real check.
+  - The sheets are drawn by the layout `src/app/g/[groupId]/s/layout.tsx`, which loads the group and checks the role itself; the `[sheetId]` page renders nothing.
+  - E2E fixtures (until step 8 adds invites): `sampleGroup(owner)` creates a group with the sample family and its two sheets ("Cruz family" with the in-law parents, and "Jerry Willow's family"), and `addMember(groupId, user, role)` gives another test user a role.
+- **Tests (152 unit, 14 database and 20 e2e tests in the suite after this step):**
   - Unit:
-    - Planner rules for `addPartner`, `updateSheet` and `reorderSheets` (a missing or repeated sheet is refused), and the root rule for `deletePerson`.
-    - The builders against the sample family. A child added under Jake and Taylor shows on both sample sheets. A partner added with "Create their own sheet" gets a sheet rooted at them. Adding the other parent of someone with one parent uses `addPartner`.
-  - Database: a Viewer's `applyGroupChanges` gets `NoAccessError` and writes nothing; a Maintainer's change goes through.
+    - Planner rules for `addPartner`, `updateSheet` and `reorderSheets` (a missing or repeated sheet is refused), the root rule, and deleted parents (both deleted, one deleted, a couple with nobody left).
+    - The builders against the sample family, through what the browser draws (`toGroupTree`): a child under Jake and Taylor shows on both sheets; a married-in partner gets a sheet rooted at them; the other parent uses `addPartner`; add parents, delete them, add again; edit, divorce, delete and Undo; tab order.
+  - Database: a Viewer's or a non-member's `applyGroupChanges` gets `NoAccessError` and writes nothing; a Maintainer's change goes through with their id in the audit fields.
   - E2E:
     - Add a child under Jake and Taylor. Without a reload, "Cruz family" shows 37 people and "Jerry Willow's family" shows 33.
-    - Add a partner for Amelia Young who married in, with "Create their own sheet" checked. A new tab "<Name>'s family" appears, rooted at them.
-    - Delete Alex Cruz, then Undo: 35 people, then 36 again.
-    - Pin a sheet, then move a tab. The order is still there after a reload.
-    - Mark Steve Cruz and Arham Chopra divorced. Their heart turns into a broken heart.
+    - Add a partner for Amelia Young who married in, with "Create their own sheet" checked by default. A new tab "Rohan Mehta's family" appears, showing the two of them.
+    - Edit Taylor Humes's death year; delete Alex Cruz, then Undo (35, then 36 people); deleting Alexander Cruz, the Cruz sheet's root, is refused.
+    - Add parents to Timothy Cruz (1880), delete both, add parents again, then replace one with "Add the other parent".
+    - Mark Steve Cruz and Arham Chopra divorced: their heart turns into a broken heart.
+    - Create a sheet for Emma Young, pin it and move it left; the order is still there after a reload.
     - A Viewer sees the tree with no edit controls.
-- **Owner checks:** on `npm run dev`, build a few generations of your own family: add parents, partners and children; edit details; delete and Undo; create a sheet for someone who married in; pin and reorder tabs.
-- **Decided by the owner (2026-10-18):**
+- **Owner checks:** on `npm run dev`, build a few generations of your own family: add parents, partners and children; edit details; delete and Undo; delete parents and add them again; switch tabs and keep editing; create a sheet for someone who married in; pin and reorder tabs.
+- **Decisions (owner, 2026-10-18):**
   1. Deleting someone who is a sheet's root is refused, with a message naming the sheet.
   2. "Create their own sheet" is checked by default when adding a partner.
-  3. Deleting a sheet and hiding an extra person from a sheet are left for later.
+  3. Deleting a sheet and hiding an extra person from a sheet are left for later (ARCHITECTURE.md §15 question 5).
 - **Step 6 notes (2026-10-18):**
-  - React Flow turns off pointer events on nodes it thinks are inert (not draggable, selectable or clickable), so the canvas swallowed clicks on the cards' own buttons. With editing on, the canvas gives React Flow a no-op `onNodeClick`. The buttons do the work, so the cards also open from the keyboard.
+  - Found in the owner's check: after deleting both parents, adding parents again failed with "already has parents". Deleted people stay in their couples (so Undo restores them fully), and the server still counted the couple while the browser showed no parents. The deleted-people rule above fixes it; the planner test fails with the old rule, and tests at all three levels follow the owner's steps.
+  - The sheets moved from the `[sheetId]` page into a layout. A tab switch changes `[sheetId]` with `pushState`, and the next save's refresh rendered a new page, remounting the editor (an open panel or menu closed). The layout stays mounted. An unknown sheet id shows the first sheet and corrects the address bar.
+  - React Flow turns off pointer events on nodes it thinks are inert (not draggable, selectable or clickable), so the canvas swallowed clicks on the cards' own buttons. With editing on, the canvas gives React Flow a no-op `onNodeClick`; the buttons do the work, so the cards also open from the keyboard.
   - Click handlers and the selection reach the cards through a React context, not node data, so selecting someone doesn't lay the sheet out again.
-  - `OperationError` has `reason` (the message without "Change N:"), shown as a sentence in the panel.
-  - `loadGroupTree` is split into the query and the pure `toGroupTree`, so tests (`test/planning.ts`) can turn planned documents into what the browser draws.
-  - The year rule in `schema.ts` now has readable messages ("Enter a year from 1000 on"). The forms use the same zod rules as the server.
-  - Renaming a tab to its current title sends nothing (an empty batch would be refused).
-  - The sheets moved from the `[sheetId]` page into a layout (`src/app/g/[groupId]/s/layout.tsx`). A tab switch changes `[sheetId]` with `pushState`, and the next save's refresh then rendered a new page, remounting the editor (an open panel or menu closed). The layout stays mounted; the page renders nothing. An unknown sheet id now shows the first sheet and corrects the address bar.
-  - E2E timeouts are longer (15 s per assertion, 60 s per test). Locally each save is a transaction plus a re-render against the remote M0 cluster, measured at 1–5 s with four workers.
-  - Sheet menu items close the menu straight away. The change shows when it's saved, and errors show above the canvas.
-  - Found in the owner's check: after deleting both parents, adding parents again failed with "already has parents". Deleted people stay in their couples (for Undo), so the server still counted the couple, while the browser showed no parents. The planner now treats deleted people as absent, the way the browser shows them:
-    - a couple whose partners are all deleted isn't anyone's parents, and a child given new parents leaves it;
-    - "Add the other parent" takes a deleted parent's place.
-    - Tests at three levels (planner, builders through `toGroupTree`, e2e) follow the owner's steps. The planner test fails with the old rule.
+  - `OperationError` carries `reason` (the message without "Change N:"). `loadGroupTree` is split into the query and the pure `toGroupTree`, which `test/planning.ts` uses to turn planned documents into what the browser draws. The year rule has readable messages ("Enter a year from 1000 on").
+  - Sheet menu items close the menu at once; the change shows when it's saved. Renaming a tab to its current title sends nothing (an empty batch would be refused).
+  - Locally each save is a transaction plus a re-render against the remote M0 cluster, measured at 1–5 s with four test workers, so e2e assertions wait up to 15 s and tests up to 60 s.
 
 ## Step 7: Photos (F8)
 - **Owner:** create a Cloudinary account and add the three `CLOUDINARY_*` variables.
