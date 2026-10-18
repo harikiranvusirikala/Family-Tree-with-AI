@@ -1,0 +1,28 @@
+This is a Family Tree Web Application that can be accessed via Web.
+
+Want to have the deployed for free and update done after git repo change/commit
+
+Can have only Google Auth for Sign Up / Sign In
+- The tree's should be Google Email specific. So If I create only I can see, any other person sign up can create his tree's. An email can invite another email with permission of View/Maintain/Admin. So the invited person can see the shared trees and the trees he creates, etc.
+
+Sheets with Person name, ping two sheets that are under Father's and Mother's name.
+
+Should have AI Chat bottom right.
+- Will go with Claude Haiku 5.5 (claude-haiku-5-5) for the chat.
+- Where we can ask like "<Person A> married into <Person B>"
+- Main sheets are the Father's and Mother's.
+- If some one joins our family via marriage, create a Separate sheet with new person to track their parents/cousins/etc (not available in main trees). But it have same chagnes below the tree like children, their children tree in both sheets.
+- If asked explicitly display the person in a particular sheet add it.
+
+Allow Image upload for the person name
+
+Auto adjust persons on addition of new once
+
+The data should be persistent and independentent to code. Mongodb for DB?
+
+Import/export existing or new sheet
+
+Some sample images available in @samples for reference how it should look. It should more look like @"samples/Sample Family Tree.png"
+- male / female border light blue / light pink
+- For living onces their is not mentioning of present, but passed one have end year
+
