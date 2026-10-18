@@ -8,11 +8,11 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 
 | Step | What | Status |
 |---|---|---|
-| 0 | Prerequisites | npm fixed 2026-10-18; accounts are created as each step needs them |
-| 1 | Project skeleton and auto-deploy | Done 2026-10-18 (merged to `main`) |
+| 0 | Prerequisites | Done 2026-10-18: npm token, sandbox allowlist, Atlas access. Accounts are created as each step needs them |
+| 1 | Project skeleton and auto-deploy | Done 2026-10-18 (merged to `main`). Live at https://family-tree-with-ai.vercel.app |
 | 2 | Sheet view and tree layout | Done 2026-10-18 (merged to `main`). ELK.js chosen; see the step 2 notes |
-| 3 | Database and the single write path | Owner OK'd and committed 2026-10-18 on `step-3-database` (unit, db and e2e tests pass). Waiting for push and merge to `main`. See the step 3 notes |
-| 4 | Google sign-in (F1) | Not started |
+| 3 | Database and the single write path | Done 2026-10-18 (merged to `main`). See the step 3 notes |
+| 4 | Google sign-in (F1) | Not started. Owner setup done: Google OAuth client and `.env.local`. Vercel variables pending (see Environments and secrets) |
 | 5 | Groups, roles and opening a sheet (F2, F5) | Not started |
 | 6 | Editing the tree by hand (F6) | Not started |
 | 7 | Photos (F8) | Not started |
@@ -23,24 +23,46 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 
 ## How we work
 
-- **One step at a time.** At the end of each step, all tests are run and the owner gets a short "try this" list. Once the owner approves, the step is committed to a `step-N-<name>` branch and pushed. Vercel builds a preview against `familytree_preview`, the owner checks it, and the branch is merged to `main`, which deploys the live site.
-- **Databases:** one free Atlas cluster. `familytree_dev` for local development, `familytree_preview` for Vercel previews, `familytree` for the live site (§12). Each test run gets a throwaway `familytree_test_<run-id>`, dropped afterwards.
-- **Test data:** `test/fixtures/cruz-young.ts` holds the 36 people from the sample tree image (names, genders and years only). It covers a same-sex couple, a divorce and remarriage, and in-law parents. Only this invented data is used until permissions exist (step 5).
+- **One step at a time.** At the end of each step, all tests are run and the owner gets a short "try this" list. Once the owner approves, the step is committed to a `step-N-<name>` branch.
+- **Pushing:** the Claude Code sandbox blocks github.com, so the owner pushes the branch (`git push -u origin step-N-<name>`). CI runs, Vercel builds a preview against `familytree_preview`, the owner checks it and merges to `main`, which deploys the live site. Each new step starts by checking that local `main` has the merge.
+- **Databases:** one free Atlas cluster. `familytree_dev` for local development, `familytree_preview` for Vercel previews, `familytree` for the live site (§12). Tests use throwaway `familytree_test_<time>_<label>` databases that remove themselves.
+- **Test data:** `test/fixtures/cruz-young.ts` holds the 36 people from the sample tree image (names, genders and years only). It covers a same-sex couple, a divorce and remarriage, and in-law parents. Only this invented data is used until permissions exist (step 5). `npm run seed` loads it into `familytree_dev`.
 - **Design changes:** when a step settles a design question, ARCHITECTURE.md (the relevant section and §15) and Features.txt are updated in that step's commit, and the Progress table here gets a note.
-- **Network:** the Claude Code sandbox on the owner's machine may block some calls (`github.com` push, `*.mongodb.net`, `api.anthropic.com`, `ui.shadcn.com`). The owner decides whether to allow the specific domain. Otherwise they run that command in their own terminal; GitHub Actions also runs every test.
+- **Sandbox (owner's machine):**
+  - Commands that open local ports or reach MongoDB fail in the sandbox, so the owner allowlists them as `exact_match` (in the Claude Code sandbox dashboard → Tools): `npm run build`, `npm run test:e2e`, `npm run test:db`, `npm run db:ping`, `npm run db:setup`, `npm run seed`. They're run exactly as written. Anything else that needs ports or the database runs in the owner's terminal.
+  - Allowing a domain doesn't help MongoDB: the driver uses its own protocol, not the web proxy.
+  - Still blocked: github.com (the owner pushes), Google Fonts, and Playwright's browser download (local e2e uses the installed Chrome).
+  - The session loads `.env.local` when it starts. After `.env.local` changes, restart the session before running commands.
+
+## Environments and secrets
+
+| Where | Variables |
+|---|---|
+| `.env.local` (local, git-ignored) | Everything in [.env.example](.env.example). `MONGODB_DB=familytree_dev`, `BETTER_AUTH_URL=http://localhost:3000` |
+| Vercel, Production | `MONGODB_URI`, `MONGODB_DB=familytree`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (own value), `BETTER_AUTH_URL=https://family-tree-with-ai.vercel.app` |
+| Vercel, Preview | `MONGODB_URI`, `MONGODB_DB=familytree_preview`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (a different value). No `BETTER_AUTH_URL`: preview URLs change per branch |
+| Vercel, Development | Nothing; local work uses `.env.local` |
+| GitHub Actions secret | `MONGODB_URI` for a separate read/write test user (repo → Settings → Secrets and variables → Actions) |
+
+- Later steps add `CLOUDINARY_*` (step 7) and `ANTHROPIC_API_KEY`, `CHAT_MODEL`, `CHAT_DAILY_LIMIT` (step 9) to both Production and Preview, and `MONGODB_BACKUP_URI`, `BACKUP_ENCRYPTION_KEY` (step 11) as GitHub secrets.
+- Secrets are marked Sensitive in Vercel. `E2E_TEST_LOGIN` is never set on Vercel.
+- Vercel variables only reach new deployments, so redeploy (or push) after changing them.
 
 ## How every step is tested
 
-- **Unit tests (Vitest):** pure logic: `src/tree/*` (sheet view, layout), `requireRole` rules, email normalisation, operation validation, AI tool handlers, GEDCOM. No network.
-- **Integration tests (Vitest + Atlas):** repositories and `applyOperations` against a fresh `familytree_test_<run-id>` database.
-- **End-to-end tests (Playwright, Chromium):** the real app against the test database. Sign-in uses a test-only login, enabled only by `E2E_TEST_LOGIN=1` and never set on Vercel. A test checks that it returns 404 without the flag.
-- **CI (GitHub Actions, from step 1):** lint, type-check, unit, integration and e2e on every push. The test database URI is a repo secret.
-- **Every step:** `npm run lint && npm run typecheck && npm test && npm run test:e2e` pass locally, CI is green on the branch, and the "try this" list passes on the Vercel preview before merging.
-- Code additions beyond §4: `test/fixtures/`, `e2e/`, and `src/app/dev/*` pages. The dev pages return 404 unless run with `npm run dev` or built with `ENABLE_DEV_PAGES=1` (the e2e tests do this), so they never appear on Vercel.
+- **Unit tests (Vitest, `npm test`):** pure logic, no network: sheet view, layout, operation rules (`planOperations`), and later `requireRole`, email normalisation, AI tool handlers and GEDCOM.
+- **Database tests (Vitest + Atlas, `npm run test:db`):** `*.db.test.ts` files for transactions, persistence and group isolation. Each file gets its own throwaway database.
+- **End-to-end tests (Playwright, `npm run test:e2e`):** a production build of the app. Each run seeds its own throwaway database with the sample family and removes it afterwards. From step 4, sign-in uses a test-only login, enabled only by `E2E_TEST_LOGIN=1` and never set on Vercel; a test checks that it returns 404 without the flag.
+- **CI (GitHub Actions):** lint, type-check, `npm test`, `npm run test:db` and e2e on every push, using the `MONGODB_URI` secret.
+- **Every step:** `npm run lint && npm run typecheck && npm test && npm run test:db && npm run test:e2e` pass locally, CI is green on the branch, and the "try this" list passes on the Vercel preview before merging.
+- Code additions beyond §4: `test/` (fixtures, database helpers, seed), `e2e/`, `scripts/` (`db:ping`, `db:setup`, `seed`), and `src/app/dev/*` pages. The dev pages return 404 unless run with `npm run dev` or built with `ENABLE_DEV_PAGES=1` (the e2e tests do this), so they never appear on Vercel.
 
 ## Step 0: Prerequisites
 - [x] npm registry token refreshed. `@swc/helpers`, `better-auth`, `@xyflow/react` and `create-next-app` all install.
-- Accounts the owner creates when their step arrives: Vercel (step 1), MongoDB Atlas (step 3), a Google Cloud OAuth client (step 4), Cloudinary (step 7), an Anthropic API key (step 9).
+- [x] Commands that need ports or MongoDB allowlisted in the sandbox (see How we work).
+- [x] MongoDB Atlas cluster reachable from the owner's machine (`npm run db:ping`).
+- [x] Stale environment fixed. An old `.env` file plus VS Code's `python.terminal.useEnvFile` setting had loaded empty values into the session, and tools never override variables that are already set. Both were removed and the session restarted.
+- Accounts the owner creates when their step arrives: Vercel (step 1, done), MongoDB Atlas (step 3, done), a Google Cloud OAuth client (step 4, done), Cloudinary (step 7), an Anthropic API key (step 9).
 
 ## Step 1: Project skeleton and auto-deploy
 - **Build:**
@@ -51,6 +73,14 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 - **Tests:** a unit test runs, a Playwright smoke test opens `/`, `npm run build` succeeds, CI passes.
 - **Owner:** import the GitHub repo into Vercel (Hobby plan).
 - **Done when:** a push to `main` updates the live `*.vercel.app` URL and a branch push gets its own preview URL.
+- **Step 1 notes (2026-10-18):**
+  - Next.js 16.4 with Turbopack, Tailwind v4 and React 19. Cache Components and Partial Prefetching are on by default, so database and cookie reads in pages go inside `<Suspense>`.
+  - `create-next-app` refuses a folder that already has files, so the project was generated in a scratch folder and copied in.
+  - `.npmrc` keeps `package-lock.json` free of registry download URLs: a mirror locally, the public registry on Vercel and CI, and no internal hostnames in the repo. It also sets `legacy-peer-deps=false`, which surfaced a real conflict (`@types/node` 20 vs Vitest 5), fixed by moving to Node 24 types.
+  - The system font stack replaces `next/font/google` (blocked locally).
+  - Playwright runs against the installed Chrome locally and its own Chromium on CI.
+  - `npm audit`'s 5 "high" findings are in dev tooling only (`braces`); runtime dependencies have none.
+  - After step 3, `vercel.json` pinned the framework to Next.js (`dce3c66`). The dashboard had detected "Other", so Vercel treated the app as a static site and failed with "No Output Directory named "public" found".
 
 ## Step 2: Sheet view and tree layout (the riskiest part; no database yet)
 - **Build:**
@@ -73,34 +103,38 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - **Visual:** a Playwright screenshot of the 36-person sheet, compared by eye with the sample image.
 - **Decision:** keep the engine that passes and looks closer to the sample, and remove the other. Update §3, §7 and §15 question 2.
 - **Step 2 notes (2026-10-18):**
-  - ELK.js chosen. relatives-tree dropped the 4 in-law parents (it only draws the root's own relatives) and separated Steve from Sammie. ELK passed every structural test. Partners are grouped into side-by-side blocks (ARCHITECTURE.md §7).
-  - Sibling order: strict birth order would add crossing lines, and the sample image isn't in birth order either. Siblings with no family of their own are now eldest first; siblings with their own families keep the crossing-free position.
-  - Speed: about 30 ms for 100 people and about 250 ms for 300, so the 200 ms target was missed. The faster placement option looked lopsided. The test is now a regression guard: under 400 ms locally, 1500 ms on CI.
+  - ELK.js chosen. relatives-tree dropped the 4 in-law parents (it only draws the root's own relatives) and separated Steve from Sammie. ELK passed every structural test. Partners are grouped into side-by-side blocks (ARCHITECTURE.md §7). Only `layoutEngine` in `src/tree/layout/index.ts` names the engine.
+  - Sibling order: strict birth order would add crossing lines, and the sample image isn't in birth order either. Siblings with no family of their own are now eldest first; siblings with their own families keep the crossing-free position. A test checks this on the sample (Carrie, Carlo, Tay; Amelia, Jake, Timothy; Taylor, Anna).
+  - Speed: about 30 ms for 100 people and about 250 ms for 300, so the 200 ms target was missed. The faster placement option (Brandes–Köpf) looked lopsided. The test is now a regression guard: under 400 ms locally, 1500 ms on CI.
+  - The minimap needed fixed node sizes: controlled React Flow nodes aren't measured, and the minimap skips nodes without a size.
+  - `/dev/tree` has controls to change the root person, show or hide the in-law parents, and add a child. The e2e test saves `test-results/screenshots/tree.png`.
   - Cards use the system serif font. Google Fonts is blocked on the work network; a self-hosted font can be added later.
 
 ## Step 3: Database and the single write path
-- **Owner:** create the Atlas M0 cluster, allow network access from `0.0.0.0/0`, and create separate database users per §11. Connection strings go in `.env.local` (never committed). In Vercel, set `MONGODB_DB=familytree` for Production and `familytree_preview` for Preview.
+- **Owner:** create the Atlas M0 cluster, allow network access from `0.0.0.0/0`, and create separate database users per §11. Connection strings go in `.env.local` (never committed). Vercel variables: see Environments and secrets.
 - **Build:**
   - `src/server/db.ts`: one client, reused across serverless invocations.
-  - zod schemas for every §5 collection.
+  - zod schemas for the operations (see the notes for why not per collection).
   - `src/server/repositories/`: every function requires `groupId`; soft delete via `deletedAt`; the §5 indexes are created by a script.
   - `src/server/operations/`: `applyOperations(groupId, ops, actor)` with the `Operation` type from §10.
     - Temporary IDs (`new:1`) are resolved in order.
     - Validation: a union has 1–2 partners, a person is a child of at most one union, and references must exist in the same group.
     - Writes happen in one transaction and set the audit fields.
-  - `npm run seed` loads the fixture into `familytree_dev` through `applyOperations`. `/dev/tree` can read from the database.
+  - `npm run seed` loads the fixture into `familytree_dev` through `applyOperations`. `/dev/tree/db` draws it from the database.
 - **Tests:**
-  - Integration: an operations batch with temp IDs is applied all-or-nothing; invalid batches change nothing; soft delete and undo work.
-  - Integration: repositories never return another group's records.
-  - E2E: the seeded sheet renders from the database.
+  - Unit (23): one batch recreates the whole sample family with the same sheet views; every rule rejects bad batches with the failing change's number; the schema rejects malformed input.
+  - Database (7): an operations batch with temp IDs is applied all-or-nothing; invalid batches change nothing; soft delete and undo work; groups are isolated; two concurrent edits to the same couple both land; indexes exist.
+  - E2E: the seeded family renders from the database: 36 people on "Cruz family", 32 on "Jerry Willow's family".
 - **Step 3 notes (2026-10-18):**
   - Validation lives in the operations (zod), not on the documents. Documents are only written through `applyOperations`, so they are typed in TypeScript (`src/server/repositories/documents.ts`). `applyOperations` = zod, then a pure planner (`planOperations`, unit-tested without a database), then one transaction (ARCHITECTURE.md §10).
+  - More rules than planned: no duplicate couples, nobody becomes their own ancestor, death year not before birth year. Repeating `addChild` or `addToSheet` changes nothing.
   - Added a `restorePerson` operation (Undo for delete) and an optional `pinned` on `createSheet` (F2 needs pinned sheets). Sheets got audit fields like the other records.
+  - IDs: documents use `ObjectId`; tree types and operations use hex strings. Conversion happens only in `loadGroupTree` and `planOperations`.
   - Tests are split. `npm test` is unit tests only and works offline. `npm run test:db` runs the `*.db.test.ts` integration tests against Atlas. Each test file and each e2e run gets its own `familytree_test_<time>_<label>` database.
   - The app's database user can't drop databases (good: read/write only), so tests remove their database by dropping its collections. Leftovers older than an hour are cleared at the start of each run.
   - Scripts (`db:ping`, `db:setup`, `seed`) are `.mts` files run with `node --import tsx`. The `tsx` command itself opens a local pipe that the sandbox blocks.
-  - Until groups exist (step 5), the sample family lives in a fixed group, `000000000000000000000001`, in `familytree_dev`. `/dev/tree/db` draws it.
-  - CI needs a `MONGODB_URI` repository secret: GitHub repo → Settings → Secrets and variables → Actions. Use a separate read/write test user.
+  - Until groups exist (step 5), the sample family lives in a fixed group, `000000000000000000000001`, in `familytree_dev`. `/dev/tree/db` draws it, reading inside `<Suspense>` after `await connection()` so the build never touches the database.
+  - CI needs a `MONGODB_URI` repository secret: GitHub repo → Settings → Secrets and variables → Actions. Use a separate read/write test user. (Added 2026-10-18.)
 
 ## Step 4: Google sign-in (F1)
 - **Owner:** create a Google OAuth client and register redirect URIs for localhost and the production URL. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` to `.env.local` and Vercel.
