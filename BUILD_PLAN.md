@@ -12,7 +12,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 1 | Project skeleton and auto-deploy | Done 2026-10-18 (merged to `main`). Live at https://family-tree-with-ai.vercel.app |
 | 2 | Sheet view and tree layout | Done 2026-10-18 (merged to `main`). ELK.js chosen; see the step 2 notes |
 | 3 | Database and the single write path | Done 2026-10-18 (merged to `main`). See the step 3 notes |
-| 4 | Google sign-in (F1) | Owner OK'd and committed 2026-10-18 on `step-4-sign-in` (lint, typecheck, unit, db and e2e tests pass). Vercel variables set. Waiting for push and merge to `main`. Still to do: publish the Google app (see step 4) |
+| 4 | Google sign-in (F1) | Owner OK'd and committed 2026-10-18 on `step-4-sign-in` (lint, typecheck, unit, db and e2e tests pass). Vercel variables set and the Google app published. Waiting for push and merge to `main` |
 | 5 | Groups, roles and opening a sheet (F2, F5) | Not started |
 | 6 | Editing the tree by hand (F6) | Not started |
 | 7 | Photos (F8) | Not started |
@@ -140,7 +140,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 - **Owner:**
   - Done: the Google OAuth client (redirect URIs `http://localhost:3000/api/auth/callback/google` and `https://family-tree-with-ai.vercel.app/api/auth/callback/google`) and `.env.local`.
   - Done: Vercel variables for Production and Preview (see Environments and secrets), including `OAUTH_PROXY_SECRET`, which must be the same in both.
-  - Google Auth Platform → Audience: publish the app. While it is in Testing, only listed test users can sign in. The app asks only for name, email and photo, so Google doesn't need to review it.
+  - Done: Google Auth Platform → Audience: the app is published. While it was in Testing, only listed test users could sign in. The app asks only for name, email and photo, so Google doesn't need to review it.
   - Check that the Vercel function region (default `iad1`, Washington) is close to the Atlas cluster. If not, set `regions` in `vercel.json`: from now on every signed-in page reads the database.
 - **Build:**
   - `src/server/auth.ts` (Better Auth 1.7, Google only) and `api/auth/[...all]/route.ts`:
