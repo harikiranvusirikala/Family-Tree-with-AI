@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Three docs drive all work. Read the relevant parts before changing anything:
 
-- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Steps 1–3 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`). Sign-in, groups and permissions are still planned.
+- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Steps 1–4 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`; Google sign-in). Groups and permissions are still planned.
 - **[ARCHITECTURE.md](ARCHITECTURE.md)**: the blueprint (code layout §4, data model §5, sheet rules §6, layout §7, permissions §8, flows F1–F12, AI chat §10, environments §12, env vars §13, open questions §15). Folder names, collections and function names come from here.
 - **[Features.txt](Features.txt)**: the owner's requirements plus the agreed DECISIONS section.
 
@@ -85,6 +85,17 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - `operationsFromFamily()` turns `FamilyData` with its own ids into operations with `new:<id>` temporary ids. The seed uses it now, and imports will use it in step 10.
 - Database reads in pages go inside `<Suspense>` after `await connection()` (see `src/app/dev/tree/db/page.tsx`), so they happen at request time and never during the build.
 
+## Sign-in (as built, step 4)
+
+- `src/server/auth.ts` is the Better Auth instance (`import "server-only"`). Its settings are in `auth-options.ts`, which has no `server-only` so the e2e fixture can build an identical instance (same cookie names and signatures). Base URL and trusted origins come from the pure `authUrls(env)` in `auth-urls.ts`: exact origins only, never `*.vercel.app`.
+- Better Auth gets `lazyDatabase()` from `db.ts`: the shared client, not yet connected, so importing `auth.ts` during the build never touches the database. `getDatabase()` connects it.
+- Collections `users`, `sessions`, `accounts`, `verifications` (`usePlural: true`); user ids are `ObjectId`s. `ensureIndexes` adds TTL indexes on `sessions.expiresAt` and `verifications.expiresAt`; don't repeat Better Auth's own indexes there.
+- `src/server/permissions.ts`: `getUser()` (user or null) and `requireUser()` (redirects to `/`). Both read the session with `disableRefresh`, because Server Components can't write cookies; only `/api/auth/get-session` (the user menu's `useSession()`) extends sessions. Route handlers use `getUser()` and answer 401. Don't use `use cache: private` for these: step 5's role must be read fresh.
+- `src/proxy.ts` (Next.js 16's middleware) checks only that a session cookie is present, using the pure `proxyDecision()` in `src/server/proxy-rules.ts`. It denies by default: a new public page must be added to `PUBLIC_PATHS` there. Signed-out page loads get a 307 to `/?returnTo=…`; API calls and POSTs get 401.
+- The landing page stays static: `SignInButton` reads `returnTo` when clicked and checks it with `safeReturnTo()`. Interactive auth buttons stay disabled until hydrated (`useHydrated()`), so early clicks aren't lost.
+- Google sign-in on previews goes through production (Better Auth's `oAuthProxy`, enabled only on Vercel when `OAUTH_PROXY_SECRET` is set).
+- Better Auth rate-limits `/sign-in/*` in production builds (3 per 10 s per IP), and the e2e server is a production build: sign in through the `signIn` fixture, not by clicking the button repeatedly.
+
 ## Deployment
 
 - `vercel.json` pins the framework to Next.js. With the wrong dashboard preset, Vercel fails with "No Output Directory named "public" found".
@@ -104,5 +115,5 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - `test/fixtures/cruz-young.ts` holds the 36 people from the sample tree image: a same-sex couple, a divorce and remarriage, and in-law parents. It is the shared test data, and the §6 worked examples are its assertions. Import it as `@test/fixtures/...` (tsconfig alias). `test/fixtures/generated.ts` builds large synthetic families.
 - `src/app/dev/*` pages (e.g. `/dev/tree`, the layout playground) return 404 unless running `next dev` or built with `ENABLE_DEV_PAGES=1`. Playwright's web server sets that flag, so e2e tests can use them.
 - The tree e2e test saves `test-results/screenshots/tree.png`. View it after layout or card changes and compare with the sample image.
-- Planned (step 4): signed-in e2e tests use a Playwright fixture built on Better Auth's `testUtils` plugin, which creates users and sessions directly in the run's database. The app has no test-login route, and `testUtils` is never imported under `src/`.
+- Signed-in e2e tests use the `signIn(page, name)` fixture from `e2e/fixtures.ts` (import `test` and `expect` from there). It creates a fresh user and session in the run's database with Better Auth's `testUtils` and adds the signed cookie. The app has no test-login route, and ESLint forbids importing `testUtils` under `src/`. `playwright.config.ts` gives the web server `BETTER_AUTH_URL=http://localhost:3100`, a fresh `BETTER_AUTH_SECRET` per run (shared with the fixture through `E2E_AUTH_SECRET`), and placeholder Google credentials; tests stop at the redirect to Google.
 - `samples/` (reference images) is git-ignored, so tests and CI must not depend on it.

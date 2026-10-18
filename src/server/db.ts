@@ -6,7 +6,7 @@ export interface Database {
 }
 
 // One client per server instance, reused across requests, hot reloads and serverless invocations.
-const cache = globalThis as unknown as { familyTreeMongo?: Promise<MongoClient> };
+const cache = globalThis as unknown as { familyTreeMongo?: MongoClient };
 
 function requireEnv(name: "MONGODB_URI" | "MONGODB_DB"): string {
   const value = process.env[name];
@@ -14,19 +14,25 @@ function requireEnv(name: "MONGODB_URI" | "MONGODB_DB"): string {
   return value;
 }
 
-/** The app's database, from MONGODB_URI and MONGODB_DB. */
-export async function getDatabase(): Promise<Database> {
-  cache.familyTreeMongo ??= new MongoClient(requireEnv("MONGODB_URI")).connect().catch((error) => {
-    cache.familyTreeMongo = undefined; // let the next request retry
-    throw error;
-  });
-  const client = await cache.familyTreeMongo;
+/**
+ * The app's database, from MONGODB_URI and MONGODB_DB, without connecting: the driver connects on
+ * first use. Better Auth gets this at import time, so the build never touches the database.
+ */
+export function lazyDatabase(): Database {
+  const client = (cache.familyTreeMongo ??= new MongoClient(requireEnv("MONGODB_URI")));
   return { client, db: client.db(requireEnv("MONGODB_DB")) };
+}
+
+/** The app's database, connected. A failed connection is retried by the next call. */
+export async function getDatabase(): Promise<Database> {
+  const database = lazyDatabase();
+  await database.client.connect(); // returns at once when already connected
+  return database;
 }
 
 /** Closes the shared client. For scripts, which must exit when done. */
 export async function closeDatabase(): Promise<void> {
-  const client = await cache.familyTreeMongo;
+  const client = cache.familyTreeMongo;
   cache.familyTreeMongo = undefined;
   await client?.close();
 }

@@ -4,6 +4,7 @@ import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { CARD_HEIGHT, CARD_WIDTH, PHOTO_SIZE, PHOTO_TOP } from "@/tree/layout";
 import { formatYears } from "@/tree/years";
 import type { Person } from "@/tree/types";
+import { initials } from "../initials";
 
 export type PersonNodeType = Node<{ person: Person }, "person">;
 
@@ -12,11 +13,6 @@ export const GENDER_COLORS = {
   male: { ring: "#93c5fd", fill: "#eff6ff", text: "#1d4ed8" },
   female: { ring: "#f9a8d4", fill: "#fdf2f8", text: "#be185d" },
 } as const;
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
-}
 
 export function PersonNode({ data }: NodeProps<PersonNodeType>) {
   const { person } = data;

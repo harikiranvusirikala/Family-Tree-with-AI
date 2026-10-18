@@ -57,5 +57,10 @@ export async function ensureIndexes(db: Db): Promise<void> {
     unions.createIndex({ groupId: 1, partnerIds: 1 }),
     unions.createIndex({ groupId: 1, childIds: 1 }),
     sheets.createIndex({ groupId: 1 }),
+    // Better Auth's collections: MongoDB removes expired sessions and sign-in states, so they don't
+    // fill the 512 MB cluster. Better Auth creates its other indexes itself on first write; don't
+    // repeat those here (the same keys under another index name fail).
+    db.collection("sessions").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+    db.collection("verifications").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
   ]);
 }

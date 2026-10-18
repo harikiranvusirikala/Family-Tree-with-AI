@@ -40,6 +40,14 @@ Tech stack & deployment
   - Every push to main deploys to production; every branch/PR gets a preview URL.
   - Chosen over Render free: Render sleeps after 15 min idle (30-60s wait on next visit) and has only 0.1 CPU.
 - Sign-in: Better Auth with Google as the only provider.
+  - Previews sign in through production with Better Auth's OAuth proxy plugin (decided in step 4).
+    Google keeps two redirect URIs (localhost and production); previews keep their own database
+    and BETTER_AUTH_SECRET; the handoff uses OAUTH_PROXY_SECRET, the same in Production and Preview.
+  - Only Google-verified email addresses can sign in (invites are matched by email).
+  - Sessions last 30 days and are extended while in use. Google always shows its account chooser.
+  - Signed-out visitors are sent to sign in and then back to the link they opened (returnTo).
+  - E2E tests sign in through a Playwright fixture (Better Auth's testUtils) that writes sessions into
+    the test database. The app itself has no test-login route.
 - Database: MongoDB Atlas M0 (free, 512 MB).
   - M0 has no automatic backups -> nightly encrypted mongodump via a GitHub Actions job (artifact kept 90 days).
 - Photos: Cloudinary (free tier). Never store images in MongoDB.

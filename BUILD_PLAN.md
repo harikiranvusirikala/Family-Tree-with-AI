@@ -12,7 +12,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 1 | Project skeleton and auto-deploy | Done 2026-10-18 (merged to `main`). Live at https://family-tree-with-ai.vercel.app |
 | 2 | Sheet view and tree layout | Done 2026-10-18 (merged to `main`). ELK.js chosen; see the step 2 notes |
 | 3 | Database and the single write path | Done 2026-10-18 (merged to `main`). See the step 3 notes |
-| 4 | Google sign-in (F1) | Not started. Owner setup done: Google OAuth client and `.env.local`. Pending: Vercel variables (see Environments and secrets) and publishing the Google app (see step 4) |
+| 4 | Google sign-in (F1) | Owner OK'd and committed 2026-10-18 on `step-4-sign-in` (lint, typecheck, unit, db and e2e tests pass). Vercel variables set. Waiting for push and merge to `main`. Still to do: publish the Google app (see step 4) |
 | 5 | Groups, roles and opening a sheet (F2, F5) | Not started |
 | 6 | Editing the tree by hand (F6) | Not started |
 | 7 | Photos (F8) | Not started |
@@ -139,7 +139,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 ## Step 4: Google sign-in (F1)
 - **Owner:**
   - Done: the Google OAuth client (redirect URIs `http://localhost:3000/api/auth/callback/google` and `https://family-tree-with-ai.vercel.app/api/auth/callback/google`) and `.env.local`.
-  - Vercel variables for Production and Preview (see Environments and secrets), including `OAUTH_PROXY_SECRET`, which must be the same in both.
+  - Done: Vercel variables for Production and Preview (see Environments and secrets), including `OAUTH_PROXY_SECRET`, which must be the same in both.
   - Google Auth Platform → Audience: publish the app. While it is in Testing, only listed test users can sign in. The app asks only for name, email and photo, so Google doesn't need to review it.
   - Check that the Vercel function region (default `iad1`, Washington) is close to the Atlas cluster. If not, set `regions` in `vercel.json`: from now on every signed-in page reads the database.
 - **Build:**
@@ -187,6 +187,20 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - Before merging: `npm run db:setup` against `familytree_preview` and `familytree` (`MONGODB_DB` set to each), so the TTL indexes and step 3's indexes exist there.
   - Right after merging: a real sign-in on production.
   - Step 5's preview is the first that can sign in with Google through the proxy. Check it there.
+- **Step 4 notes (2026-10-18):**
+  - Checked in the Better Auth 1.7.10 source:
+    - `oAuthProxy` takes its own `secret`, and production creates no user.
+    - The Mongo adapter uses transactions when given the client.
+    - `user.validateUserInfo` receives Google's fresh `emailVerified` on every sign-in, not only the first.
+    - Better Auth defines no index on `expiresAt`, so the TTL indexes don't clash with its own.
+  - Server code reads the session with `disableRefresh`. Better Auth's `nextCookies` plugin skips the refresh only for client-side navigations (the `RSC` header). On a full page load, a Server Component would extend the session in the database while the cookie write failed silently, and the next `get-session` would see a fresh session and not refresh the cookie either. `nextCookies` isn't used at all: sign-in and sign-out run in the browser.
+  - The fixture's Better Auth instance leaves out `validateUserInfo`. `testUtils` creates users outside a request, where Better Auth refuses to run the hook (`validation_context_missing`). Cookie names and signatures don't depend on it.
+  - `testUtils` generates ids that aren't valid `ObjectId`s, which the adapter would store as strings. The fixture passes a real `ObjectId`.
+  - The sign-in button and user menu stay disabled until React has hydrated (`useHydrated`), so an early click isn't silently lost. It also keeps the e2e tests from flaking.
+  - Sign out ends with `location.replace("/")`: a full page load, and the signed-in page leaves the Back history. (ESLint's Next.js rule flags `location.assign` with a relative path.)
+  - Next.js's route announcer also has `role="alert"`, so tests filter alerts by text.
+  - Better Auth rate-limits `/sign-in/*` in production builds to 3 attempts per 10 seconds per IP, and the e2e server is a production build. Signed-in tests use the fixture, not the button.
+  - `initials()` moved from `PersonNode` to `src/components/initials.ts`, shared with the user menu.
 
 ## Step 5: Groups, roles and opening a sheet (F2, F5, §8)
 - **Build:**

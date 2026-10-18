@@ -5,6 +5,20 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    // Better Auth's testUtils creates sessions for any user. It belongs only in the e2e fixture,
+    // never in the app, so the app has no test-login backdoor.
+    files: ["src/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [{ name: "better-auth/plugins", importNames: ["testUtils"], message: "testUtils is for e2e/ only." }],
+          patterns: [{ group: ["better-auth/test"], message: "Test helpers are for e2e/ only." }],
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

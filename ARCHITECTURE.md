@@ -67,10 +67,14 @@ src/
       uploads/sign/route.ts              Cloudinary upload signature
       groups/[groupId]/export/route.ts   JSON / GEDCOM download
       groups/[groupId]/import/route.ts   parse and preview an import
+  proxy.ts                               signed-out visitors → sign in, keeping the link (cookie check only)
   server/                                server-only code
     db.ts                                MongoDB client, reused across invocations
-    auth.ts                              Better Auth configuration
-    permissions.ts                       requireUser, requireRole
+    auth.ts                              Better Auth instance
+    auth-options.ts                      its settings, shared with the e2e sign-in fixture
+    auth-urls.ts                         base URL and trusted origins for each environment
+    proxy-rules.ts                       what proxy.ts does with a request (pure)
+    permissions.ts                       getUser, requireUser, requireRole (step 5)
     repositories/                        data access; every function takes groupId
     operations/                          applyOperations: the single write path
     ai/                                  system prompt, tool definitions, proposal builder
@@ -79,6 +83,7 @@ src/
     sheet-view.ts                        which people and unions belong on a sheet
     layout/                              LayoutEngine interface + ELK.js adapter
   components/
+    auth/                                SignInButton, UserMenu, Better Auth's browser client
     tree/                                FamilyCanvas, PersonNode, UnionNode (heart)
     chat/                                ChatWidget, ProposalCard
     ui/                                  shadcn components
@@ -104,7 +109,7 @@ erDiagram
 
 | Collection | Fields | Indexes |
 |---|---|---|
-| `users`, `sessions`, `accounts` | Managed by Better Auth (email, name, image) | Better Auth's own |
+| `users`, `sessions`, `accounts`, `verifications` | Managed by Better Auth: email, name, image; sessions; the Google account link; sign-in states | Better Auth's own, created on first write. Ours (`ensureIndexes`): TTL on `sessions.expiresAt` and `verifications.expiresAt` |
 | `groups` | `name`, `createdBy`, `createdAt`, `deletedAt?` | — |
 | `memberships` | `groupId`, `userId`, `role` (`owner` · `admin` · `maintain` · `view`), `addedBy`, `createdAt` | unique `{groupId, userId}` · `{userId}` |
 | `invites` | `groupId`, `email`, `emailNormalized`, `role`, `token`, `invitedBy`, `status` (`pending` · `accepted` · `declined` · `revoked`), `expiresAt` | unique `{token}` · `{emailNormalized, status}` · `{groupId, status}` |
@@ -120,6 +125,8 @@ Notes:
 - `photoId` is the Cloudinary public ID, not a URL. URLs are built when the page renders, with the size and face crop needed.
 - Deleting is a soft delete: `deletedAt` hides the record and Undo clears it.
 - If Better Auth's organization plugin is adopted, its tables replace `groups`, `memberships` and `invites`. `accessRequests` stays ours.
+- Better Auth's collection names are plural (`usePlural: true`) to match the others, and user ids are `ObjectId`s like every other record. Renaming the collections later would mean moving data.
+- The TTL indexes let MongoDB delete expired sessions and sign-in states, so they don't fill the 512 MB cluster. Better Auth's own indexes aren't repeated in `ensureIndexes`: the same keys under another index name fail.
 
 ## 6. Sheets: views, not copies
 
@@ -242,7 +249,10 @@ sequenceDiagram
 ```
 
 - A new user sees an empty dashboard with "Create a family group", plus any invites already waiting for their email.
-- `returnTo` takes people back to the tree link they originally opened ([F4](#f4-request-access-from-a-tree-link)).
+- `returnTo` takes people back to the tree link they originally opened ([F4](#f4-request-access-from-a-tree-link)). `src/proxy.ts` sends a signed-out visitor to `/?returnTo=<path and query>` with a real 307. It only checks that a session cookie is present (no database read), denies by default, and never redirects *because* a cookie is present, so a stale cookie can't cause a loop. Pages, server actions and routes still check the session themselves ([§8](#8-permissions)).
+- `returnTo` must be a path on this site (`/…`, but not `//…` or `/\…`). Anything else becomes `/dashboard`. A failed sign-in (cancelled, or expired) comes back to `/` with a plain message, keeping `returnTo`.
+- Google shows its account chooser every time (`prompt: "select_account"`), so a shared family computer can switch accounts. A sign-in is refused if Google hasn't verified the email address, because invites are matched by email (F3).
+- Sessions last 30 days and are extended while in use. Server Components can't write cookies, so server code reads the session without extending it. The user menu's `/api/auth/get-session` call extends it instead.
 
 ### F2. Create a group with Father's and Mother's sheets
 
@@ -537,7 +547,8 @@ Model and prompt:
 
 ## 11. Security and privacy
 
-- **Sign-in:** Google only. No passwords are stored.
+- **Sign-in:** Google only. No passwords are stored. Only Google-verified email addresses are accepted. Sessions are httpOnly cookies backed by the `sessions` collection.
+- **Test sign-in:** e2e tests sign in through a Playwright fixture that writes users and sessions straight into the test database (Better Auth's `testUtils`). The app has no test-login route, and ESLint forbids importing `testUtils` under `src/`.
 - **Permissions:** checked on the server for every request ([§8](#8-permissions)).
 - **Group isolation:** `groupId` is on every record and in every query.
 - **Photos:** random public IDs under `groups/{groupId}/`. If stronger privacy is needed later, switch to Cloudinary's signed delivery.
@@ -558,7 +569,12 @@ Model and prompt:
 - `vercel.json` sets the framework to Next.js, which overrides the Framework Preset in the Vercel dashboard.
 - All three databases live in the one free Atlas cluster and share its 512 MB.
 - Tests use throwaway `familytree_test_<time>_<label>` databases in the same cluster: one per database-test file and one per e2e run. They remove themselves afterwards, and leftovers from crashed runs are cleared after an hour.
-- Google only accepts exact redirect URLs. Register the local and production URLs in the Google Cloud OAuth client. Preview URLs change, so either register a fixed branch URL or use Better Auth's OAuth proxy plugin (to be checked during setup).
+- Google only accepts exact redirect URLs, so only two are registered: `http://localhost:3000/api/auth/callback/google` and the production one.
+- **Google sign-in on previews** goes through production, using Better Auth's OAuth proxy plugin (decided in step 4):
+  - The preview sends Google production's callback URL. Production exchanges the code but creates no user, then hands the encrypted profile back to the preview, which signs in against `familytree_preview`.
+  - The handoff is encrypted with `OAUTH_PROXY_SECRET`, the same value in Production and Preview. The databases and `BETTER_AUTH_SECRET` stay separate.
+  - It needs production to run the plugin, so the first preview that can sign in with Google is the one after the plugin reaches production (step 5's).
+- Each deployment trusts exact origins only: `BETTER_AUTH_URL` locally and in production; on a preview, its own `VERCEL_BRANCH_URL` and `VERCEL_URL`. Never `*.vercel.app`, which would trust anyone's Vercel app.
 
 ## 13. Configuration
 
@@ -566,8 +582,10 @@ Model and prompt:
 |---|---|---|
 | `MONGODB_URI` | App; GitHub Actions (tests) | Database user with read/write only (no admin). CI uses a separate test user, stored as a repo secret |
 | `MONGODB_DB` | App | `familytree`, `familytree_preview` or `familytree_dev` |
-| `BETTER_AUTH_SECRET` | App | Random, at least 32 bytes |
-| `BETTER_AUTH_URL` | App | Base URL of the deployment |
+| `BETTER_AUTH_SECRET` | App | Random, at least 32 bytes. Different in Production and Preview |
+| `BETTER_AUTH_URL` | App | Base URL locally and in production. Not set on previews |
+| `OAUTH_PROXY_SECRET` | App (Vercel) | Random, at least 32 bytes. The same value in Production and Preview: encrypts the preview sign-in handoff ([§12](#12-environments)) |
+| `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL` | App | Set by Vercel ("Automatically expose System Environment Variables") |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | App | Google Cloud OAuth client |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | App | |
 | `ANTHROPIC_API_KEY` | App | |
@@ -591,4 +609,4 @@ Model and prompt:
 1. ~~**Who approves access requests**~~ **Resolved 2026-10-18:** only Admins and the Owner, the same rule as invites.
 2. ~~**Layout engine**~~ **Resolved 2026-10-18 (step 2):** ELK.js. relatives-tree couldn't draw in-law parents ([§7](#7-tree-rendering-and-auto-layout)).
 3. **Better Auth organization plugin:** adopt it for groups, members and invites if it supports in-app invites without email.
-4. **Google sign-in on preview deployments:** a fixed branch URL, or the OAuth proxy plugin.
+4. ~~**Google sign-in on preview deployments**~~ **Resolved 2026-10-18 (step 4):** Better Auth's OAuth proxy plugin, with its own `OAUTH_PROXY_SECRET`. Previews keep their own database and secret, and Google keeps just two redirect URIs ([§12](#12-environments)).
