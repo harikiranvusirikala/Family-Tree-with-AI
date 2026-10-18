@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="930" viewBox="0 0 1400 930">
+  <title>Family Tree with AI — system architecture</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475467"/>
+    </marker>
+    <style>
+      text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+      .title { font-size: 24px; font-weight: 700; fill: #101828; }
+      .subtitle { font-size: 14px; fill: #475467; }
+      .h { font-size: 16px; font-weight: 700; fill: #101828; }
+      .h2 { font-size: 14px; font-weight: 700; fill: #101828; }
+      .s { font-size: 13px; fill: #344054; }
+      .g { font-size: 12px; fill: #667085; }
+      .m { font-size: 12px; fill: #344054; font-family: ui-monospace, Menlo, Consolas, monospace; }
+      .lbl { font-size: 11px; fill: #475467; }
+      .flow { stroke: #475467; stroke-width: 1.8; fill: none; }
+      .dash { stroke-dasharray: 6 5; }
+      .card { fill: #FFFFFF; stroke: #D0D5DD; }
+      .row { fill: #FFFFFF; stroke: #E4E7EC; }
+    </style>
+  </defs>
+
+  <rect width="1400" height="930" fill="#FFFFFF"/>
+
+  <!-- Title -->
+  <text x="40" y="44" class="title">Family Tree with AI — System Architecture</text>
+  <text x="40" y="68" class="subtitle">Free hosting · auto-deploy on git push · Google sign-in only · private by default</text>
+
+  <!-- Browser to Cloudinary, routed over the top -->
+  <path class="flow" d="M170,120 V100 H1385 V380 H1360" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <text x="780" y="91" class="lbl" text-anchor="middle">Direct from the browser: signed photo upload and face-cropped images (bypasses Vercel)</text>
+
+  <!-- Browser -->
+  <rect x="40" y="120" width="260" height="470" rx="14" fill="#F5F7FA" stroke="#98A2B3" stroke-width="1.5"/>
+  <text x="58" y="148" class="h">Browser</text>
+  <text x="58" y="168" class="g">Signed-in family members</text>
+
+  <rect x="58" y="184" width="224" height="130" rx="10" class="card"/>
+  <text x="72" y="206" class="h2">Tree canvas</text>
+  <text x="72" y="224" class="g">React Flow + layout engine</text>
+  <line x1="135" y1="262" x2="205" y2="262" stroke="#98A2B3" stroke-width="1.5"/>
+  <line x1="170" y1="262" x2="170" y2="284" stroke="#98A2B3" stroke-width="1.5"/>
+  <circle cx="120" cy="262" r="15" fill="#EEF2F6" stroke="#8CCBF2" stroke-width="4"/>
+  <circle cx="220" cy="262" r="15" fill="#EEF2F6" stroke="#F5A9C8" stroke-width="4"/>
+  <circle cx="170" cy="262" r="9" fill="#FFFFFF"/>
+  <text x="170" y="267" text-anchor="middle" font-size="14" fill="#E0457B">♥</text>
+  <circle cx="170" cy="295" r="11" fill="#EEF2F6" stroke="#F5A9C8" stroke-width="3.5"/>
+
+  <rect x="58" y="328" width="224" height="56" rx="10" class="card"/>
+  <text x="72" y="350" class="h2">Sheet tabs</text>
+  <text x="72" y="368" class="g">Father's · Mother's · in-laws</text>
+
+  <rect x="58" y="398" width="224" height="56" rx="10" class="card"/>
+  <text x="72" y="420" class="h2">AI chat (bottom right)</text>
+  <text x="72" y="438" class="g">Proposes changes → you confirm</text>
+
+  <rect x="58" y="468" width="224" height="56" rx="10" class="card"/>
+  <text x="72" y="490" class="h2">Dashboard &amp; members</text>
+  <text x="72" y="508" class="g">Invites · access requests</text>
+
+  <text x="58" y="556" class="g" font-weight="700">Roles</text>
+  <text x="58" y="574" class="g">Owner · Admin · Maintain · View</text>
+
+  <!-- Browser <-> Vercel -->
+  <line class="flow" x1="300" y1="250" x2="400" y2="250" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <text x="350" y="240" class="lbl" text-anchor="middle" font-weight="700">HTTPS</text>
+  <text x="350" y="268" class="lbl" text-anchor="middle">pages, actions</text>
+  <text x="350" y="282" class="lbl" text-anchor="middle">chat stream</text>
+
+  <!-- Vercel / Next.js -->
+  <rect x="400" y="120" width="520" height="530" rx="14" fill="#FFFFFF" stroke="#101828" stroke-width="2"/>
+  <text x="420" y="148" class="h">Vercel Hobby — Next.js app (TypeScript)</text>
+  <text x="420" y="168" class="g">UI and API in one repo, one deploy</text>
+
+  <rect x="420" y="184" width="232" height="128" rx="10" fill="#F9FAFB" stroke="#D0D5DD"/>
+  <text x="434" y="206" class="h2">Pages</text>
+  <text x="434" y="228" class="m">/dashboard</text>
+  <text x="434" y="245" class="m">/g/[groupId]/s/[sheetId]</text>
+  <text x="434" y="262" class="m">/g/[groupId]/members</text>
+  <text x="434" y="279" class="m">/invite/[token]</text>
+  <text x="434" y="296" class="g">+ server actions for edits</text>
+
+  <rect x="668" y="184" width="232" height="128" rx="10" fill="#F9FAFB" stroke="#D0D5DD"/>
+  <text x="682" y="206" class="h2">API routes</text>
+  <text x="682" y="228" class="m">/api/auth/*</text>
+  <text x="682" y="245" class="m">/api/chat</text>
+  <text x="682" y="262" class="m">/api/uploads/sign</text>
+  <text x="682" y="279" class="m">/api/groups/[id]/export</text>
+  <text x="682" y="296" class="m">/api/groups/[id]/import</text>
+
+  <rect x="420" y="326" width="480" height="310" rx="10" fill="#F8FAFC" stroke="#D0D5DD"/>
+  <text x="434" y="350" class="h2">Server core</text>
+
+  <rect x="438" y="362" width="444" height="46" rx="8" class="row"/>
+  <text x="452" y="381" class="h2">Auth — Better Auth, Google only</text>
+  <text x="452" y="399" class="g">Session cookie; role is looked up on every request</text>
+
+  <rect x="438" y="416" width="444" height="46" rx="8" class="row"/>
+  <text x="452" y="435" class="h2">Permissions — requireRole(groupId, minRole)</text>
+  <text x="452" y="453" class="g">Every page load, server action and API call</text>
+
+  <rect x="438" y="470" width="444" height="46" rx="8" class="row"/>
+  <text x="452" y="489" class="h2">Operations — the single write path</text>
+  <text x="452" y="507" class="g">Manual edits · confirmed AI proposals · imports</text>
+
+  <rect x="438" y="524" width="444" height="46" rx="8" class="row"/>
+  <text x="452" y="543" class="h2">Repositories — every query scoped by groupId</text>
+  <text x="452" y="561" class="g">Soft delete · createdBy / updatedBy</text>
+
+  <rect x="438" y="578" width="444" height="46" rx="8" class="row"/>
+  <text x="452" y="597" class="h2">AI chat — tools filtered by role</text>
+  <text x="452" y="615" class="g">Write tools only build a proposal; nothing is saved without a click</text>
+
+  <!-- Vercel -> services -->
+  <line class="flow" x1="920" y1="160" x2="1000" y2="160" marker-end="url(#arrow)"/>
+  <text x="960" y="152" class="lbl" text-anchor="middle">sign-in</text>
+
+  <line class="flow" x1="920" y1="265" x2="1000" y2="265" marker-end="url(#arrow)"/>
+  <text x="960" y="257" class="lbl" text-anchor="middle">tool calls</text>
+
+  <line class="flow" x1="920" y1="380" x2="1000" y2="380" marker-end="url(#arrow)"/>
+  <text x="960" y="372" class="lbl" text-anchor="middle">upload</text>
+  <text x="960" y="396" class="lbl" text-anchor="middle">signature</text>
+
+  <line class="flow" x1="920" y1="550" x2="1000" y2="550" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <text x="960" y="542" class="lbl" text-anchor="middle">queries</text>
+  <text x="960" y="566" class="lbl" text-anchor="middle">by groupId</text>
+
+  <!-- External services -->
+  <rect x="1000" y="120" width="360" height="80" rx="12" fill="#FFF8E6" stroke="#E9B949" stroke-width="1.5"/>
+  <text x="1020" y="150" class="h">Google OAuth</text>
+  <text x="1020" y="174" class="s">Sign-in only: email, name, photo</text>
+
+  <rect x="1000" y="220" width="360" height="90" rx="12" fill="#FBF1EA" stroke="#D4916A" stroke-width="1.5"/>
+  <text x="1020" y="250" class="h">Anthropic API</text>
+  <text x="1020" y="272" class="s">Claude Haiku 5.5 (claude-haiku-5-5)</text>
+  <text x="1020" y="292" class="s">Tool calling · streaming · spend limit</text>
+
+  <rect x="1000" y="330" width="360" height="100" rx="12" fill="#EAF4FC" stroke="#5B9BD5" stroke-width="1.5"/>
+  <text x="1020" y="360" class="h">Cloudinary (free tier)</text>
+  <text x="1020" y="382" class="s">Person photos, face-aware round crops</text>
+  <text x="1020" y="402" class="s">Random IDs under groups/[groupId]/</text>
+
+  <rect x="1000" y="450" width="360" height="200" rx="12" fill="#EAF7EF" stroke="#4CAF7A" stroke-width="1.5"/>
+  <text x="1020" y="480" class="h">MongoDB Atlas M0 (free, 512 MB)</text>
+  <text x="1020" y="506" class="m">users, sessions (Better Auth)</text>
+  <text x="1020" y="526" class="m">groups, memberships, invites</text>
+  <text x="1020" y="546" class="m">accessRequests</text>
+  <text x="1020" y="566" class="m">persons, unions, sheets</text>
+  <text x="1020" y="586" class="m">chatUsage</text>
+  <text x="1020" y="626" class="g">Persistent and independent of the code</text>
+
+  <!-- Bottom row: developer, GitHub, legend, backup -->
+  <rect x="40" y="730" width="260" height="120" rx="12" fill="#F5F7FA" stroke="#98A2B3" stroke-width="1.5"/>
+  <text x="58" y="760" class="h">Developer</text>
+  <text x="58" y="784" class="s">Writes code (with Claude Code)</text>
+  <text x="58" y="804" class="s">git push → GitHub</text>
+
+  <line class="flow dash" x1="300" y1="790" x2="400" y2="790" marker-end="url(#arrow)"/>
+  <text x="350" y="782" class="lbl" text-anchor="middle">git push</text>
+
+  <rect x="400" y="730" width="240" height="120" rx="12" fill="#F5F7FA" stroke="#98A2B3" stroke-width="1.5"/>
+  <text x="418" y="760" class="h">GitHub repo</text>
+  <text x="418" y="784" class="s">main → Production URL</text>
+  <text x="418" y="804" class="s">branches/PRs → Preview URL</text>
+  <text x="418" y="824" class="s">Secrets: Vercel env vars</text>
+
+  <line class="flow dash" x1="520" y1="730" x2="520" y2="650" marker-end="url(#arrow)"/>
+  <text x="530" y="694" class="lbl">auto deploy</text>
+
+  <rect x="680" y="730" width="280" height="120" rx="12" fill="#FFFFFF" stroke="#D0D5DD"/>
+  <text x="698" y="754" class="h2">Legend</text>
+  <line class="flow" x1="698" y1="772" x2="740" y2="772" marker-end="url(#arrow)"/>
+  <text x="752" y="776" class="g">requests and data</text>
+  <line class="flow dash" x1="698" y1="796" x2="740" y2="796" marker-end="url(#arrow)"/>
+  <text x="752" y="800" class="g">deploy and backup</text>
+  <circle cx="706" cy="822" r="7" fill="#EEF2F6" stroke="#8CCBF2" stroke-width="3"/>
+  <text x="719" y="826" class="g">male</text>
+  <circle cx="770" cy="822" r="7" fill="#EEF2F6" stroke="#F5A9C8" stroke-width="3"/>
+  <text x="783" y="826" class="g">female</text>
+  <text x="842" y="827" font-size="13" fill="#E0457B">♥</text>
+  <text x="856" y="826" class="g">couple</text>
+
+  <line class="flow dash" x1="1180" y1="650" x2="1180" y2="730" marker-end="url(#arrow)"/>
+  <text x="1190" y="694" class="lbl">nightly dump</text>
+
+  <rect x="1000" y="730" width="360" height="120" rx="12" fill="#F5F7FA" stroke="#98A2B3" stroke-width="1.5"/>
+  <text x="1020" y="760" class="h">GitHub Actions — nightly backup</text>
+  <text x="1020" y="784" class="s">mongodump with a read-only DB user</text>
+  <text x="1020" y="804" class="s">→ encrypt → artifact (kept 90 days)</text>
+  <text x="1020" y="824" class="g">Photos stay in Cloudinary</text>
+
+  <!-- Footer -->
+  <text x="40" y="900" class="g">Free: Vercel Hobby, MongoDB Atlas M0, Cloudinary free tier, Google OAuth.   Paid per use: Claude API (Haiku 5.5), capped per user per day.</text>
+</svg>

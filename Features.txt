@@ -4,6 +4,7 @@ Want to have the deployed for free and update done after git repo change/commit
 
 Can have only Google Auth for Sign Up / Sign In
 - The tree's should be Google Email specific. So If I create only I can see, any other person sign up can create his tree's. An email can invite another email with permission of View/Maintain/Admin. So the invited person can see the shared trees and the trees he creates, etc.
+- if some one enter the family tree URL and they don't have access they should have option to request option and one having access can provide access to the request.
 
 Sheets with Person name, ping two sheets that are under Father's and Mother's name.
 
@@ -25,4 +26,102 @@ Import/export existing or new sheet
 Some sample images available in @samples for reference how it should look. It should more look like @"samples/Sample Family Tree.png"
 - male / female border light blue / light pink
 - For living onces their is not mentioning of present, but passed one have end year
+
+
+==================================================================
+DECISIONS (agreed 2026-10-18)
+==================================================================
+Detailed design, data model and flows: ARCHITECTURE.md (diagram: docs/architecture.svg)
+Step-by-step build plan and progress: BUILD_PLAN.md
+
+Tech stack & deployment
+- App: Next.js + TypeScript. UI and API live in one repo and deploy together.
+- Hosting: Vercel Hobby (free, personal non-commercial use).
+  - Every push to main deploys to production; every branch/PR gets a preview URL.
+  - Chosen over Render free: Render sleeps after 15 min idle (30-60s wait on next visit) and has only 0.1 CPU.
+- Sign-in: Better Auth with Google as the only provider.
+- Database: MongoDB Atlas M0 (free, 512 MB).
+  - M0 has no automatic backups -> nightly encrypted mongodump via a GitHub Actions job (artifact kept 90 days).
+- Photos: Cloudinary (free tier). Never store images in MongoDB.
+  - Face-aware cropping for round avatars.
+  - Upload directly from the browser (avoids Vercel's request size limit).
+  - Random file names (or signed URLs) so photos aren't guessable.
+- Tree drawing: React Flow for the canvas (pan/zoom/minimap, custom person cards).
+- Auto layout: relatives-tree; fall back to ELK.js if it can't handle in-law cases.
+- UI: Tailwind CSS + shadcn/ui.
+- AI chat: Claude API via @anthropic-ai/sdk with tool calling, model claude-haiku-5-5.
+  - Model name kept in an environment variable so it can be switched without code changes.
+  - Set a monthly spend limit in the Anthropic Console.
+- All keys (MongoDB, Google, Cloudinary, Anthropic) live in Vercel environment variables, never in code.
+- Cost: $0/month except AI chat usage (Haiku 5.5: roughly under $1/month at ~200 messages).
+
+Data model
+- Each person is stored exactly once. Sheets are views, not copies:
+  a sheet = a root person + their ancestors and descendants + any people explicitly added to it.
+  A child added once shows up on every sheet that reaches them (Father's, Mother's, in-law) - nothing to sync.
+- Collections (every content record carries groupId):
+    groups      { _id, name, createdBy, createdAt }
+    memberships { _id, groupId, userId, role: owner | admin | maintain | view }   (one per group+user)
+    invites     { _id, groupId, email, role, invitedBy, status: pending | accepted | declined | revoked, expiresAt }
+    accessRequests { _id, groupId, userId, email, message?, status: pending | approved | denied, decidedBy?, createdAt }
+    persons     { _id, groupId, name, gender, birthYear, deathYear?, photoId (Cloudinary public ID) }
+    unions      { _id, groupId, partnerIds: [a, b], status: married | divorced, childIds: [] }
+    sheets      { _id, groupId, title, rootPersonId, pinned, extraPersonIds: [] }
+    chatUsage   { _id, userId, day, count }   (per-user daily AI message cap)
+- Union = a couple (the heart icon). Children hang below it. Divorced = broken heart.
+  Mirrors GEDCOM family records, so GEDCOM import/export maps cleanly.
+- "A married into B" -> new person + union + new sheet rooted at the new person.
+- "Show X in sheet Z" -> add X to that sheet's extraPersonIds.
+- Father's and Mother's sheets are pinned tabs.
+- No deathYear = living, shown as "1985". Otherwise "1945 - 2022".
+
+Sharing & permissions
+- A group = a set of related trees. It is the unit of sharing (not individual sheets,
+  because one person appears on several sheets).
+- Everything a user creates is private until they invite someone.
+- Dashboard shows "My groups" (created by me) and "Shared with me".
+- Roles:
+  - View:     see trees, people, photos; ask the AI chat questions; export a tree picture (PNG/PDF).
+  - Maintain: View + add/edit/delete people, photos, sheets (soft delete, undoable);
+              AI chat can make changes; import; full data export (JSON/GEDCOM).
+  - Admin:    Maintain + invite/remove members, change roles (up to Admin).
+  - Owner:    the creator, exactly one per group. Admin + delete the group, transfer ownership.
+              Cannot be removed by an Admin.
+- Invites:
+  - Shown in the app when the invited person signs in, plus a link the Admin can share (WhatsApp/text).
+    No email service at first; Resend free tier can be added later.
+  - Accepted only if the signed-in Google email matches the invited email (forwarded links grant nothing).
+  - Compare emails lowercased; for gmail.com ignore dots and +tags.
+- Access requests (someone opens a tree URL without access):
+  - Not signed in -> Google sign-in first, then return to the same URL.
+  - Signed in, no access -> "You need access" page with a "Request access" button and an optional message.
+    The page shows nothing about the group (no name, no people) to non-members.
+  - If that email already has a pending invite to the group, show "Accept invite" instead.
+  - Admins and the Owner see a badge with pending requests; they approve (choosing View/Maintain/Admin,
+    default View) or deny. Approving creates the membership. Same rule as invites: only Admin/Owner grant access.
+  - The requester sees the status (pending/approved/denied) on their dashboard.
+  - One pending request per person per group, so it can't be used to spam admins.
+  - In-app only at first, like invites; email notifications can be added later with Resend.
+- Enforcement:
+  - Every API request checks membership and role on the server, scoped by groupId. Hiding buttons is not security.
+  - Role is looked up per request (not stored in the session), so removing a member takes effect immediately.
+  - AI chat only gets tools allowed for the user's role (View = read-only tools).
+- Groups are independent. Overlapping families across groups are copied via export/import for now.
+- Better Auth's organization plugin may already provide groups/members/invites/custom roles - check before building our own.
+
+AI chat behaviour
+- Tools: search_people, get_person (read); add_person, update_person, add_marriage, add_child, add_to_sheet, create_sheet (proposals).
+  No delete tool - deleting is UI only.
+- Propose, then confirm: the AI describes the change, the app shows a confirmation card, and saves only after the user clicks.
+  Handles ambiguous names ("which Ravi?") and stops wrong edits reaching the data.
+- Per-user daily message cap (CHAT_DAILY_LIMIT) on top of the Anthropic Console spend limit.
+
+Import / export
+- JSON: full, lossless backup of a group.
+- GEDCOM: exchange with Ancestry, FamilySearch, MyHeritage.
+- PNG/PDF: picture of a sheet.
+
+First build step
+- Spike the tree layout (React Flow + relatives-tree) using the people from samples/Sample Family Tree.png,
+  before building the rest - it is the riskiest part.
 
