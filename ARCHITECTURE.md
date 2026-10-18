@@ -555,6 +555,7 @@ Model and prompt:
 | Preview | Push to any branch other than `main`, or a PR | A `*.vercel.app` URL per branch | `familytree_preview` |
 | Production | Push to `main` | `<project>.vercel.app` or a custom domain | `familytree` |
 
+- `vercel.json` sets the framework to Next.js, which overrides the Framework Preset in the Vercel dashboard.
 - All three databases live in the one free Atlas cluster and share its 512 MB.
 - Tests use throwaway `familytree_test_<time>_<label>` databases in the same cluster: one per database-test file and one per e2e run. They remove themselves afterwards, and leftovers from crashed runs are cleared after an hour.
 - Google only accepts exact redirect URLs. Register the local and production URLs in the Google Cloud OAuth client. Preview URLs change, so either register a fixed branch URL or use Better Auth's OAuth proxy plugin (to be checked during setup).

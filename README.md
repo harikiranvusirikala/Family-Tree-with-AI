@@ -43,6 +43,8 @@ Vercel deploys automatically from GitHub:
 - A push to `main` updates production.
 - A push to any other branch gets its own preview URL.
 
+[vercel.json](vercel.json) pins the framework to Next.js, so the build doesn't depend on the Framework Preset in the Vercel dashboard. With the wrong preset, Vercel treats the app as a static site and fails with "No Output Directory named "public" found".
+
 GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs lint, type-check, unit tests and end-to-end tests on every push.
 
 Secrets live only in `.env.local` (git-ignored), Vercel environment variables and GitHub Secrets. [.env.example](.env.example) lists them all.
