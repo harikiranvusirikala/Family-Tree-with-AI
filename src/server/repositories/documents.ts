@@ -1,12 +1,30 @@
 // MongoDB document shapes (ARCHITECTURE.md §5). Every content record carries groupId.
+// References are ObjectIds; audit fields (createdBy, addedBy, …) hold the acting user's id as a string.
 import type { Db, ObjectId } from "mongodb";
 import type { Gender, Union } from "@/tree/types";
+import type { Role } from "../roles";
 
 export interface Audit {
   createdBy: string;
   createdAt: Date;
   updatedBy: string;
   updatedAt: Date;
+}
+
+export interface GroupDoc extends Audit {
+  _id: ObjectId;
+  name: string;
+  deletedAt?: Date;
+}
+
+/** One per user per group. The role is read from here on every request, never from the session. */
+export interface MembershipDoc {
+  _id: ObjectId;
+  groupId: ObjectId;
+  userId: ObjectId; // Better Auth's users._id
+  role: Role;
+  addedBy: string;
+  createdAt: Date;
 }
 
 export interface PersonDoc extends Audit {
@@ -42,6 +60,8 @@ export interface SheetDoc extends Audit {
 
 export function collections(db: Db) {
   return {
+    groups: db.collection<GroupDoc>("groups"),
+    memberships: db.collection<MembershipDoc>("memberships"),
     persons: db.collection<PersonDoc>("persons"),
     unions: db.collection<UnionDoc>("unions"),
     sheets: db.collection<SheetDoc>("sheets"),
@@ -50,8 +70,10 @@ export function collections(db: Db) {
 
 /** Creates the collections' indexes (§5). Safe to run repeatedly: `npm run db:setup`. */
 export async function ensureIndexes(db: Db): Promise<void> {
-  const { persons, unions, sheets } = collections(db);
+  const { memberships, persons, unions, sheets } = collections(db);
   await Promise.all([
+    memberships.createIndex({ groupId: 1, userId: 1 }, { unique: true }),
+    memberships.createIndex({ userId: 1 }),
     persons.createIndex({ groupId: 1 }),
     unions.createIndex({ groupId: 1 }),
     unions.createIndex({ groupId: 1, partnerIds: 1 }),

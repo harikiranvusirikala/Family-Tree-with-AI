@@ -106,6 +106,9 @@ describe("applyOperations against MongoDB", () => {
   test("ensureIndexes creates the §5 indexes", async () => {
     const names = (await database.db.collection("unions").listIndexes().toArray()).map((i) => i.name);
     expect(names).toEqual(expect.arrayContaining(["groupId_1", "groupId_1_partnerIds_1", "groupId_1_childIds_1"]));
+    const membershipIndexes = await database.db.collection("memberships").listIndexes().toArray();
+    expect(membershipIndexes.find((i) => i.name === "groupId_1_userId_1")?.unique).toBe(true);
+    expect(membershipIndexes.map((i) => i.name)).toContain("userId_1");
     for (const collection of ["sessions", "verifications"]) {
       const ttl = (await database.db.collection(collection).listIndexes().toArray()).find((i) => i.name === "expiresAt_1");
       expect(ttl?.expireAfterSeconds, `${collection} TTL index`).toBe(0);

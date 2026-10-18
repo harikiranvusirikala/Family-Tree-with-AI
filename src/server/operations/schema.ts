@@ -7,6 +7,7 @@ const tempId = z.string().regex(/^new:[\w-]{1,64}$/, 'Temporary ids look like "n
 /** An existing id, or a temporary id created earlier in the same batch. */
 const ref = z.union([id, tempId]);
 const name = z.string().trim().min(1, "Name is required").max(120);
+export { name as personName };
 const gender = z.enum(["male", "female"]);
 const year = z.number().int().min(1000).max(2200);
 const unionStatus = z.enum(["married", "divorced"]);

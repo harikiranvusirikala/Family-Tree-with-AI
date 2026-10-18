@@ -12,8 +12,8 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 1 | Project skeleton and auto-deploy | Done 2026-10-18 (merged to `main`). Live at https://family-tree-with-ai.vercel.app |
 | 2 | Sheet view and tree layout | Done 2026-10-18 (merged to `main`). ELK.js chosen; see the step 2 notes |
 | 3 | Database and the single write path | Done 2026-10-18 (merged to `main`). See the step 3 notes |
-| 4 | Google sign-in (F1) | Owner OK'd and committed 2026-10-18 on `step-4-sign-in` (lint, typecheck, unit, db and e2e tests pass). Vercel variables set and the Google app published. Waiting for push and merge to `main` |
-| 5 | Groups, roles and opening a sheet (F2, F5) | Not started |
+| 4 | Google sign-in (F1) | Done 2026-10-18 (merged to `main`). Real Google sign-in checked on production; indexes set up in `familytree_preview` and `familytree`. See the step 4 notes |
+| 5 | Groups, roles and opening a sheet (F2, F5) | Owner OK'd and committed 2026-10-18 on `step-5-groups` (lint, typecheck, unit, db and e2e tests pass). §15 question 3 settled: our own collections. Waiting for push and merge to `main`. Before merging: `npm run db:setup` for `familytree_preview` and `familytree` (membership indexes), and a Google sign-in on this step's preview (the first through the OAuth proxy) |
 | 6 | Editing the tree by hand (F6) | Not started |
 | 7 | Photos (F8) | Not started |
 | 8 | Members, invites and access requests (F3, F4) | Not started |
@@ -214,6 +214,23 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - Unit: the full §8 role × action table.
   - Integration: a non-member gets the same `NoAccessError` for an existing group and a made-up one.
   - E2E: a new user sees an empty dashboard → creates a group → lands on the father's sheet with both tabs; a second test user sees nothing from the first user's groups.
+- **Step 5 notes (2026-10-18):**
+  - §15 question 3: our own `groups`, `memberships` and `invites`, chosen by the owner. The organization plugin (checked in the 1.7.10 source) does allow invites without email, which was the plan's test, but:
+    - it creates the organization and owner in its own transaction, so F2 couldn't be one transaction with the family;
+    - accepting an invite compares emails in lowercase only (F3 also ignores gmail dots and `+tags`);
+    - it allows several owners, and only stops the last one leaving (§8: exactly one Owner);
+    - it adds about 40 `/api/auth/organization/*` endpoints that change members outside `requireRole`;
+    - it requires a unique `slug`.
+  - `applyOperations` is split into `parseOperations` and `applyInTransaction`, so `createGroup` writes the group, the owner membership and the family in one transaction through the same planner. An invalid batch leaves no group behind (database test).
+  - `roleInGroup` (repository) does the database part of `requireRole`, so the database tests can check "no access" without a request. A malformed id, a made-up group, a deleted group, a non-member and a too-low role all give the same `NoAccessError`, and the e2e test checks that the page text is identical for six such URLs.
+  - The §8 table is `MIN_ROLE` in `src/server/roles.ts`. The unit test spells out all 48 cells, so a change to `MIN_ROLE` has to match it.
+  - Deleting a group is a soft delete (`deletedAt`). The owner confirms by typing the group's name.
+  - `/g/[groupId]` redirects inside `<Suspense>`, so the redirect is streamed rather than a 307. `export const instant = false` doesn't change that: it only switches off Next.js's instant-navigation checks, and the page is still partially prerendered.
+  - Sheet tabs change the URL with `history.pushState`. The e2e test checks that switching tabs sends no request for `/g/…`.
+  - Next.js 16 keeps recently visited pages in the DOM, hidden (React Activity). `getByLabel` can match those hidden inputs, so e2e tests locate inputs with `getByRole`, which skips hidden elements.
+  - Transfer ownership is in step 8, with members (Settings has rename and delete for now).
+  - Found by the owner's "try this": after creating a group, Back (or the header link) showed the dashboard from before, with no groups. The browser keeps pages it has shown, and Back/Forward reuses them. Server actions that change a group now call `groupChanged()` (`src/server/group-changed.ts`), which calls `revalidatePath` for `/dashboard` and the group's pages. The e2e tests now go back with Back and the header link instead of reloading, and were checked to fail without the fix.
+  - The "no access looks the same" e2e test compares `textContent`. `innerText` changed with timing: React briefly holds streamed content in a hidden element, where `innerText` loses its line breaks.
 
 ## Step 6: Editing the tree by hand (F6)
 - **Build:**

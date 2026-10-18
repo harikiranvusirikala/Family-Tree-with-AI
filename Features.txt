@@ -116,7 +116,10 @@ Sharing & permissions
   - Role is looked up per request (not stored in the session), so removing a member takes effect immediately.
   - AI chat only gets tools allowed for the user's role (View = read-only tools).
 - Groups are independent. Overlapping families across groups are copied via export/import for now.
-- Better Auth's organization plugin may already provide groups/members/invites/custom roles - check before building our own.
+- Groups, memberships and invites are our own collections, not Better Auth's organization plugin (decided in step 5).
+  The plugin writes in its own transaction (creating a group with its family must be one), matches invite emails
+  by lowercase only (no gmail dot/+tag rule), allows several owners, and adds HTTP endpoints outside our role checks.
+- Deleting a group is a soft delete: it disappears for everyone, and its records stay in the database.
 
 AI chat behaviour
 - Tools: search_people, get_person (read); add_person, update_person, add_marriage, add_child, add_to_sheet, create_sheet (proposals).

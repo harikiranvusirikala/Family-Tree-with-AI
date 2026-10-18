@@ -74,8 +74,9 @@ src/
     auth-options.ts                      its settings, shared with the e2e sign-in fixture
     auth-urls.ts                         base URL and trusted origins for each environment
     proxy-rules.ts                       what proxy.ts does with a request (pure)
-    permissions.ts                       getUser, requireUser, requireRole (step 5)
-    repositories/                        data access; every function takes groupId
+    permissions.ts                       getUser, requireUser, requireRole
+    roles.ts                             the §8 role table, NoAccessError (pure)
+    repositories/                        data access; every function takes groupId (groups.ts: groups and memberships)
     operations/                          applyOperations: the single write path
     ai/                                  system prompt, tool definitions, proposal builder
     import-export/                       json.ts, gedcom.ts
@@ -83,6 +84,7 @@ src/
     sheet-view.ts                        which people and unions belong on a sheet
     layout/                              LayoutEngine interface + ELK.js adapter
   components/
+    AppHeader.tsx, NoAccess.tsx          the signed-in header; the "no access" page
     auth/                                SignInButton, UserMenu, Better Auth's browser client
     tree/                                FamilyCanvas, PersonNode, UnionNode (heart)
     chat/                                ChatWidget, ProposalCard
@@ -110,8 +112,8 @@ erDiagram
 | Collection | Fields | Indexes |
 |---|---|---|
 | `users`, `sessions`, `accounts`, `verifications` | Managed by Better Auth: email, name, image; sessions; the Google account link; sign-in states | Better Auth's own, created on first write. Ours (`ensureIndexes`): TTL on `sessions.expiresAt` and `verifications.expiresAt` |
-| `groups` | `name`, `createdBy`, `createdAt`, `deletedAt?` | — |
-| `memberships` | `groupId`, `userId`, `role` (`owner` · `admin` · `maintain` · `view`), `addedBy`, `createdAt` | unique `{groupId, userId}` · `{userId}` |
+| `groups` | `name`, audit fields, `deletedAt?` | — |
+| `memberships` | `groupId`, `userId` (Better Auth's `users._id`), `role` (`owner` · `admin` · `maintain` · `view`), `addedBy`, `createdAt` | unique `{groupId, userId}` · `{userId}` |
 | `invites` | `groupId`, `email`, `emailNormalized`, `role`, `token`, `invitedBy`, `status` (`pending` · `accepted` · `declined` · `revoked`), `expiresAt` | unique `{token}` · `{emailNormalized, status}` · `{groupId, status}` |
 | `accessRequests` | `groupId`, `userId`, `email`, `message?`, `status` (`pending` · `approved` · `denied`), `decidedBy?`, `decidedAt?`, `createdAt` | unique `{groupId, userId}` where `status = pending` · `{groupId, status}` |
 | `persons` | `groupId`, `name`, `gender` (`male` · `female`), `birthYear?`, `deathYear?`, `photoId?`, `notes?`, audit fields, `deletedAt?` | `{groupId}` |
@@ -124,7 +126,9 @@ Notes:
 - A **union** is a couple: the heart in the sample. A union with one partner is a single parent. A person is a child of at most one union. Unions mirror GEDCOM family (`FAM`) records, so GEDCOM import and export map directly.
 - `photoId` is the Cloudinary public ID, not a URL. URLs are built when the page renders, with the size and face crop needed.
 - Deleting is a soft delete: `deletedAt` hides the record and Undo clears it.
-- If Better Auth's organization plugin is adopted, its tables replace `groups`, `memberships` and `invites`. `accessRequests` stays ours.
+- `groups`, `memberships`, `invites` and `accessRequests` are our own collections, not Better Auth's organization plugin (decided in step 5, [§15](#15-open-questions) question 3).
+- References between records are `ObjectId`s. Audit fields (`createdBy`, `updatedBy`, `addedBy`) hold the acting user's id as a string.
+- Deleting a group is a soft delete: `deletedAt` hides it from everyone, members included, and its people, couples and sheets stay in the database.
 - Better Auth's collection names are plural (`usePlural: true`) to match the others, and user ids are `ObjectId`s like every other record. Renaming the collections later would mean moving data.
 - The TTL indexes let MongoDB delete expired sessions and sign-in states, so they don't fill the 512 MB cluster. Better Auth's own indexes aren't repeated in `ensureIndexes`: the same keys under another index name fail.
 
@@ -198,21 +202,19 @@ Card design, from Features.txt and the sample:
 | Invite and remove members, change roles (up to Admin), handle access requests | | | ✓ | ✓ |
 | Delete the group, transfer ownership | | | | ✓ |
 
-Every server action, API route and data load starts with the same check:
+The table lives in `src/server/roles.ts` as `MIN_ROLE` (the lowest role for each action), and a unit test checks every cell. Every server action, API route and data load starts with the same check (`src/server/permissions.ts`):
 
 ```ts
-const RANK = { view: 1, maintain: 2, admin: 3, owner: 4 } as const;
-type Role = keyof typeof RANK;
-
 export async function requireRole(groupId: string, min: Role) {
   const user = await requireUser(); // not signed in -> redirect to sign-in
-  const membership = await db.memberships.findOne({ groupId, userId: user.id });
-  if (!membership || RANK[membership.role] < RANK[min]) {
-    throw new NoAccessError(); // same response whether or not the group exists
-  }
-  return { user, role: membership.role };
+  // roleInGroup: the membership and the group (not deleted), read from the database every time.
+  // Malformed id, no such group, deleted group, not a member, role too low: all the same NoAccessError.
+  const { role, group } = await roleInGroup(db, groupId, user.id, min);
+  return { user, role, group };
 }
 ```
+
+Pages catch `NoAccessError` and show the same "You don't have access to this family tree" page for every case. Server actions return an error message instead.
 
 Rules:
 - Call `requireRole` in every server action, API route and data load, not only in `layout.tsx`. Next.js layouts don't re-run on every navigation, and server actions can be called directly.
@@ -269,6 +271,8 @@ sequenceDiagram
 
 - The pinned sheets are "<Father>'s family", rooted at the father, and "<Mother>'s family", rooted at the mother.
 - The user can add themselves as the couple's child in the same step.
+- One transaction: `createGroup` (`src/server/repositories/groups.ts`) inserts the group and the owner membership, then runs the family's operations through the same planner and writes as `applyOperations` (`applyInTransaction`). If any operation is invalid, nothing is saved, not even the group.
+- A group link (`/g/{groupId}`) opens the first pinned sheet.
 
 ### F3. Invite someone
 
@@ -351,7 +355,8 @@ sequenceDiagram
     B->>CL: Load photos (small, face-cropped)
 ```
 
-- The whole group's data is loaded once (fine up to a few thousand people), so switching sheet tabs is instant.
+- The whole group's data is loaded once (fine up to a few thousand people), so switching sheet tabs is instant. A tab changes the URL with `history.pushState`, which Next.js's router follows, and the server isn't asked again.
+- Tabs: pinned sheets first (Father's, then Mother's), then the rest in their saved order.
 
 ### F6. Edit the tree by hand
 
@@ -608,5 +613,5 @@ Model and prompt:
 
 1. ~~**Who approves access requests**~~ **Resolved 2026-10-18:** only Admins and the Owner, the same rule as invites.
 2. ~~**Layout engine**~~ **Resolved 2026-10-18 (step 2):** ELK.js. relatives-tree couldn't draw in-law parents ([§7](#7-tree-rendering-and-auto-layout)).
-3. **Better Auth organization plugin:** adopt it for groups, members and invites if it supports in-app invites without email.
+3. ~~**Better Auth organization plugin**~~ **Resolved 2026-10-18 (step 5):** our own `groups`, `memberships` and `invites`. The plugin does allow invites without email, but in 1.7.10 it writes in its own transaction (F2 needs the group, owner membership and family in one), matches invite emails by lowercase only (F3 also ignores gmail dots and `+tags`), allows several owners (§8: exactly one), and adds about 40 HTTP endpoints that change members outside `requireRole`.
 4. ~~**Google sign-in on preview deployments**~~ **Resolved 2026-10-18 (step 4):** Better Auth's OAuth proxy plugin, with its own `OAUTH_PROXY_SECRET`. Previews keep their own database and secret, and Google keeps just two redirect URIs ([§12](#12-environments)).

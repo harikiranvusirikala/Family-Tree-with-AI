@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Three docs drive all work. Read the relevant parts before changing anything:
 
-- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Steps 1–4 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`; Google sign-in). Groups and permissions are still planned.
+- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Steps 1–5 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`; Google sign-in; groups, roles and sheet pages). Editing in the UI, photos, members and invites, chat and import/export are still planned.
 - **[ARCHITECTURE.md](ARCHITECTURE.md)**: the blueprint (code layout §4, data model §5, sheet rules §6, layout §7, permissions §8, flows F1–F12, AI chat §10, environments §12, env vars §13, open questions §15). Folder names, collections and function names come from here.
 - **[Features.txt](Features.txt)**: the owner's requirements plus the agreed DECISIONS section.
 
@@ -83,7 +83,15 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - IDs: MongoDB documents use `ObjectId`; everything in `src/tree/` and every `Operation` uses 24-character hex strings. Conversion happens only in `loadGroupTree` (`src/server/repositories/family.ts`, documents → `GroupTree`, with soft-deleted people removed) and in `planOperations` (refs → `ObjectId`). Use `toObjectId()` (`src/server/ids.ts`); it throws `InvalidIdError`, which callers treat as "not found".
 - `applyOperations` (`src/server/operations/apply.ts`): zod (`schema.ts`), then load the group's records in a transaction, then the pure `planOperations` (`plan.ts`), then bulk writes. Throws `OperationError` with the failing change's index. It does not check permissions yet; callers will call `requireRole` first (step 5).
 - `operationsFromFamily()` turns `FamilyData` with its own ids into operations with `new:<id>` temporary ids. The seed uses it now, and imports will use it in step 10.
-- Database reads in pages go inside `<Suspense>` after `await connection()` (see `src/app/dev/tree/db/page.tsx`), so they happen at request time and never during the build.
+- Database reads in pages go inside `<Suspense>` after `await connection()` (see `src/app/dev/tree/db/page.tsx`), so they happen at request time and never during the build. Pages that call `requireUser`/`requireRole` read headers, which already makes them request-time.
+
+## Groups and roles (as built, step 5)
+
+- Our own `groups` and `memberships` (not Better Auth's organization plugin). `src/server/roles.ts` (pure) has `RANK`, `MIN_ROLE` (the §8 table), `can(role, action)` and `NoAccessError`.
+- `requireRole(groupId, min)` in `permissions.ts` = `requireUser()` + `roleInGroup()` from `repositories/groups.ts`, and returns `{ user, role, group }`. Pages: `requireRole(...).catch(noAccessToNull)`, then render `<NoAccess />` (identical for every no-access case). Server actions return an error message instead. Never `catch` everything: `requireUser` redirects by throwing.
+- Group pages follow `src/app/g/[groupId]/s/[sheetId]/page.tsx`: a `<Suspense>` boundary around an async component that awaits `params`, then `requireUser()`, then `requireRole()`.
+- Writes that need more than content operations in the same transaction use `parseOperations` + `applyInTransaction` (see `createGroup`). Don't write persons, unions or sheets any other way.
+- Server actions live next to their page in `actions.ts`, take bound ids (`action.bind(null, groupId)`), and call `requireRole` themselves. After changing a group (or later, its members or content), call `groupChanged(groupId)` from `src/server/group-changed.ts` before returning or redirecting. It revalidates `/dashboard` and the group's pages; otherwise Back/Forward and the header link show the pages the browser kept from before the change.
 
 ## Sign-in (as built, step 4)
 
@@ -116,4 +124,6 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - `src/app/dev/*` pages (e.g. `/dev/tree`, the layout playground) return 404 unless running `next dev` or built with `ENABLE_DEV_PAGES=1`. Playwright's web server sets that flag, so e2e tests can use them.
 - The tree e2e test saves `test-results/screenshots/tree.png`. View it after layout or card changes and compare with the sample image.
 - Signed-in e2e tests use the `signIn(page, name)` fixture from `e2e/fixtures.ts` (import `test` and `expect` from there). It creates a fresh user and session in the run's database with Better Auth's `testUtils` and adds the signed cookie. The app has no test-login route, and ESLint forbids importing `testUtils` under `src/`. `playwright.config.ts` gives the web server `BETTER_AUTH_URL=http://localhost:3100`, a fresh `BETTER_AUTH_SECRET` per run (shared with the fixture through `E2E_AUTH_SECRET`), and placeholder Google credentials; tests stop at the redirect to Google.
+- In e2e tests, reach pages the way people do (links, Back) as well as with `page.goto`: a full reload hides stale-page bugs. Compare text with `textContent`, not `innerText`, which changes while React moves streamed content into place.
+- In e2e tests, locate inputs with `getByRole("textbox", { name })`, not `getByLabel`. Next.js 16 keeps recently visited pages in the DOM, hidden, and `getByLabel` can match their inputs; `getByRole` skips hidden elements.
 - `samples/` (reference images) is git-ignored, so tests and CI must not depend on it.
