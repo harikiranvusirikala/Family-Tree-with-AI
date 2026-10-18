@@ -182,6 +182,110 @@ describe("planOperations: rejected batches", () => {
   });
 });
 
+describe("planOperations: editing by hand (step 6)", () => {
+  // Priya Rao, a single mother of Kiran; Priya and Arun Shah are also a couple of their own.
+  const withSingleParent = after(
+    sample,
+    plan(sample, [
+      { op: "createPerson", tempId: "new:priya", name: "Priya Rao", gender: "female" },
+      { op: "createUnion", tempId: "new:single", partnerIds: ["new:priya"], status: "married" },
+      { op: "createPerson", tempId: "new:kiran", name: "Kiran Rao", gender: "male" },
+      { op: "addChild", unionId: "new:single", childId: "new:kiran" },
+      { op: "createPerson", tempId: "new:arun", name: "Arun Shah", gender: "male" },
+      { op: "createUnion", partnerIds: ["new:priya", "new:arun"], status: "divorced" },
+    ]),
+  );
+  const id = (name: string) => withSingleParent.persons.find((p) => p.name === name)!._id.toHexString();
+  const single = withSingleParent.unions.find((u) => u.partnerIds.length === 1)!._id.toHexString();
+
+  test("addPartner gives a single parent a partner, who becomes the children's other parent", () => {
+    const p = plan(withSingleParent, [
+      { op: "createPerson", tempId: "new:ravi", name: "Ravi Rao", gender: "male" },
+      { op: "addPartner", unionId: single, personId: "new:ravi" },
+    ]);
+    const [union] = p.unions.updated;
+    expect(union.partnerIds.map((x) => x.toHexString())).toEqual([id("Priya Rao"), p.idMap["new:ravi"]]);
+    expect(union.childIds.map((x) => x.toHexString())).toEqual([id("Kiran Rao")]);
+  });
+
+  test("addPartner: only for a single parent, a different person, a new couple, and not a descendant", () => {
+    const jakeAndTaylor = sample.unions.find((u) => u.partnerIds[0].toHexString() === idOf("Jake Cruz"))!._id.toHexString();
+    expectRejected(sample, [{ op: "addPartner", unionId: jakeAndTaylor, personId: idOf("Olivia Cruz") }], /already has two partners/);
+    expectRejected(withSingleParent, [{ op: "addPartner", unionId: single, personId: id("Priya Rao") }], /two different people/);
+    expectRejected(withSingleParent, [{ op: "addPartner", unionId: single, personId: id("Arun Shah") }], /already a couple/);
+    expectRejected(withSingleParent, [{ op: "addPartner", unionId: single, personId: id("Kiran Rao") }], /Kiran Rao is a descendant of this couple/);
+  });
+
+  test("updateSheet renames, pins and unpins", () => {
+    const sheetId = sample.sheets[0]._id.toHexString();
+    const renamed = plan(sample, [{ op: "updateSheet", sheetId, set: { title: "The Cruz family", pinned: false } }]).sheets.updated[0];
+    expect(renamed).toMatchObject({ title: "The Cruz family", pinned: false, updatedBy: "tester" });
+  });
+
+  test("reorderSheets sets the tab order, and must list every sheet once", () => {
+    const cruz = sample.sheets[0]._id.toHexString();
+    const create = { op: "createSheet", tempId: "new:jerry", title: "Jerry Willow's family", rootPersonId: idOf("Jerry Willow") } as const;
+    const p = plan(sample, [create, { op: "reorderSheets", sheetIds: ["new:jerry", cruz] }]);
+    expect(p.sheets.inserted[0].order).toBe(0);
+    expect(p.sheets.updated[0].order).toBe(1);
+    expectRejected(sample, [create, { op: "reorderSheets", sheetIds: [cruz] }], /every sheet must be listed once/);
+    expectRejected(sample, [create, { op: "reorderSheets", sheetIds: [cruz, cruz] }], /listed twice/);
+  });
+
+  test("a sheet's root person can't be deleted", () => {
+    expectRejected(sample, [{ op: "deletePerson", personId: idOf("Alexander Cruz") }], /Alexander Cruz is the root of the sheet Cruz family/);
+  });
+});
+
+describe("planOperations: deleted parents count as absent (found in the owner's check)", () => {
+  const jake = idOf("Jake Cruz");
+  const alexanderAndJerry = sample.unions.find((u) => u.childIds.some((c) => c.toHexString() === jake))!._id.toHexString();
+  const newParents: Operation[] = [
+    { op: "createPerson", tempId: "new:dad", name: "Daniel Cruz", gender: "male" },
+    { op: "createPerson", tempId: "new:mum", name: "Rosa Cruz", gender: "female" },
+    { op: "createUnion", tempId: "new:parents", partnerIds: ["new:dad", "new:mum"], status: "married" },
+    { op: "addChild", unionId: "new:parents", childId: jake },
+  ];
+  // Without sheets, so the sheet-root rule doesn't stop deleting Alexander.
+  const noSheets = { ...sample, sheets: [] };
+  const deleteParents = (state: GroupState) =>
+    after(state, plan(state, [
+      { op: "deletePerson", personId: idOf("Alexander Cruz") },
+      { op: "deletePerson", personId: idOf("Jerry Willow") },
+    ]));
+
+  test("someone whose parents were both deleted can be given new parents, and leaves the old couple", () => {
+    const deleted = deleteParents(noSheets);
+    const p = plan(deleted, newParents);
+    const old = p.unions.updated.find((u) => u._id.toHexString() === alexanderAndJerry)!;
+    expect(old.childIds.map((c) => c.toHexString())).not.toContain(jake);
+    expect(p.unions.inserted[0].childIds.map((c) => c.toHexString())).toEqual([jake]);
+
+    // Restoring the old parents afterwards brings them back without Jake: he has one set of parents.
+    const reParented = after(deleted, p);
+    const restored = after(reParented, plan(reParented, [{ op: "restorePerson", personId: idOf("Jerry Willow") }]));
+    expect(restored.unions.filter((u) => u.childIds.some((c) => c.toHexString() === jake))).toHaveLength(1);
+  });
+
+  test("while one parent is still there, they still count as parents", () => {
+    const oneDeleted = after(noSheets, plan(noSheets, [{ op: "deletePerson", personId: idOf("Jerry Willow") }]));
+    expectRejected(oneDeleted, newParents, /Jake Cruz already has parents/);
+  });
+
+  test("the other parent takes a deleted parent's place", () => {
+    const oneDeleted = after(noSheets, plan(noSheets, [{ op: "deletePerson", personId: idOf("Jerry Willow") }]));
+    const p = plan(oneDeleted, [
+      { op: "createPerson", tempId: "new:other", name: "Sam Cruz", gender: "male" },
+      { op: "addPartner", unionId: alexanderAndJerry, personId: "new:other" },
+    ]);
+    expect(p.unions.updated[0].partnerIds.map((x) => x.toHexString())).toEqual([idOf("Alexander Cruz"), p.idMap["new:other"]]);
+  });
+
+  test("a couple whose partners are all deleted can't be used", () => {
+    expectRejected(deleteParents(noSheets), [{ op: "addChild", unionId: alexanderAndJerry, childId: idOf("Emma Young") }], /not found/);
+  });
+});
+
 describe("operationsSchema", () => {
   test("accepts the sample family's operations", () => {
     expect(operationsSchema.safeParse(sampleOps).success).toBe(true);

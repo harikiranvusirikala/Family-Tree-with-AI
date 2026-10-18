@@ -82,11 +82,13 @@ src/
     import-export/                       json.ts, gedcom.ts
   tree/                                  pure functions, run in the browser and in tests
     sheet-view.ts                        which people and unions belong on a sheet
+    edits.ts                             edits made by hand → operations; tab order
     layout/                              LayoutEngine interface + ELK.js adapter
   components/
     AppHeader.tsx, NoAccess.tsx          the signed-in header; the "no access" page
     auth/                                SignInButton, UserMenu, Better Auth's browser client
     tree/                                FamilyCanvas, PersonNode, UnionNode (heart)
+      edit/                              PersonPanel, CouplePanel, SheetTabs (editing, F6)
     chat/                                ChatWidget, ProposalCard
     ui/                                  shadcn components
 ```
@@ -377,6 +379,10 @@ sequenceDiagram
 
 - The same `applyOperations` handles AI proposals ([F7](#f7-ai-chat-priya-married-into-our-family)) and imports ([F10](#f10-import)).
 - Delete is a soft delete with Undo.
+- As built (step 6): clicking a card opens a person panel (details for everyone; Edit details, Add parents, Add partner, Add child, Show on another sheet and Delete for Maintain and up). Clicking a heart opens the couple's panel (Married or Divorced, Add child). The tabs have "+ New sheet" and a menu to rename, pin and move the current tab.
+- Each form becomes one batch, built by the pure helpers in `src/tree/edits.ts` and sent to the server action `applyChangesAction`. That action calls `applyGroupChanges`: `roleInGroup(…, maintain)`, then `applyOperations`. The page then re-renders with the new data (`groupChanged`).
+- Deleting shows "Name deleted · Undo" for 10 seconds. A sheet's root can't be deleted.
+- Viewers get the panels without any edit controls; the server action is the real check.
 
 ### F7. AI chat: "Priya married into our family"
 
@@ -536,12 +542,17 @@ type Operation =
   | { op: "addToSheet"; sheetId: Ref; personId: Ref }
   | { op: "setPhoto"; personId: Ref; photoId: string }
   | { op: "deletePerson"; personId: Ref } // UI only, never offered to the AI (soft delete)
-  | { op: "restorePerson"; personId: Ref }; // UI only: Undo for deletePerson
+  | { op: "restorePerson"; personId: Ref } // UI only: Undo for deletePerson
+  | { op: "addPartner"; unionId: Ref; personId: Ref } // UI only: a single parent's partner (the other parent)
+  | { op: "updateSheet"; sheetId: Ref; set: { title?: string; pinned?: boolean } } // UI only
+  | { op: "reorderSheets"; sheetIds: Ref[] }; // UI only: every sheet of the group, in tab order
 ```
 
 How `applyOperations` works (`src/server/operations/`, built in step 3):
 - The batch is validated with zod. Then, inside one transaction, the group's records are loaded and a pure planner (`planOperations`) checks every operation against them before anything is written. Errors name the failing change ("Change 3: …").
 - Rules: references must exist in the same group; a couple has 1–2 different people and can't be created twice; a person has at most one set of parents and can't become their own ancestor; a death year can't be before the birth year. Repeating `addChild` or `addToSheet` changes nothing.
+- Added in step 6: `addPartner` only for a couple with one partner, and the new partner can't be one of the couple's descendants; `reorderSheets` must list every sheet exactly once; a person who is a sheet's root can't be deleted (the sheet would be empty). Tabs show pinned sheets first, then the saved order.
+- Deleted people stay in their couples (so Undo restores them fully) but count as absent, exactly as the browser shows them (`toGroupTree`): a couple whose partners are all deleted isn't anyone's parents, so its children can be given new parents (they leave the old couple, so restoring the old parents can't give them two sets); and a new partner can take a deleted partner's place (`addPartner`).
 - All or nothing: one invalid operation rejects the batch. Concurrent edits are safe: on a write conflict MongoDB retries the transaction, which re-reads the group.
 
 Model and prompt:

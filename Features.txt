@@ -121,6 +121,15 @@ Sharing & permissions
   by lowercase only (no gmail dot/+tag rule), allows several owners, and adds HTTP endpoints outside our role checks.
 - Deleting a group is a soft delete: it disappears for everyone, and its records stay in the database.
 
+Editing by hand (step 6)
+- Click a person to open their panel: details, and for Maintain and up Edit, Add parents, Add partner,
+  Add child, Show on another sheet, Delete (with a 10-second Undo). Click a heart for married/divorced.
+- "Create their own sheet" is checked by default when adding a partner (people who marry in get a sheet).
+- A person who is a sheet's root can't be deleted.
+- Deleted people count as absent: after deleting someone's parents, new parents can be added; Undo still restores them.
+- Tabs: "+ New sheet", rename, pin and move left/right (buttons, not drag-and-drop). Pinned tabs come first.
+- Deleting a sheet and hiding an extra person from a sheet are left for later.
+
 AI chat behaviour
 - Tools: search_people, get_person (read); add_person, update_person, add_marriage, add_child, add_to_sheet, create_sheet (proposals).
   No delete tool - deleting is UI only.

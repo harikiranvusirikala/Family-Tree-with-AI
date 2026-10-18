@@ -13,8 +13,8 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 2 | Sheet view and tree layout | Done 2026-10-18 (merged to `main`). ELK.js chosen; see the step 2 notes |
 | 3 | Database and the single write path | Done 2026-10-18 (merged to `main`). See the step 3 notes |
 | 4 | Google sign-in (F1) | Done 2026-10-18 (merged to `main`). Real Google sign-in checked on production; indexes set up in `familytree_preview` and `familytree`. See the step 4 notes |
-| 5 | Groups, roles and opening a sheet (F2, F5) | Owner OK'd and committed 2026-10-18 on `step-5-groups` (lint, typecheck, unit, db and e2e tests pass). §15 question 3 settled: our own collections. Waiting for push and merge to `main`. Before merging: `npm run db:setup` for `familytree_preview` and `familytree` (membership indexes), and a Google sign-in on this step's preview (the first through the OAuth proxy) |
-| 6 | Editing the tree by hand (F6) | Not started |
+| 5 | Groups, roles and opening a sheet (F2, F5) | Done 2026-10-18 (merged to `main`). §15 question 3 settled: our own collections. Google sign-in through the OAuth proxy checked on its preview. See the step 5 notes |
+| 6 | Editing the tree by hand (F6) | Owner OK'd and committed 2026-10-18 on `step-6-editing` (lint, typecheck, unit, db and e2e tests pass). Waiting for push and merge to `main` |
 | 7 | Photos (F8) | Not started |
 | 8 | Members, invites and access requests (F3, F4) | Not started |
 | 9 | AI chat (F7) | Not started |
@@ -233,13 +233,74 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - The "no access looks the same" e2e test compares `textContent`. `innerText` changed with timing: React briefly holds streamed content in a hidden element, where `innerText` loses its line breaks.
 
 ## Step 6: Editing the tree by hand (F6)
+- **Owner:** nothing to set up.
 - **Build:**
-  - A server action wraps `applyOperations` with `requireRole(groupId, "maintain")`.
-  - UI to add a parent, partner or child, edit a person, mark a union divorced, soft delete with Undo, create a sheet, show a person on a sheet, and pin and reorder tabs.
-  - The layout re-runs after each change. Viewers see no edit controls.
+  - **The write action.** `applyChangesAction(groupId, ops)` in `src/app/g/[groupId]/actions.ts`:
+    - `requireUser()`, then `applyGroupChanges(database, groupId, userId, ops)` in `src/server/repositories/groups.ts`: `roleInGroup(…, MIN_ROLE.edit)`, then `applyOperations`. The role check sits in the repository function so a database test can call it as a Viewer.
+    - Returns `{ idMap }`, or `{ error }` with a plain message. A Viewer gets "You can view this tree but not change it". An invalid change gets the planner's reason without the "Change 2:" prefix, because one form is one batch.
+    - Then `groupChanged(groupId)`: the sheet page re-renders with the new data, and the canvas lays itself out again.
+  - **New operations** (ARCHITECTURE.md §10). They are for the UI only and are not offered to the AI:
+    - `addPartner { unionId, personId }` gives a single parent a partner: the "other parent".
+      - Rules: the couple has one partner now; the new partner is a different person; the two aren't already a couple; the new partner isn't a descendant of the couple (no one becomes their own ancestor).
+    - `updateSheet { sheetId, set: { title?, pinned? } }`: rename, pin and unpin.
+    - `reorderSheets { sheetIds }`: the group's whole tab order. It must list every sheet exactly once. Pinned tabs still show first.
+    - New rule (decision 1): `deletePerson` is refused for a person who is a sheet's root ("Jerry Willow is the root of the sheet Jerry Willow's family"). Otherwise that sheet would show nothing.
+  - **Form → operations builders**, pure, in `src/tree/edits.ts`. They run in the browser, are unit-tested, and the server re-validates everything:
+    - Add parents. With no parents: one or two new people, their couple, then `addChild`. With one parent: a new person, then `addPartner`.
+    - Add partner: a new person and a couple (married or divorced), plus `createSheet` "<Name>'s family" when "Create their own sheet" is checked (checked by default: decision 2).
+    - Add child: to the chosen couple. A person with no couple first gets a single-parent couple.
+    - Edit details, married/divorced, delete and restore, new sheet, show on another sheet, rename, pin and move a tab.
+  - **UI** (`src/components/tree/`, the sheet page):
+    - Clicking a card (or Enter on it) opens a **person panel** on the right: name, years, parents, partners and children. Maintain and up also get:
+      - Edit details (name, gender, birth and death year; a year can be cleared).
+      - Add parents (only when they have fewer than two).
+      - Add partner, with married or divorced and "Create their own sheet".
+      - Add child. With several couples, choose which: "with Taylor Humes", or "on their own".
+      - Show on another sheet.
+      - Delete.
+    - Clicking a heart opens the couple's panel: Married or Divorced, and Add child.
+    - Deleting shows a notice, "Alex Cruz deleted · Undo", for 10 seconds. Undo restores them (`restorePerson`).
+    - Tabs get "+ New sheet": choose a person; the title defaults to "<Name>'s family". The current tab gets a menu: Rename, Pin/Unpin, Move left, Move right. These are buttons, not drag-and-drop, so they work from the keyboard and in tests.
+    - Viewers: the panel shows details only, with no "+ New sheet" and no tab menu. Hiding these is for convenience; the server action is the real check.
+    - While a change is saving, the panel's buttons are disabled. Errors show in the panel. Forms use the same zod rules as the server (names, years).
+  - **E2E fixture** (until step 8 adds invites):
+    - `groupFor(user)` creates a group owned by the user, holding the sample family with its two sheets ("Cruz family" with the in-law parents, and "Jerry Willow's family"), through `createGroup`.
+    - `addMember(groupId, user, role)` gives another test user a role.
+  - Docs in the same commit:
+    - ARCHITECTURE.md §10 (the new operations and the root rule) and F6.
+    - Features.txt DECISIONS: how editing works, and the answers to the open questions.
+    - CLAUDE.md.
 - **Tests:**
-  - E2E: add a child under Jake and Taylor → it appears on every sheet that reaches them; adding a partner who married in, with "create their sheet" checked, adds a new tab rooted at them; delete then Undo.
-  - Integration: a Viewer calling the server action directly is rejected.
+  - Unit:
+    - Planner rules for `addPartner`, `updateSheet` and `reorderSheets` (a missing or repeated sheet is refused), and the root rule for `deletePerson`.
+    - The builders against the sample family. A child added under Jake and Taylor shows on both sample sheets. A partner added with "Create their own sheet" gets a sheet rooted at them. Adding the other parent of someone with one parent uses `addPartner`.
+  - Database: a Viewer's `applyGroupChanges` gets `NoAccessError` and writes nothing; a Maintainer's change goes through.
+  - E2E:
+    - Add a child under Jake and Taylor. Without a reload, "Cruz family" shows 37 people and "Jerry Willow's family" shows 33.
+    - Add a partner for Amelia Young who married in, with "Create their own sheet" checked. A new tab "<Name>'s family" appears, rooted at them.
+    - Delete Alex Cruz, then Undo: 35 people, then 36 again.
+    - Pin a sheet, then move a tab. The order is still there after a reload.
+    - Mark Steve Cruz and Arham Chopra divorced. Their heart turns into a broken heart.
+    - A Viewer sees the tree with no edit controls.
+- **Owner checks:** on `npm run dev`, build a few generations of your own family: add parents, partners and children; edit details; delete and Undo; create a sheet for someone who married in; pin and reorder tabs.
+- **Decided by the owner (2026-10-18):**
+  1. Deleting someone who is a sheet's root is refused, with a message naming the sheet.
+  2. "Create their own sheet" is checked by default when adding a partner.
+  3. Deleting a sheet and hiding an extra person from a sheet are left for later.
+- **Step 6 notes (2026-10-18):**
+  - React Flow turns off pointer events on nodes it thinks are inert (not draggable, selectable or clickable), so the canvas swallowed clicks on the cards' own buttons. With editing on, the canvas gives React Flow a no-op `onNodeClick`. The buttons do the work, so the cards also open from the keyboard.
+  - Click handlers and the selection reach the cards through a React context, not node data, so selecting someone doesn't lay the sheet out again.
+  - `OperationError` has `reason` (the message without "Change N:"), shown as a sentence in the panel.
+  - `loadGroupTree` is split into the query and the pure `toGroupTree`, so tests (`test/planning.ts`) can turn planned documents into what the browser draws.
+  - The year rule in `schema.ts` now has readable messages ("Enter a year from 1000 on"). The forms use the same zod rules as the server.
+  - Renaming a tab to its current title sends nothing (an empty batch would be refused).
+  - The sheets moved from the `[sheetId]` page into a layout (`src/app/g/[groupId]/s/layout.tsx`). A tab switch changes `[sheetId]` with `pushState`, and the next save's refresh then rendered a new page, remounting the editor (an open panel or menu closed). The layout stays mounted; the page renders nothing. An unknown sheet id now shows the first sheet and corrects the address bar.
+  - E2E timeouts are longer (15 s per assertion, 60 s per test). Locally each save is a transaction plus a re-render against the remote M0 cluster, measured at 1–5 s with four workers.
+  - Sheet menu items close the menu straight away. The change shows when it's saved, and errors show above the canvas.
+  - Found in the owner's check: after deleting both parents, adding parents again failed with "already has parents". Deleted people stay in their couples (for Undo), so the server still counted the couple, while the browser showed no parents. The planner now treats deleted people as absent, the way the browser shows them:
+    - a couple whose partners are all deleted isn't anyone's parents, and a child given new parents leaves it;
+    - "Add the other parent" takes a deleted parent's place.
+    - Tests at three levels (planner, builders through `toGroupTree`, e2e) follow the owner's steps. The planner test fails with the old rule.
 
 ## Step 7: Photos (F8)
 - **Owner:** create a Cloudinary account and add the three `CLOUDINARY_*` variables.

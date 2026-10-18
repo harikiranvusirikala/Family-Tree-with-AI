@@ -1,8 +1,8 @@
 import { ObjectId, type Db } from "mongodb";
 import type { Database } from "../db";
 import { InvalidIdError, toObjectId } from "../ids";
-import { applyInTransaction, parseOperations, type ApplyResult } from "../operations/apply";
-import { hasRole, NoAccessError, type Role } from "../roles";
+import { applyInTransaction, applyOperations, parseOperations, type ApplyResult } from "../operations/apply";
+import { hasRole, MIN_ROLE, NoAccessError, type Role } from "../roles";
 import { collections } from "./documents";
 
 export interface GroupSummary {
@@ -62,6 +62,15 @@ export async function createGroup(
   } finally {
     await session.endSession();
   }
+}
+
+/**
+ * Editing by hand (F6): the user must be able to edit this group (Maintain and up), then the batch
+ * goes through the single write path. NoAccessError or OperationError otherwise, with nothing written.
+ */
+export async function applyGroupChanges(database: Database, groupId: string, userId: string, operations: unknown): Promise<ApplyResult> {
+  await roleInGroup(database.db, groupId, userId, MIN_ROLE.edit);
+  return applyOperations(database, groupId, operations, userId);
 }
 
 /** The dashboard: every group the user belongs to, with their role, by name. */

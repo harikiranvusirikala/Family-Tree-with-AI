@@ -6,7 +6,7 @@ import { NoAccessError } from "@/server/roles";
 import { createTestDatabase } from "@test/db";
 import { collections, ensureIndexes } from "./documents";
 import { loadGroupTree } from "./family";
-import { createGroup, deleteGroup, firstSheetId, listGroupsForUser, renameGroup, roleInGroup } from "./groups";
+import { applyGroupChanges, createGroup, deleteGroup, firstSheetId, listGroupsForUser, renameGroup, roleInGroup } from "./groups";
 
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
 beforeAll(async () => {
@@ -85,6 +85,34 @@ describe("groups against MongoDB", () => {
     const { groupId } = await createGroup(database, "Iyer family", sharma, owner);
     const again = { _id: new ObjectId(), groupId: new ObjectId(groupId), userId: new ObjectId(owner), role: "view" as const, addedBy: owner, createdAt: new Date() };
     await expect(collections(database.db).memberships.insertOne(again)).rejects.toThrow(/duplicate key/);
+  });
+
+  test("editing: a Viewer is refused and nothing is written; a Maintainer's change goes through (F6)", async () => {
+    const owner = newUser();
+    const viewer = newUser();
+    const maintainer = newUser();
+    const { groupId } = await createGroup(database, "Patel family", sharma, owner);
+    for (const [userId, role] of [[viewer, "view"], [maintainer, "maintain"]] as const) {
+      await collections(database.db).memberships.insertOne({
+        _id: new ObjectId(),
+        groupId: new ObjectId(groupId),
+        userId: new ObjectId(userId),
+        role,
+        addedBy: owner,
+        createdAt: new Date(),
+      });
+    }
+    const addAunt = [{ op: "createPerson", tempId: "new:aunt", name: "Meena Sharma", gender: "female" }];
+
+    await expect(applyGroupChanges(database, groupId, viewer, addAunt)).rejects.toThrow(NoAccessError);
+    await expect(applyGroupChanges(database, groupId, newUser(), addAunt)).rejects.toThrow(NoAccessError);
+    expect((await loadGroupTree(database.db, groupId)).persons).toHaveLength(3);
+
+    const { idMap } = await applyGroupChanges(database, groupId, maintainer, addAunt);
+    const tree = await loadGroupTree(database.db, groupId);
+    expect(tree.persons.map((p) => p.name)).toContain("Meena Sharma");
+    const aunt = await collections(database.db).persons.findOne({ _id: new ObjectId(idMap["new:aunt"]) });
+    expect(aunt).toMatchObject({ createdBy: maintainer, groupId: new ObjectId(groupId) });
   });
 
   test("rename, then a soft delete hides the group from everyone and keeps its records", async () => {

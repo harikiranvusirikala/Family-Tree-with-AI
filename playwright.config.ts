@@ -16,6 +16,10 @@ process.env.E2E_AUTH_SECRET ??= randomBytes(32).toString("base64");
 
 export default defineConfig({
   testDir: "./e2e",
+  // Every save is a transaction plus a re-render against the remote Atlas M0 cluster: 1–5 s from a
+  // laptop far from it, with four workers sharing it.
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,

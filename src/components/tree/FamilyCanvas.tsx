@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -16,6 +16,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { CARD_HEIGHT, CARD_WIDTH, HEART_GAP, ROW_GAP, layoutEngine } from "@/tree/layout";
 import type { SheetView } from "@/tree/types";
+import { CanvasActionsContext, type CanvasActions } from "./canvas-actions";
 import { GENDER_COLORS, PersonNode, type PersonNodeType } from "./PersonNode";
 import { UNION_HEIGHT, UnionNode, type UnionNodeType } from "./UnionNode";
 
@@ -32,7 +33,12 @@ const edgeTypes = { fork: ForkEdge };
 
 type FlowNode = PersonNodeType | UnionNodeType;
 
+// React Flow turns off pointer events on nodes it thinks are inert (not draggable, selectable or
+// clickable). Giving it a click handler keeps them on, so the cards' own buttons get the clicks.
+const keepNodesClickable = () => {};
+
 function Canvas({ view }: { view: SheetView }) {
+  const { onPerson, onCouple } = useContext(CanvasActionsContext);
   const [nodes, setNodes] = useState<FlowNode[]>([]);
   const [edges, setEdges] = useState<ForkEdgeType[]>([]);
   const { fitView } = useReactFlow();
@@ -64,7 +70,11 @@ function Canvas({ view }: { view: SheetView }) {
             position: { x: u.x - HEART_GAP / 2, y: u.y - UNION_HEIGHT / 2 },
             width: HEART_GAP,
             height: UNION_HEIGHT,
-            data: { couple: union.partnerIds.length === 2, divorced: union.status === "divorced" },
+            data: {
+              couple: union.partnerIds.length === 2,
+              divorced: union.status === "divorced",
+              label: union.partnerIds.map((id) => personById.get(id)?.name).join(" and "),
+            },
           };
         }),
       ]);
@@ -89,6 +99,7 @@ function Canvas({ view }: { view: SheetView }) {
       nodesDraggable={false}
       nodesConnectable={false}
       elementsSelectable={false}
+      onNodeClick={onPerson || onCouple ? keepNodesClickable : undefined}
       minZoom={0.1}
       fitView
     >
@@ -104,10 +115,12 @@ function Canvas({ view }: { view: SheetView }) {
 }
 
 /** Pan/zoom canvas for one sheet. Layout runs in the browser (ARCHITECTURE.md §7). */
-export function FamilyCanvas(props: { view: SheetView }) {
+export function FamilyCanvas({ view, actions }: { view: SheetView; actions?: CanvasActions }) {
   return (
     <ReactFlowProvider>
-      <Canvas {...props} />
+      <CanvasActionsContext value={actions ?? {}}>
+        <Canvas view={view} />
+      </CanvasActionsContext>
     </ReactFlowProvider>
   );
 }

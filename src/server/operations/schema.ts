@@ -7,10 +7,11 @@ const tempId = z.string().regex(/^new:[\w-]{1,64}$/, 'Temporary ids look like "n
 /** An existing id, or a temporary id created earlier in the same batch. */
 const ref = z.union([id, tempId]);
 const name = z.string().trim().min(1, "Name is required").max(120);
-export { name as personName };
+export { name as personName, year };
 const gender = z.enum(["male", "female"]);
-const year = z.number().int().min(1000).max(2200);
+const year = z.number().int("Enter a whole year").min(1000, "Enter a year from 1000 on").max(2200, "Enter a year up to 2200");
 const unionStatus = z.enum(["married", "divorced"]);
+const sheetTitle = z.string().trim().min(1, "Title is required").max(120);
 
 export const operationSchema = z.discriminatedUnion("op", [
   z.strictObject({
@@ -42,7 +43,7 @@ export const operationSchema = z.discriminatedUnion("op", [
   z.strictObject({
     op: z.literal("createSheet"),
     tempId: tempId.optional(),
-    title: z.string().trim().min(1, "Title is required").max(120),
+    title: sheetTitle,
     rootPersonId: ref,
     pinned: z.boolean().optional(),
   }),
@@ -51,6 +52,13 @@ export const operationSchema = z.discriminatedUnion("op", [
   // UI only, never offered to the AI:
   z.strictObject({ op: z.literal("deletePerson"), personId: ref }),
   z.strictObject({ op: z.literal("restorePerson"), personId: ref }),
+  z.strictObject({ op: z.literal("addPartner"), unionId: ref, personId: ref }), // a single parent's partner
+  z.strictObject({
+    op: z.literal("updateSheet"),
+    sheetId: ref,
+    set: z.strictObject({ title: sheetTitle.optional(), pinned: z.boolean().optional() }),
+  }),
+  z.strictObject({ op: z.literal("reorderSheets"), sheetIds: z.array(ref).min(1).max(1000) }), // every sheet, in tab order
 ]);
 
 export const operationsSchema = z.array(operationSchema).min(1, "Nothing to apply").max(5000);

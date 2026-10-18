@@ -1,17 +1,29 @@
 "use client";
 
+import { useContext } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { HEART_GAP } from "@/tree/layout";
+import { CanvasActionsContext } from "./canvas-actions";
 
-export type UnionNodeType = Node<{ couple: boolean; divorced: boolean }, "union">;
+export type UnionNodeType = Node<{ couple: boolean; divorced: boolean; label: string }, "union">;
 
 export const UNION_HEIGHT = 24;
 const HEART = "M12 21s-7.5-4.6-9.6-9.2C1 8.6 2.9 5 6.4 5c2.1 0 3.6 1.2 4.6 2.7h2C14 6.2 15.5 5 17.6 5 21.1 5 23 8.6 21.6 11.8 19.5 16.4 12 21 12 21z";
 
 /** "— ♥ —" between partners (a broken heart if divorced). A single parent's node is invisible. */
-export function UnionNode({ data }: NodeProps<UnionNodeType>) {
+export function UnionNode({ id, data }: NodeProps<UnionNodeType>) {
+  const { onCouple, selectedId } = useContext(CanvasActionsContext);
   return (
-    <div style={{ width: HEART_GAP, height: UNION_HEIGHT }} className="relative">
+    <div style={{ width: HEART_GAP, height: UNION_HEIGHT }} className={`relative rounded ${selectedId === id ? "ring-2 ring-amber-400" : ""}`}>
+      {data.couple && onCouple && (
+        <button
+          type="button"
+          aria-label={`${data.label}, ${data.divorced ? "divorced" : "married"}`}
+          aria-pressed={selectedId === id}
+          onClick={() => onCouple(id)}
+          className="absolute inset-0 z-10 cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-amber-500"
+        />
+      )}
       {data.couple && (
         <svg width={HEART_GAP} height={UNION_HEIGHT} viewBox={`0 0 ${HEART_GAP} ${UNION_HEIGHT}`} aria-hidden>
           <line x1={2} y1={12} x2={14} y2={12} stroke="#a1a1aa" strokeWidth={1.5} />

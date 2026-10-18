@@ -3,7 +3,12 @@ import { betterAuth } from "better-auth";
 import { testUtils } from "better-auth/plugins";
 import { ObjectId } from "mongodb";
 import { authOptions } from "@/server/auth-options";
-import { openDatabase } from "@/server/db";
+import { openDatabase, type Database } from "@/server/db";
+import { operationsFromFamily } from "@/server/operations/from-family";
+import { collections } from "@/server/repositories/documents";
+import { createGroup } from "@/server/repositories/groups";
+import type { Role } from "@/server/roles";
+import { cruzYoung, inLawParentIds } from "@test/fixtures/cruz-young";
 
 export { expect } from "@playwright/test";
 
@@ -16,9 +21,17 @@ export interface TestUser {
 interface Fixtures {
   /** Signs `page` in as a brand-new user, created directly in this run's database. */
   signIn: (page: Page, name: string) => Promise<TestUser>;
+  /** A group owned by `owner` holding the sample family, with its "Cruz family" and "Jerry Willow's family" sheets. */
+  sampleGroup: (owner: TestUser) => Promise<{ groupId: string; cruzSheet: string; jerrySheet: string }>;
+  /** Gives a user a role in a group directly (until step 8 adds invites). */
+  addMember: (groupId: string, user: TestUser, role: Role) => Promise<void>;
 }
 
+export type SignIn = Fixtures["signIn"];
+export type SampleGroup = Fixtures["sampleGroup"];
+
 interface WorkerFixtures {
+  database: Database;
   testHelpers: Awaited<ReturnType<typeof createTestAuth>>;
 }
 
@@ -26,7 +39,7 @@ interface WorkerFixtures {
  * The app's own Better Auth settings (same base URL and secret, so the same cookie names and
  * signatures), plus testUtils. testUtils lives only here: the app has no test-login route.
  */
-async function createTestAuth(database: Awaited<ReturnType<typeof openDatabase>>) {
+async function createTestAuth(database: Database) {
   const options = authOptions(database, {
     BETTER_AUTH_URL: process.env.E2E_BASE_URL,
     BETTER_AUTH_SECRET: process.env.E2E_AUTH_SECRET,
@@ -43,17 +56,43 @@ async function createTestAuth(database: Awaited<ReturnType<typeof openDatabase>>
 }
 
 export const test = base.extend<Fixtures, WorkerFixtures>({
-  testHelpers: [
+  database: [
     async ({}, provide) => {
       const database = await openDatabase(process.env.E2E_MONGODB_DB!);
       try {
-        await provide(await createTestAuth(database));
+        await provide(database);
       } finally {
         await database.client.close();
       }
     },
     { scope: "worker" },
   ],
+
+  testHelpers: [async ({ database }, provide) => provide(await createTestAuth(database)), { scope: "worker" }],
+
+  sampleGroup: async ({ database }, provide) => {
+    await provide(async (owner) => {
+      const ops = operationsFromFamily(cruzYoung, [
+        { title: "Cruz family", rootPersonId: "alexander-cruz", extraPersonIds: inLawParentIds, pinned: true },
+        { title: "Jerry Willow's family", rootPersonId: "jerry-willow", pinned: true },
+      ]);
+      const { groupId, idMap } = await createGroup(database, "Cruz family", ops, owner.id);
+      return { groupId, cruzSheet: idMap["new:sheet-0"], jerrySheet: idMap["new:sheet-1"] };
+    });
+  },
+
+  addMember: async ({ database }, provide) => {
+    await provide(async (groupId, user, role) => {
+      await collections(database.db).memberships.insertOne({
+        _id: new ObjectId(),
+        groupId: new ObjectId(groupId),
+        userId: new ObjectId(user.id),
+        role,
+        addedBy: "e2e",
+        createdAt: new Date(),
+      });
+    });
+  },
 
   signIn: async ({ testHelpers }, provide) => {
     await provide(async (page, name) => {

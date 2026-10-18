@@ -1,10 +1,12 @@
 "use client";
 
+import { useContext } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { CARD_HEIGHT, CARD_WIDTH, PHOTO_SIZE, PHOTO_TOP } from "@/tree/layout";
 import { formatYears } from "@/tree/years";
 import type { Person } from "@/tree/types";
 import { initials } from "../initials";
+import { CanvasActionsContext } from "./canvas-actions";
 
 export type PersonNodeType = Node<{ person: Person }, "person">;
 
@@ -16,15 +18,25 @@ export const GENDER_COLORS = {
 
 export function PersonNode({ data }: NodeProps<PersonNodeType>) {
   const { person } = data;
+  const { onPerson, selectedId } = useContext(CanvasActionsContext);
   const color = GENDER_COLORS[person.gender];
   const years = formatYears(person.birthYear, person.deathYear);
   return (
     <div
       data-testid="person-card"
       data-person-id={person.id}
-      className="flex flex-col items-center text-center"
+      className={`relative flex flex-col items-center rounded-lg text-center ${selectedId === person.id ? "bg-amber-50 ring-2 ring-amber-400" : ""}`}
       style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
     >
+      {onPerson && (
+        <button
+          type="button"
+          aria-label={years ? `${person.name}, ${years}` : person.name}
+          aria-pressed={selectedId === person.id}
+          onClick={() => onPerson(person.id)}
+          className="absolute inset-0 z-10 cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-amber-500"
+        />
+      )}
       <div
         className="flex items-center justify-center rounded-full text-2xl font-semibold"
         style={{

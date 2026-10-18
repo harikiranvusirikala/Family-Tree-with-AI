@@ -2,13 +2,16 @@ import { ObjectId } from "mongodb";
 import type { PersonDoc, SheetDoc, UnionDoc } from "../repositories/documents";
 import type { Operation } from "./schema";
 
-/** A rejected batch. `index` is the position of the failing operation (-1 for the whole batch). */
+/**
+ * A rejected batch. `index` is the position of the failing operation (-1 for the whole batch);
+ * `reason` is the message without "Change N:", for a form that sends one batch.
+ */
 export class OperationError extends Error {
   constructor(
-    message: string,
+    readonly reason: string,
     readonly index: number,
   ) {
-    super(index >= 0 ? `Change ${index + 1}: ${message}` : message);
+    super(index >= 0 ? `Change ${index + 1}: ${reason}` : reason);
   }
 }
 
@@ -93,7 +96,7 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
     };
     const union = (ref: string): UnionDoc => {
       const u = docs.union.get(resolve(ref, "union"));
-      if (!u || u.deletedAt) throw fail(`couple ${ref} not found`);
+      if (!u || u.deletedAt || alivePartners(u).length === 0) throw fail(`couple ${ref} not found`);
       return u;
     };
     const sheet = (ref: string): SheetDoc => {
@@ -104,6 +107,25 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
     const checkYears = (p: Pick<PersonDoc, "birthYear" | "deathYear" | "name">) => {
       if (p.birthYear !== undefined && p.deathYear !== undefined && p.deathYear < p.birthYear) {
         throw fail(`${p.name}'s death year is before their birth year`);
+      }
+    };
+    // Deleted people are kept (for Undo) but treated as absent, as the browser shows them (toGroupTree):
+    // a couple whose partners are all deleted doesn't count, and a deleted partner's place can be taken.
+    const alivePartners = (u: UnionDoc) => u.partnerIds.filter((p) => !docs.person.get(p.toHexString())?.deletedAt);
+    /** The couple a person is a child of, unless all its partners are deleted. */
+    const parentsOf = (childHex: string): UnionDoc | undefined => {
+      const id = parentUnionOf.get(childHex);
+      const u = id ? docs.union.get(id) : undefined;
+      return u && alivePartners(u).length > 0 ? u : undefined;
+    };
+    // A couple can't be created twice (in either order).
+    const checkNewCouple = (partners: ObjectId[]) => {
+      if (partners.length === 2 && partners[0].equals(partners[1])) throw fail("a couple needs two different people");
+      const key = partners.map((p) => p.toHexString()).sort().join("+");
+      for (const u of docs.union.values()) {
+        if (!u.deletedAt && u.partnerIds.map((p) => p.toHexString()).sort().join("+") === key) {
+          throw fail("these people are already a couple");
+        }
       }
     };
     const isAncestor = (candidate: string, personId: string): boolean => {
@@ -151,19 +173,27 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
       }
       case "createUnion": {
         const partners = op.partnerIds.map((ref) => person(ref)._id);
-        const key = partners.map((p) => p.toHexString()).sort().join("+");
-        if (partners.length === 2 && partners[0].equals(partners[1])) throw fail("a couple needs two different people");
-        for (const u of docs.union.values()) {
-          if (!u.deletedAt && u.partnerIds.map((p) => p.toHexString()).sort().join("+") === key) {
-            throw fail("these people are already a couple");
-          }
-        }
+        checkNewCouple(partners);
         const doc: UnionDoc = { _id: create("union", op.tempId), groupId, partnerIds: partners, status: op.status, childIds: [], ...audit() };
         docs.union.set(doc._id.toHexString(), doc);
         break;
       }
       case "updateUnion": {
         edit("union", union(op.unionId)).status = op.status;
+        break;
+      }
+      case "addPartner": {
+        const u = union(op.unionId);
+        const partner = person(op.personId);
+        const [alive, ...others] = alivePartners(u);
+        if (others.length) throw fail("this couple already has two partners");
+        checkNewCouple([alive, partner._id]);
+        // The new partner becomes a parent of the couple's children, so they can't be one of their descendants.
+        const partnerHex = partner._id.toHexString();
+        if (u.childIds.some((c) => c.equals(partner._id) || isAncestor(c.toHexString(), partnerHex))) {
+          throw fail(`${partner.name} is a descendant of this couple`);
+        }
+        edit("union", u).partnerIds = [alive, partner._id]; // takes a deleted partner's place, if any
         break;
       }
       case "addChild": {
@@ -173,10 +203,16 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
         const unionHex = u._id.toHexString();
         const existing = parentUnionOf.get(childHex);
         if (existing === unionHex) break; // already their child
-        if (existing) throw fail(`${child.name} already has parents`);
+        if (parentsOf(childHex)) throw fail(`${child.name} already has parents`);
         for (const p of u.partnerIds) {
           if (p.equals(child._id)) throw fail(`${child.name} can't be their own child`);
           if (isAncestor(childHex, p.toHexString())) throw fail(`${child.name} is an ancestor of their parent`);
+        }
+        if (existing) {
+          // Their parents were all deleted: they leave that couple, so restoring those parents later
+          // can't give them two sets of parents.
+          const old = edit("union", docs.union.get(existing)!);
+          old.childIds = old.childIds.filter((c) => !c.equals(child._id));
         }
         const copy = edit("union", u);
         copy.childIds = [...copy.childIds, child._id];
@@ -207,12 +243,32 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
         copy.extraPersonIds = [...copy.extraPersonIds, p._id];
         break;
       }
+      case "updateSheet": {
+        const copy = edit("sheet", sheet(op.sheetId));
+        if (op.set.title !== undefined) copy.title = op.set.title;
+        if (op.set.pinned !== undefined) copy.pinned = op.set.pinned;
+        break;
+      }
+      case "reorderSheets": {
+        const ids = op.sheetIds.map((ref) => sheet(ref)._id.toHexString());
+        if (new Set(ids).size !== ids.length) throw fail("a sheet is listed twice");
+        if (ids.length !== docs.sheet.size) throw fail("every sheet must be listed once");
+        ids.forEach((id, order) => {
+          const s = docs.sheet.get(id)!;
+          if (s.order !== order) edit("sheet", s).order = order;
+        });
+        break;
+      }
       case "setPhoto": {
         edit("person", person(op.personId)).photoId = op.photoId;
         break;
       }
       case "deletePerson": {
-        edit("person", person(op.personId)).deletedAt = now;
+        const p = person(op.personId);
+        // A sheet shows its root's family, so it would be left empty.
+        const rooted = [...docs.sheet.values()].find((s) => s.rootPersonId.equals(p._id));
+        if (rooted) throw fail(`${p.name} is the root of the sheet ${rooted.title}`);
+        edit("person", p).deletedAt = now;
         break;
       }
       case "restorePerson": {
