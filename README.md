@@ -26,9 +26,13 @@ npm run dev                  # http://localhost:3000
 | `npm run build` / `npm start` | Production build and server |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Generates Next.js route types, then runs the TypeScript compiler |
-| `npm test` | Unit and integration tests (Vitest) |
+| `npm test` | Unit tests (Vitest); no database needed |
 | `npm run test:watch` | Vitest in watch mode |
-| `npm run test:e2e` | End-to-end tests (Playwright). Builds the app and serves it on port 3100 |
+| `npm run test:e2e` | End-to-end tests (Playwright). Builds the app and serves it on port 3100, with a throwaway seeded database |
+| `npm run test:db` | Database integration tests against MongoDB Atlas (`*.db.test.ts`) |
+| `npm run db:ping` | Checks the connection in `.env.local` |
+| `npm run db:setup` | Creates the collections' indexes (safe to repeat) |
+| `npm run seed` | Loads the sample family into `MONGODB_DB`; view it at `/dev/tree/db` |
 
 The end-to-end tests use your installed Google Chrome locally, and Playwright's own Chromium on CI.
 

@@ -25,9 +25,22 @@ export interface Sheet {
   extraPersonIds: string[];
 }
 
+/** A saved sheet, as shown in the sheet tabs. */
+export interface NamedSheet extends Sheet {
+  id: string;
+  title: string;
+  pinned: boolean;
+  order: number;
+}
+
 export interface FamilyData {
   persons: Person[];
   unions: Union[];
+}
+
+/** A group's people, couples and sheets, as loaded for drawing (F5). */
+export interface GroupTree extends FamilyData {
+  sheets: NamedSheet[];
 }
 
 /** Who is drawn on one sheet. Built by buildSheetView(). */

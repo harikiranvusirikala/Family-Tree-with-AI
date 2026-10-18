@@ -60,7 +60,7 @@ src/
       members/page.tsx                   members, invites, access requests (Admin and up)
       settings/page.tsx                  rename, transfer ownership, delete (Owner)
     invite/[token]/page.tsx              accept or decline an invite
-    dev/tree/page.tsx                    developer-only layout playground (404 on Vercel)
+    dev/tree/                            developer-only pages (404 on Vercel): layout playground; db/ draws the seeded family
     api/
       auth/[...all]/route.ts             Better Auth handler
       chat/route.ts                      AI chat (streaming)
@@ -111,7 +111,7 @@ erDiagram
 | `accessRequests` | `groupId`, `userId`, `email`, `message?`, `status` (`pending` · `approved` · `denied`), `decidedBy?`, `decidedAt?`, `createdAt` | unique `{groupId, userId}` where `status = pending` · `{groupId, status}` |
 | `persons` | `groupId`, `name`, `gender` (`male` · `female`), `birthYear?`, `deathYear?`, `photoId?`, `notes?`, audit fields, `deletedAt?` | `{groupId}` |
 | `unions` | `groupId`, `partnerIds` (1 or 2), `status` (`married` · `divorced`), `childIds`, audit fields, `deletedAt?` | `{groupId}` · `{groupId, partnerIds}` · `{groupId, childIds}` |
-| `sheets` | `groupId`, `title`, `rootPersonId`, `pinned`, `order`, `extraPersonIds`, `createdBy`, `createdAt` | `{groupId}` |
+| `sheets` | `groupId`, `title`, `rootPersonId`, `pinned`, `order`, `extraPersonIds`, audit fields | `{groupId}` |
 | `chatUsage` | `userId`, `day` (`YYYY-MM-DD`), `count` | unique `{userId, day}` |
 
 Notes:
@@ -517,11 +517,17 @@ type Operation =
   | { op: "createUnion"; tempId?: string; partnerIds: [Ref] | [Ref, Ref]; status: "married" | "divorced" }
   | { op: "updateUnion"; unionId: Ref; status: "married" | "divorced" }
   | { op: "addChild"; unionId: Ref; childId: Ref }
-  | { op: "createSheet"; tempId?: string; title: string; rootPersonId: Ref }
+  | { op: "createSheet"; tempId?: string; title: string; rootPersonId: Ref; pinned?: boolean }
   | { op: "addToSheet"; sheetId: Ref; personId: Ref }
   | { op: "setPhoto"; personId: Ref; photoId: string }
-  | { op: "deletePerson"; personId: Ref }; // UI only, never offered to the AI
+  | { op: "deletePerson"; personId: Ref } // UI only, never offered to the AI (soft delete)
+  | { op: "restorePerson"; personId: Ref }; // UI only: Undo for deletePerson
 ```
+
+How `applyOperations` works (`src/server/operations/`, built in step 3):
+- The batch is validated with zod. Then, inside one transaction, the group's records are loaded and a pure planner (`planOperations`) checks every operation against them before anything is written. Errors name the failing change ("Change 3: …").
+- Rules: references must exist in the same group; a couple has 1–2 different people and can't be created twice; a person has at most one set of parents and can't become their own ancestor; a death year can't be before the birth year. Repeating `addChild` or `addToSheet` changes nothing.
+- All or nothing: one invalid operation rejects the batch. Concurrent edits are safe: on a write conflict MongoDB retries the transaction, which re-reads the group.
 
 Model and prompt:
 - The model comes from `CHAT_MODEL` (`claude-haiku-5-5`), and responses are streamed.
@@ -550,13 +556,14 @@ Model and prompt:
 | Production | Push to `main` | `<project>.vercel.app` or a custom domain | `familytree` |
 
 - All three databases live in the one free Atlas cluster and share its 512 MB.
+- Tests use throwaway `familytree_test_<time>_<label>` databases in the same cluster: one per database-test file and one per e2e run. They remove themselves afterwards, and leftovers from crashed runs are cleared after an hour.
 - Google only accepts exact redirect URLs. Register the local and production URLs in the Google Cloud OAuth client. Preview URLs change, so either register a fixed branch URL or use Better Auth's OAuth proxy plugin (to be checked during setup).
 
 ## 13. Configuration
 
 | Variable | Used by | Notes |
 |---|---|---|
-| `MONGODB_URI` | App | Database user with read/write on one database |
+| `MONGODB_URI` | App; GitHub Actions (tests) | Database user with read/write only (no admin). CI uses a separate test user, stored as a repo secret |
 | `MONGODB_DB` | App | `familytree`, `familytree_preview` or `familytree_dev` |
 | `BETTER_AUTH_SECRET` | App | Random, at least 32 bytes |
 | `BETTER_AUTH_URL` | App | Base URL of the deployment |

@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Three docs drive all work. Read the relevant parts before changing anything:
 
-- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Steps 1–2 exist (skeleton; sheet view, ELK.js layout and the tree canvas); most of the architecture below is still planned.
+- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Steps 1–3 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`). Sign-in, groups and permissions are still planned.
 - **[ARCHITECTURE.md](ARCHITECTURE.md)**: the blueprint (code layout §4, data model §5, sheet rules §6, layout §7, permissions §8, flows F1–F12, AI chat §10, environments §12, env vars §13, open questions §15). Folder names, collections and function names come from here.
 - **[Features.txt](Features.txt)**: the owner's requirements plus the agreed DECISIONS section.
 
@@ -25,13 +25,19 @@ Three docs drive all work. Read the relevant parts before changing anything:
 npm run dev                 # dev server, port 3000
 npm run lint
 npm run typecheck           # `next typegen` first: global types like LayoutProps<"/"> are generated
-npm test                    # Vitest, single run (npm run test:watch for watch mode)
+npm test                    # unit tests only, no database (npm run test:watch for watch mode)
 npx vitest run src/app/page.test.tsx      # one test file
 npx vitest run -t "landing page"          # tests matching a name
 npm run build
 npm run test:e2e            # Playwright: builds, then serves on port 3100 (dev uses 3000)
 npx playwright test e2e/home.spec.ts      # one e2e file (also builds first)
+npm run test:db             # *.db.test.ts integration tests against Atlas
+npm run db:ping             # check the MONGODB_URI / MONGODB_DB connection
+npm run db:setup            # create indexes (idempotent)
+npm run seed                # sample family into MONGODB_DB, group 000000000000000000000001; view at /dev/tree/db
 ```
+
+Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import tsx --env-file-if-exists=.env.local`. Don't use the `tsx` CLI: it opens a local IPC pipe that the sandbox blocks.
 
 ## Environment gotchas (owner's machine)
 
@@ -39,6 +45,8 @@ npx playwright test e2e/home.spec.ts      # one e2e file (also builds first)
 - **No Google Fonts.** The network proxy blocks `fonts.googleapis.com`, so `next/font/google` breaks the local build. The app uses the system font stack; self-host any font from an npm package instead.
 - **Playwright browser.** Playwright's own browser download is blocked, so locally it runs against the installed Google Chrome (`channel: "chrome"` unless `CI`). CI installs Playwright's Chromium.
 - **Slow npm.** Installs through the private registry mirror can take several minutes; use long timeouts.
+- **MongoDB needs the allowlist too.** The sandbox blocks MongoDB's DNS SRV lookup and TCP connections, and allowing a domain doesn't help because the driver doesn't use the web proxy. `npm run db:ping`, `db:setup`, `seed` and `test:db` are allowlisted `exact_match` like build/e2e, so run them exactly as written. If one is refused, ask the owner to run it.
+- **Session environment = `.env.local` at startup.** This session's environment is loaded from `.env.local` when it starts. Node's `--env-file`, `process.loadEnvFile` and Next.js never override variables that are already set, so after the owner edits `.env.local`, the session must be restarted before commands see the change.
 
 ## npm and the lockfile
 
@@ -70,7 +78,9 @@ npx playwright test e2e/home.spec.ts      # one e2e file (also builds first)
 ## Testing conventions
 
 - Unit tests sit next to the code as `*.test.ts(x)` under `src/`, or under `test/`. Vitest uses jsdom. `async` Server Components can't be unit-tested in Vitest, so cover them with e2e tests.
-- E2E specs live in `e2e/`.
+- E2E specs live in `e2e/`. Each e2e run gets its own database: `playwright.config.ts` names it, `e2e/global-setup.ts` seeds the sample family into it, the web server gets it as `MONGODB_DB`, and `e2e/global-teardown.ts` removes it.
+- Database integration tests are `*.db.test.ts`, run only by `npm run test:db` (`vitest.db.config.mts`). Use `createTestDatabase()` from `@test/db`, which gives each file its own database, and call `drop()` in `afterAll`. The database user can't drop databases, so test databases are emptied collection by collection (`emptyDatabase`).
+- `applyOperations` rules go in the pure `planOperations` (`src/server/operations/plan.ts`) and are unit-tested there. The `.db.test.ts` tests cover transactions, persistence and group isolation.
 - `test/fixtures/cruz-young.ts` holds the 36 people from the sample tree image: a same-sex couple, a divorce and remarriage, and in-law parents. It is the shared test data, and the §6 worked examples are its assertions. Import it as `@test/fixtures/...` (tsconfig alias). `test/fixtures/generated.ts` builds large synthetic families.
 - `src/app/dev/*` pages (e.g. `/dev/tree`, the layout playground) return 404 unless running `next dev` or built with `ENABLE_DEV_PAGES=1`. Playwright's web server sets that flag, so e2e tests can use them.
 - The tree e2e test saves `test-results/screenshots/tree.png`. View it after layout or card changes and compare with the sample image.

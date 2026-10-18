@@ -10,8 +10,8 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 |---|---|---|
 | 0 | Prerequisites | npm fixed 2026-10-18; accounts are created as each step needs them |
 | 1 | Project skeleton and auto-deploy | Done 2026-10-18 (merged to `main`) |
-| 2 | Sheet view and tree layout | Owner OK'd and committed 2026-10-18 on `step-2-layout`. ELK.js chosen; see the step 2 notes. Waiting for push and merge to `main` |
-| 3 | Database and the single write path | Not started |
+| 2 | Sheet view and tree layout | Done 2026-10-18 (merged to `main`). ELK.js chosen; see the step 2 notes |
+| 3 | Database and the single write path | Owner OK'd and committed 2026-10-18 on `step-3-database` (unit, db and e2e tests pass). Waiting for push and merge to `main`. See the step 3 notes |
 | 4 | Google sign-in (F1) | Not started |
 | 5 | Groups, roles and opening a sheet (F2, F5) | Not started |
 | 6 | Editing the tree by hand (F6) | Not started |
@@ -93,6 +93,14 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - Integration: an operations batch with temp IDs is applied all-or-nothing; invalid batches change nothing; soft delete and undo work.
   - Integration: repositories never return another group's records.
   - E2E: the seeded sheet renders from the database.
+- **Step 3 notes (2026-10-18):**
+  - Validation lives in the operations (zod), not on the documents. Documents are only written through `applyOperations`, so they are typed in TypeScript (`src/server/repositories/documents.ts`). `applyOperations` = zod, then a pure planner (`planOperations`, unit-tested without a database), then one transaction (ARCHITECTURE.md §10).
+  - Added a `restorePerson` operation (Undo for delete) and an optional `pinned` on `createSheet` (F2 needs pinned sheets). Sheets got audit fields like the other records.
+  - Tests are split. `npm test` is unit tests only and works offline. `npm run test:db` runs the `*.db.test.ts` integration tests against Atlas. Each test file and each e2e run gets its own `familytree_test_<time>_<label>` database.
+  - The app's database user can't drop databases (good: read/write only), so tests remove their database by dropping its collections. Leftovers older than an hour are cleared at the start of each run.
+  - Scripts (`db:ping`, `db:setup`, `seed`) are `.mts` files run with `node --import tsx`. The `tsx` command itself opens a local pipe that the sandbox blocks.
+  - Until groups exist (step 5), the sample family lives in a fixed group, `000000000000000000000001`, in `familytree_dev`. `/dev/tree/db` draws it.
+  - CI needs a `MONGODB_URI` repository secret: GitHub repo → Settings → Secrets and variables → Actions. Use a separate read/write test user.
 
 ## Step 4: Google sign-in (F1)
 - **Owner:** create a Google OAuth client and register redirect URIs for localhost and the production URL. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` to `.env.local` and Vercel.
