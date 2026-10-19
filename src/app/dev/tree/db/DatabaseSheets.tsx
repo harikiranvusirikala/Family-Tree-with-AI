@@ -13,21 +13,21 @@ export function DatabaseSheets({ tree }: { tree: GroupTree }) {
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-zinc-200 px-4 py-2 text-sm">
+      <header className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-zinc-200 px-4 py-2 text-sm dark:border-zinc-800">
         <strong>Tree from the database (dev)</strong>
         <nav className="flex gap-1" aria-label="Sheets">
           {tree.sheets.map((s) => (
             <button
               key={s.id}
               aria-pressed={s.id === sheetId}
-              className="rounded border px-2 py-0.5 aria-pressed:bg-zinc-900 aria-pressed:text-white"
+              className="rounded border px-2 py-0.5 aria-pressed:bg-zinc-900 aria-pressed:text-white dark:aria-pressed:bg-white dark:aria-pressed:text-zinc-900"
               onClick={() => setSheetId(s.id)}
             >
               {s.title}
             </button>
           ))}
         </nav>
-        <span className="text-zinc-500" data-testid="person-count">
+        <span className="text-zinc-500 dark:text-zinc-400" data-testid="person-count">
           {view?.persons.length ?? 0} people on this sheet · {tree.persons.length} in the group
         </span>
       </header>

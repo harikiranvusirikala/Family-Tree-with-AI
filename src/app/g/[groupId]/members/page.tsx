@@ -20,7 +20,7 @@ const list = "flex flex-col divide-y divide-zinc-200 rounded-lg border border-zi
 /** F3, F4: access requests, members and invites (Admin and up). */
 export default function MembersPage({ params }: PageProps<"/g/[groupId]/members">) {
   return (
-    <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading…</p>}>
+    <Suspense fallback={<p className="p-6 text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>}>
       <GroupMembers params={params} />
     </Suspense>
   );
@@ -66,7 +66,7 @@ async function GroupMembers({ params }: Pick<PageProps<"/g/[groupId]/members">, 
         <section aria-label="Access requests" className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold">Access requests</h2>
           {requests.length === 0 ? (
-            <p className="text-sm text-zinc-500">No requests waiting.</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">No requests waiting.</p>
           ) : (
             <ul className={list}>
               {requests.map((r) => (

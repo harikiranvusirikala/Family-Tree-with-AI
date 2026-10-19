@@ -130,6 +130,10 @@ Editing by hand (step 6)
 - Tabs: "+ New sheet", rename, pin and move left/right (buttons, not drag-and-drop). Pinned tabs come first.
 - Deleting a sheet and hiding an extra person from a sheet are left for later.
 
+Day and night themes (between steps 8 and 9)
+- Three choices in the top bar, before the profile, and on the sign-in page: Day, Night, Follow device.
+- Follow device is the default; Day or Night is remembered in that browser.
+
 Members, invites and access requests (step 8)
 - A request for a group that doesn't exist is kept like a real one (it stays pending), so nobody can tell which groups exist.
   At most 20 pending requests per person.

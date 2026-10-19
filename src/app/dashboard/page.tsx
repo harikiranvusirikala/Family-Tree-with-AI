@@ -25,7 +25,7 @@ const list = "flex flex-col divide-y divide-zinc-200 rounded-lg border border-zi
  */
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading…</p>}>
+    <Suspense fallback={<p className="p-6 text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>}>
       <Dashboard />
     </Suspense>
   );
@@ -74,7 +74,7 @@ function Invitations({ invites }: { invites: InviteForMe[] }) {
           <li key={i.token} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
             <div>
               <p className="font-medium">{i.groupName}</p>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 {i.invitedBy} invited you as {ROLE_LABELS[i.role]}
               </p>
             </div>
@@ -96,13 +96,13 @@ function MyRequests({ requests }: { requests: MyRequest[] }) {
           <li key={r.groupId} className="flex flex-col gap-1 px-4 py-3 text-sm">
             <p>
               <span className="font-medium">{r.status === "pending" ? "Waiting for an admin" : "Declined"}</span>
-              <span className="text-zinc-500"> · asked {shortDate(r.createdAt)} · </span>
+              <span className="text-zinc-500 dark:text-zinc-400"> · asked {shortDate(r.createdAt)} · </span>
               <Link href={`/g/${r.groupId}`} className="underline">
                 the link you opened
               </Link>
             </p>
             {r.message && <p className="text-zinc-600 dark:text-zinc-400">Your message: “{r.message}”</p>}
-            {r.status === "denied" && <p className="text-zinc-500">{REQUEST_DENIED}</p>}
+            {r.status === "denied" && <p className="text-zinc-500 dark:text-zinc-400">{REQUEST_DENIED}</p>}
           </li>
         ))}
       </ul>
@@ -115,14 +115,14 @@ function GroupList({ title, groups, waiting, empty }: { title: string; groups: G
     <section className="flex flex-col gap-3" aria-label={title}>
       <h2 className="text-lg font-semibold">{title}</h2>
       {groups.length === 0 ? (
-        <p className="text-sm text-zinc-500">{empty}</p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">{empty}</p>
       ) : (
         <ul className={list}>
           {groups.map((g) => (
             <li key={g.id} className="flex items-center gap-3 pr-4 text-xs">
               <Link href={`/g/${g.id}`} className="flex flex-1 items-center justify-between px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900">
                 <span className="text-base font-medium">{g.name}</span>
-                <span className="text-zinc-500">{ROLE_LABELS[g.role]}</span>
+                <span className="text-zinc-500 dark:text-zinc-400">{ROLE_LABELS[g.role]}</span>
               </Link>
               {waiting.get(g.id) ? <RequestBadge groupId={g.id} count={waiting.get(g.id)!} /> : null}
             </li>
@@ -136,7 +136,7 @@ function GroupList({ title, groups, waiting, empty }: { title: string; groups: G
 /** "2 access requests", linking to the members page where they're answered. */
 function RequestBadge({ groupId, count }: { groupId: string; count: number }) {
   return (
-    <Link href={`/g/${groupId}/members`} className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-900">
+    <Link href={`/g/${groupId}/members`} className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-900 dark:bg-amber-900/60 dark:text-amber-100">
       {count} access {count === 1 ? "request" : "requests"}
     </Link>
   );

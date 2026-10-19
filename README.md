@@ -20,6 +20,7 @@ Steps 1–8 of 11 are built:
 - **Editing by hand.** Click a person to edit them, add parents, a partner (with their own sheet if they married in) or a child, show them on another sheet, or delete them (with Undo). Click a heart to mark a couple divorced. Create, rename, pin and reorder sheets.
 - **Photos.** Add, change or remove a person's photo from their panel. It uploads straight to Cloudinary, and cards show a round, face-cropped thumbnail.
 - **Sharing.** Admins invite relatives by email and share the link (WhatsApp, text); it works only for that Google account. Someone who opens a tree link without access can request it, and Admins approve or deny. Admins manage roles and remove people, the Owner can hand the group to someone else, and anyone else can leave.
+- **Day and night themes.** Day, Night or Follow device, from the switch in the top bar.
 - **Roles.** View, Maintain, Admin and Owner, checked on the server for every request. Viewers see the tree without edit controls.
 
 Still to come: the AI chat, import and export, and nightly backups.

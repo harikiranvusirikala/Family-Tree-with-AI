@@ -16,6 +16,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { CARD_HEIGHT, CARD_WIDTH, HEART_GAP, ROW_GAP, layoutEngine } from "@/tree/layout";
 import type { SheetView } from "@/tree/types";
+import { useTheme } from "../theme";
 import { CanvasActionsContext, type CanvasActions } from "./canvas-actions";
 import { PersonNode, type PersonNodeType } from "./PersonNode";
 import { GENDER_COLORS } from "./PersonPhoto";
@@ -40,6 +41,7 @@ const keepNodesClickable = () => {};
 
 function Canvas({ view }: { view: SheetView }) {
   const { onPerson, onCouple } = useContext(CanvasActionsContext);
+  const theme = useTheme() ?? "light";
   const [nodes, setNodes] = useState<FlowNode[]>([]);
   const [edges, setEdges] = useState<ForkEdgeType[]>([]);
   const { fitView } = useReactFlow();
@@ -103,8 +105,9 @@ function Canvas({ view }: { view: SheetView }) {
       onNodeClick={onPerson || onCouple ? keepNodesClickable : undefined}
       minZoom={0.1}
       fitView
+      colorMode={theme} // React Flow's own night colours: canvas, controls and minimap
     >
-      <Background variant={BackgroundVariant.Dots} gap={24} color="#e4e4e7" />
+      <Background variant={BackgroundVariant.Dots} gap={24} color={theme === "dark" ? "#3f3f46" : "#e4e4e7"} />
       <MiniMap
         pannable
         zoomable

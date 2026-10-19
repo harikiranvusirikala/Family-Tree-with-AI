@@ -17,6 +17,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 6 | Editing the tree by hand (F6) | Done 2026-10-18 (merged to `main`). See the step 6 notes |
 | 7 | Photos (F8) | Done 2026-10-19 (merged to `main`). See the step 7 notes |
 | 8 | Members, invites and access requests (F3, F4) | Done 2026-10-19. Indexes set up in `familytree_preview` and `familytree`. See the step 8 notes |
+| – | Night theme (owner request, between steps 8 and 9) | Done 2026-10-19. See its section after step 8 |
 | 9 | AI chat (F7) | Not started |
 | 10 | Import and export (F9, F10) | Not started |
 | 11 | Nightly backup and hardening (F12) | Not started |
@@ -443,6 +444,18 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - The no-access page reads its messages from `request-messages.ts`, not from the client form: anything a server component imports from a `"use client"` module becomes a client reference, not the value.
   - The dashboard's group link keeps its name and role together (a step 5 test checks it); the request badge is a separate link beside it, because links can't be nested.
   - Invite links are built in the browser from the page's address, so a preview gives preview links.
+
+## Between steps 8 and 9: night theme (owner request)
+- **Why:** with the device in night mode, names on the tree were black on a black background, and panels stayed white.
+- **Build:**
+  - Three small buttons in the top bar, before the user menu, and at the top right of the sign-in page: Day, Night and Follow device (sun, moon, screen), the chosen one highlighted. Follow device is the default and switches with the device, also while a page is open (e.g. automatic night mode at sunset). Day or Night is remembered in that browser (`localStorage`; Follow device removes it), and other open tabs switch too.
+  - No flash of the wrong theme: a small script in `<head>` (`src/components/theme-script.ts`, as in Next.js's "Preventing flash before hydration" guide) sets the `dark` class on `<html>` before the first paint. `globals.css` makes Tailwind's `dark:` follow that class, and sets `color-scheme` so native dropdowns, scrollbars and file pickers match.
+  - Every light-only colour class got a `dark:` twin (white panels → zinc-900, near-black text → zinc-100, grey text → zinc-400, red, green and amber messages in dark tints, dark buttons → light ones).
+  - The tree: React Flow's own night colours (`colorMode`: canvas, controls, minimap), darker background dots, light names and years. The blue and pink rings stay the same; the initials' circle darkens. `useTheme()` gives the theme to code that needs it as a value.
+- **Tests:** e2e: with the device in night mode the app opens dark (Follow device), with light names on a dark canvas; Day wins over the device and survives a reload; Night stays dark when the device turns to day; Follow device switches as soon as the device does, with no reload; no hydration errors; the sign-in page has the switch. It saves `test-results/screenshots/night-*.png` (tree with a panel, dashboard, members, sign-in) for checking by eye.
+- **Notes (2026-10-19):**
+  - First built with two states (day and night); the owner asked for a third, Follow device, so a browser can go back to following the device after choosing.
+  - The script lives in a plain module because the root layout, a server component, can't import values from a `"use client"` module.
 
 ## Step 9: AI chat (F7, §10)
 - **Owner:** create an Anthropic API key, set a monthly spending limit, and add `ANTHROPIC_API_KEY`, `CHAT_MODEL=claude-haiku-5-5` and `CHAT_DAILY_LIMIT`.

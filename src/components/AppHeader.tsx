@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { UserMenu } from "./auth/UserMenu";
+import { ThemeToggle } from "./ThemeToggle";
 
-/** The bar on signed-in pages: home link, the page's own items, and the user menu. */
+/** The bar on signed-in pages: home link, the page's own items, the day/night switch and the user menu. */
 export function AppHeader({ user, children }: { user: { name: string; email: string }; children?: ReactNode }) {
   return (
     <header className="flex items-center justify-between gap-4 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
@@ -12,7 +13,10 @@ export function AppHeader({ user, children }: { user: { name: string; email: str
         </Link>
         {children}
       </div>
-      <UserMenu user={{ name: user.name, email: user.email }} />
+      <div className="flex shrink-0 items-center gap-1">
+        <ThemeToggle />
+        <UserMenu user={{ name: user.name, email: user.email }} />
+      </div>
     </header>
   );
 }

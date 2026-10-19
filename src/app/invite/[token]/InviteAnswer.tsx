@@ -26,12 +26,12 @@ export function InviteAnswer({ accept, decline, groupName }: { accept: Answer; d
           </button>
         </form>
         <form action={declineAction}>
-          <button type="submit" disabled={busy} aria-label={`Decline the invite to ${groupName}`} className="rounded-full px-5 py-2 text-sm hover:bg-zinc-100 disabled:opacity-60">
+          <button type="submit" disabled={busy} aria-label={`Decline the invite to ${groupName}`} className="rounded-full px-5 py-2 text-sm hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-zinc-800">
             Decline
           </button>
         </form>
       </div>
-      {acceptState.error && <p role="alert" className="text-sm text-red-700">{acceptState.error}</p>}
+      {acceptState.error && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{acceptState.error}</p>}
     </div>
   );
 }

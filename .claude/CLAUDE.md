@@ -61,6 +61,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 ## Next.js setup
 
 - Next.js 16.4 with Turbopack, Tailwind v4 (wired through the `@tailwindcss/turbopack` loader in `next.config.ts`, with no PostCSS config), and React 19.
+- **Night theme:** `dark:` follows the `dark` class on `<html>` (`@custom-variant` in `globals.css`), set before the first paint by `src/components/theme-script.ts` from the saved choice (Day or Night) or the device (Follow device, which saves nothing). Every colour class needs a `dark:` twin (the usual pairs: `bg-white`→`dark:bg-zinc-900`, `text-zinc-900`→`dark:text-zinc-100`, `text-zinc-500/600`→`dark:text-zinc-400`, `border-zinc-200/300`→`dark:border-zinc-800/700`, `hover:bg-zinc-100`→`dark:hover:bg-zinc-800`, `bg-zinc-900 text-white` buttons→`dark:bg-white dark:text-zinc-900`). Colours set in code, not classes (React Flow's `colorMode`, the background dots), read `useTheme()`. Check new screens with the theme e2e test's `night-*.png` screenshots.
 - `cacheComponents` and `partialPrefetching` are on, so reading cookies, headers or the database in a server component follows the Cache Components rules. Check `node_modules/next/dist/docs/` before writing data-loading or auth code.
 
 ## Architecture invariants (from ARCHITECTURE.md; follow them as code is added)

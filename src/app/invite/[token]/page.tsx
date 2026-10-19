@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "Invite · Family Tree" };
 /** F3: an invite link. Signed-out visitors sign in first and come back here (src/proxy.ts). */
 export default function InvitePage({ params }: PageProps<"/invite/[token]">) {
   return (
-    <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Opening the invite…</p>}>
+    <Suspense fallback={<p className="p-6 text-sm text-zinc-500 dark:text-zinc-400">Opening the invite…</p>}>
       <Invite params={params} />
     </Suspense>
   );

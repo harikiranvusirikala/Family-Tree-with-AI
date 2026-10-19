@@ -36,7 +36,7 @@ export function TreePlayground() {
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-zinc-200 px-4 py-2 text-sm">
+      <header className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-zinc-200 px-4 py-2 text-sm dark:border-zinc-800">
         <strong>Tree layout (dev)</strong>
         <label className="flex items-center gap-2">
           Sheet rooted at
@@ -52,10 +52,10 @@ export function TreePlayground() {
           <input type="checkbox" checked={showInLawParents} onChange={(e) => setShowInLawParents(e.target.checked)} />
           Show in-law parents as extras
         </label>
-        <button className="rounded border px-2 py-0.5 hover:bg-zinc-50" onClick={() => setAddedChildren((n) => n + 1)}>
+        <button className="rounded border px-2 py-0.5 hover:bg-zinc-50 dark:hover:bg-zinc-900" onClick={() => setAddedChildren((n) => n + 1)}>
           Add a child to Jane &amp; William
         </button>
-        <span className="text-zinc-500" data-testid="person-count">
+        <span className="text-zinc-500 dark:text-zinc-400" data-testid="person-count">
           {view.persons.length} people on this sheet
         </span>
       </header>

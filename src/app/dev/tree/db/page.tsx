@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Tree from the database (dev)" };
 /** The seeded sample family (`npm run seed`), loaded from MONGODB_DB and drawn sheet by sheet. */
 export default function DevTreeFromDatabasePage() {
   return (
-    <Suspense fallback={<p className="p-4 text-sm text-zinc-500">Loading from the database…</p>}>
+    <Suspense fallback={<p className="p-4 text-sm text-zinc-500 dark:text-zinc-400">Loading from the database…</p>}>
       <SampleGroup />
     </Suspense>
   );

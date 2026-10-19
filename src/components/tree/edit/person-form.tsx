@@ -90,7 +90,7 @@ export function SubmitRow({ label, pending, onCancel }: { label: string; pending
       <button type="submit" disabled={pending} className="rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900">
         {pending ? "Saving…" : label}
       </button>
-      <button type="button" onClick={onCancel} disabled={pending} className="rounded-full px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+      <button type="button" onClick={onCancel} disabled={pending} className="rounded-full px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-400">
         Cancel
       </button>
     </div>

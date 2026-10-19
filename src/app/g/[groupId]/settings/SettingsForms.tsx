@@ -15,8 +15,8 @@ export function RenameForm({ name, action }: { name: string; action: Action }) {
         Group name
         <input name="name" required maxLength={120} defaultValue={name} className={input} />
       </label>
-      {state.error && <p role="alert" className="text-sm text-red-700">{state.error}</p>}
-      {state.saved && !pending && <p role="status" className="text-sm text-green-700">Saved.</p>}
+      {state.error && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{state.error}</p>}
+      {state.saved && !pending && <p role="status" className="text-sm text-green-700 dark:text-green-400">Saved.</p>}
       <div>
         <button type="submit" disabled={pending} className="rounded-full bg-zinc-900 px-5 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900">
           {pending ? "Saving…" : "Rename"}
@@ -37,7 +37,7 @@ export function DeleteForm({ name, action }: { name: string; action: Action }) {
         Confirm the group&apos;s name
         <input name="confirm" required autoComplete="off" className={input} />
       </label>
-      {state.error && <p role="alert" className="text-sm text-red-700">{state.error}</p>}
+      {state.error && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{state.error}</p>}
       <div>
         <button type="submit" disabled={pending} className="rounded-full bg-red-700 px-5 py-2 text-sm font-medium text-white disabled:opacity-60">
           {pending ? "Deleting…" : "Delete group"}
@@ -72,7 +72,7 @@ export function TransferForm({ name, members, action }: { name: string; members:
         Confirm the group&apos;s name
         <input name="confirm" required autoComplete="off" className={input} />
       </label>
-      {state.error && <p role="alert" className="text-sm text-red-700">{state.error}</p>}
+      {state.error && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{state.error}</p>}
       <div>
         <button type="submit" disabled={pending} className="rounded-full bg-zinc-900 px-5 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900">
           {pending ? "Transferring…" : "Transfer ownership"}
@@ -94,18 +94,18 @@ export function LeaveForm({ name, action }: { name: string; action: () => Promis
           <button type="submit" disabled={pending} className="rounded-full bg-red-700 px-5 py-2 font-medium text-white disabled:opacity-60">
             {pending ? "Leaving…" : "Leave"}
           </button>
-          <button type="button" onClick={() => setConfirming(false)} className="rounded-full px-4 py-2 hover:bg-zinc-100">
+          <button type="button" onClick={() => setConfirming(false)} className="rounded-full px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800">
             Cancel
           </button>
         </form>
       ) : (
         <div>
-          <button type="button" onClick={() => setConfirming(true)} className="rounded-full border border-red-300 px-5 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
+          <button type="button" onClick={() => setConfirming(true)} className="rounded-full border border-red-300 px-5 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/50">
             Leave this group
           </button>
         </div>
       )}
-      {state.error && <p role="alert" className="text-sm text-red-700">{state.error}</p>}
+      {state.error && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{state.error}</p>}
     </div>
   );
 }

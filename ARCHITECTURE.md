@@ -104,6 +104,7 @@ src/
     layout/                              LayoutEngine interface + ELK.js adapter
   components/
     AppHeader.tsx, NoAccess.tsx          the signed-in header; the "no access" page, with Request access (F4)
+    ThemeToggle.tsx, theme.ts            Day / Night / Follow device switch, useTheme(); theme-script.ts runs in <head> before the first paint
     initials.ts, use-hydrated.ts         shared helpers
     auth/                                SignInButton, UserMenu, Better Auth's browser client, safeReturnTo
     tree/                                FamilyCanvas, PersonNode, UnionNode (heart), PersonPhoto, photoUrl
@@ -213,6 +214,7 @@ Card design, from Features.txt and the sample:
 - Name, then years. Living people show `1985`; people who have died show `1945 – 2022`. Unknown years are left out.
 - Partners side by side with ♥ between them (a broken heart if divorced). Children hang from the heart, eldest first where that adds no crossing lines (see Sibling order above).
 - A sheet picture (PNG/PDF) is captured from the canvas in the browser.
+- Day and night themes (added between steps 8 and 9): the whole app, the canvas included, follows the device's setting unless the user picks Day or Night with the switch in the header (Follow device goes back). At night the canvas uses React Flow's dark colours, names turn light, and the blue and pink rings stay.
 - For Maintain and up, each card and heart is also a button that opens its panel (F6). The click handlers and the selection reach the cards through a React context, so selecting someone doesn't lay the sheet out again. Without them (the dev pages, and Viewers' edit controls) the canvas is read-only.
 
 ## 8. Permissions

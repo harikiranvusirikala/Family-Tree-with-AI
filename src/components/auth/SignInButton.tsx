@@ -37,11 +37,11 @@ export function SignInButton() {
         type="button"
         onClick={signIn}
         disabled={!hydrated || pending}
-        className="rounded-full border border-zinc-300 bg-white px-6 py-3 text-base font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-60"
+        className="rounded-full border border-zinc-300 bg-white px-6 py-3 text-base font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
       >
         {pending ? "Opening Google…" : "Sign in with Google"}
       </button>
-      {failed && <p role="alert" className="text-sm text-red-700">Couldn&apos;t reach the sign-in service. Please try again.</p>}
+      {failed && <p role="alert" className="text-sm text-red-700 dark:text-red-400">Couldn&apos;t reach the sign-in service. Please try again.</p>}
     </div>
   );
 }
@@ -56,7 +56,7 @@ export function SignInError() {
   const error = useSearchParams()?.get("error");
   if (!error) return null;
   return (
-    <p role="alert" className="max-w-md text-sm text-red-700">
+    <p role="alert" className="max-w-md text-sm text-red-700 dark:text-red-400">
       {MESSAGES[error] ?? "Sign-in didn't finish, perhaps because it took too long. Please try again."}
     </p>
   );

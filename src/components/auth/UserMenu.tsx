@@ -55,24 +55,24 @@ export function UserMenu({ user }: { user: { name: string; email: string } }) {
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 hover:bg-zinc-100 dark:hover:bg-zinc-800"
       >
-        <span aria-hidden className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-200 text-sm font-semibold text-zinc-700">
+        <span aria-hidden className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-200 text-sm font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">
           {initials(name)}
         </span>
         <span className="text-sm font-medium">{name}</span>
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 z-10 mt-2 w-64 rounded-lg border border-zinc-200 bg-white p-2 text-zinc-900 shadow-lg">
-          <p className="truncate px-2 py-1 text-sm text-zinc-500">{email}</p>
+        <div role="menu" className="absolute right-0 z-10 mt-2 w-64 rounded-lg border border-zinc-200 bg-white p-2 text-zinc-900 shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
+          <p className="truncate px-2 py-1 text-sm text-zinc-500 dark:text-zinc-400">{email}</p>
           <button
             type="button"
             role="menuitem"
             onClick={signOut}
             disabled={signingOut}
-            className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-zinc-100 disabled:opacity-60"
+            className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-zinc-800"
           >
             {signingOut ? "Signing out…" : "Sign out"}
           </button>
-          {failed && <p role="alert" className="px-2 py-1 text-sm text-red-700">Couldn&apos;t sign out. Please try again.</p>}
+          {failed && <p role="alert" className="px-2 py-1 text-sm text-red-700 dark:text-red-400">Couldn&apos;t sign out. Please try again.</p>}
         </div>
       )}
     </div>

@@ -23,10 +23,10 @@ export function CouplePanel({ union, tree, canEdit, pending, run, onSelect, onCl
   }
 
   return (
-    <aside aria-label="Couple details" className="flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-zinc-200 bg-white p-4 text-zinc-900 dark:border-zinc-800">
+    <aside aria-label="Couple details" className="flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-zinc-200 bg-white p-4 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
       <div className="flex items-start justify-between gap-2">
         <h2 className="text-lg font-semibold">{partners.map((p) => p.name).join(" & ")}</h2>
-        <button type="button" onClick={onClose} className="rounded px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100">
+        <button type="button" onClick={onClose} className="rounded px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800">
           Close
         </button>
       </div>
@@ -39,7 +39,7 @@ export function CouplePanel({ union, tree, canEdit, pending, run, onSelect, onCl
             aria-pressed={union.status === status}
             disabled={!canEdit || pending || union.status === status}
             onClick={() => run(coupleStatusOps(union.id, status))}
-            className="rounded-full border border-zinc-300 px-3 py-1 aria-pressed:bg-zinc-900 aria-pressed:text-white disabled:cursor-default"
+            className="rounded-full border border-zinc-300 px-3 py-1 aria-pressed:bg-zinc-900 aria-pressed:text-white disabled:cursor-default dark:border-zinc-700 dark:aria-pressed:bg-white dark:aria-pressed:text-zinc-900"
           >
             {status === "married" ? "Married" : "Divorced"}
           </button>
@@ -47,12 +47,12 @@ export function CouplePanel({ union, tree, canEdit, pending, run, onSelect, onCl
       </div>
 
       <div className="text-sm">
-        <p className="text-zinc-500">Children</p>
+        <p className="text-zinc-500 dark:text-zinc-400">Children</p>
         {children.length ? (
           <ul className="flex flex-col">
             {children.map((c) => (
               <li key={c.id}>
-                <button type="button" onClick={() => onSelect(c.id)} className="underline decoration-zinc-300 hover:decoration-zinc-900">
+                <button type="button" onClick={() => onSelect(c.id)} className="underline decoration-zinc-300 hover:decoration-zinc-900 dark:decoration-zinc-600 dark:hover:decoration-zinc-100">
                   {c.name}
                 </button>
               </li>
@@ -71,13 +71,13 @@ export function CouplePanel({ union, tree, canEdit, pending, run, onSelect, onCl
             <SubmitRow label="Add child" pending={pending} onCancel={() => setAdding(false)} />
           </form>
         ) : (
-          <button type="button" onClick={() => setAdding(true)} disabled={pending} className="self-start rounded px-2 py-1 text-sm hover:bg-zinc-100">
+          <button type="button" onClick={() => setAdding(true)} disabled={pending} className="self-start rounded px-2 py-1 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800">
             Add child
           </button>
         ))}
 
       {formError && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
           {formError}
         </p>
       )}

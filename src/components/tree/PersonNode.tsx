@@ -18,7 +18,7 @@ export function PersonNode({ data }: NodeProps<PersonNodeType>) {
     <div
       data-testid="person-card"
       data-person-id={person.id}
-      className={`relative flex flex-col items-center rounded-lg text-center ${selectedId === person.id ? "bg-amber-50 ring-2 ring-amber-400" : ""}`}
+      className={`relative flex flex-col items-center rounded-lg text-center ${selectedId === person.id ? "bg-amber-50 ring-2 ring-amber-400 dark:bg-amber-950/60" : ""}`}
       style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
     >
       {onPerson && (
@@ -33,8 +33,8 @@ export function PersonNode({ data }: NodeProps<PersonNodeType>) {
       <div style={{ marginTop: PHOTO_TOP }}>
         <PersonPhoto person={person} size={PHOTO_SIZE} />
       </div>
-      <div className="mt-2 font-serif text-[15px] font-bold leading-tight text-zinc-900">{person.name}</div>
-      {years && <div className="mt-0.5 text-xs text-zinc-500">{years}</div>}
+      <div className="mt-2 font-serif text-[15px] font-bold leading-tight text-zinc-900 dark:text-zinc-100">{person.name}</div>
+      {years && <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{years}</div>}
       <Handle type="target" position={Position.Top} isConnectable={false} className="!opacity-0" />
     </div>
   );

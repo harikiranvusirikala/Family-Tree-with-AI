@@ -90,7 +90,7 @@ export function GroupSheets({ groupId, tree, canEdit, cloudName }: { groupId: st
     <CloudNameContext value={cloudName}>
       <SheetTabs tree={tree} sheets={sheets} current={current} canEdit={canEdit} pending={pending} run={run} onOpen={openSheet} />
       {error && (
-        <p role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
+        <p role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200">
           {error}
         </p>
       )}
@@ -116,7 +116,7 @@ export function GroupSheets({ groupId, tree, canEdit, cloudName }: { groupId: st
         )}
         {couple && <CouplePanel key={couple.id} union={couple} {...panelProps} />}
         {deleted && (
-          <div role="status" className="absolute bottom-4 left-4 z-20 flex items-center gap-3 rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white shadow-lg">
+          <div role="status" className="absolute bottom-4 left-4 z-20 flex items-center gap-3 rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white shadow-lg dark:bg-white dark:text-zinc-900">
             <span>{deleted.name} deleted.</span>
             <button type="button" onClick={undoDelete} disabled={pending} className="font-semibold underline">
               Undo

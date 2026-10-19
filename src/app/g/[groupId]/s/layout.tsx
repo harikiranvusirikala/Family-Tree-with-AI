@@ -17,7 +17,7 @@ import { GroupSheets } from "./GroupSheets";
  */
 export default function SheetsLayout({ params, children }: LayoutProps<"/g/[groupId]/s">) {
   return (
-    <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading the tree…</p>}>
+    <Suspense fallback={<p className="p-6 text-sm text-zinc-500 dark:text-zinc-400">Loading the tree…</p>}>
       <GroupSheetsLoader params={params} />
       {children}
     </Suspense>
@@ -54,7 +54,7 @@ async function GroupSheetsLoader({ params }: Pick<LayoutProps<"/g/[groupId]/s">,
             className="shrink-0 text-sm text-zinc-600 underline dark:text-zinc-400"
           >
             Members
-            {waiting > 0 && <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900 no-underline">{waiting}</span>}
+            {waiting > 0 && <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900 no-underline dark:bg-amber-900/60 dark:text-amber-100">{waiting}</span>}
           </Link>
         )}
         {/* Everyone: the Owner's settings, or Leave this group. */}
@@ -65,7 +65,7 @@ async function GroupSheetsLoader({ params }: Pick<LayoutProps<"/g/[groupId]/s">,
       {tree.sheets.length ? (
         <GroupSheets groupId={groupId} tree={tree} canEdit={can(access.role, "edit")} cloudName={cloudinaryConfig()?.cloudName} />
       ) : (
-        <main className="p-6 text-zinc-600">This group has no sheets yet.</main>
+        <main className="p-6 text-zinc-600 dark:text-zinc-400">This group has no sheets yet.</main>
       )}
     </div>
   );

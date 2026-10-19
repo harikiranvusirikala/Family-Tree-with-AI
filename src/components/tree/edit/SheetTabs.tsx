@@ -90,7 +90,7 @@ export function SheetTabs({
               role="tab"
               aria-selected={s.id === current.id}
               onClick={() => onOpen(s.id)}
-              className="flex shrink-0 items-center gap-1 rounded-t-md border border-b-0 border-transparent px-3 py-1.5 text-sm text-zinc-600 hover:text-zinc-900 aria-selected:border-zinc-200 aria-selected:bg-white aria-selected:font-medium aria-selected:text-zinc-900 dark:aria-selected:border-zinc-800"
+              className="flex shrink-0 items-center gap-1 rounded-t-md border border-b-0 border-transparent px-3 py-1.5 text-sm text-zinc-600 hover:text-zinc-900 aria-selected:border-zinc-200 aria-selected:bg-white aria-selected:font-medium aria-selected:text-zinc-900 dark:aria-selected:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 dark:aria-selected:bg-zinc-900 dark:aria-selected:text-zinc-100"
             >
               {s.pinned && (
                 <svg aria-hidden width="12" height="12" viewBox="0 0 24 24" className="fill-zinc-400">
@@ -115,7 +115,7 @@ export function SheetTabs({
 
       {tool === "menu" && (
         <div role="menu" aria-label="Sheet options" className="flex flex-wrap gap-1 px-4 py-2 text-sm">
-          <span className="self-center pr-2 text-zinc-500">{current.title}:</span>
+          <span className="self-center pr-2 text-zinc-500 dark:text-zinc-400">{current.title}:</span>
           <button type="button" role="menuitem" onClick={() => setTool("rename")} className={small}>
             Rename
           </button>
@@ -137,7 +137,7 @@ export function SheetTabs({
             Sheet title
             <input name="title" defaultValue={current.title} maxLength={120} className={input} />
           </label>
-          <button type="submit" disabled={pending} className="rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60">
+          <button type="submit" disabled={pending} className="rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900">
             Save
           </button>
           <button type="button" onClick={close} className={small}>
@@ -179,7 +179,7 @@ export function SheetTabs({
               className={input}
             />
           </label>
-          <button type="submit" disabled={pending} className="rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60">
+          <button type="submit" disabled={pending} className="rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900">
             {pending ? "Creating…" : "Create sheet"}
           </button>
           <button type="button" onClick={close} className={small}>
@@ -189,7 +189,7 @@ export function SheetTabs({
       )}
 
       {formError && (
-        <p role="alert" className="px-4 pb-2 text-sm text-red-700">
+        <p role="alert" className="px-4 pb-2 text-sm text-red-700 dark:text-red-400">
           {formError}
         </p>
       )}

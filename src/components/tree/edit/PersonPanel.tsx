@@ -28,7 +28,7 @@ export const nameWithYears = (p: Person) => `${p.name}${formatYears(p.birthYear,
 
 function PersonLink({ p, onSelect }: { p: Person; onSelect: (personId: string) => void }) {
   return (
-    <button type="button" onClick={() => onSelect(p.id)} className="text-left underline decoration-zinc-300 hover:decoration-zinc-900">
+    <button type="button" onClick={() => onSelect(p.id)} className="text-left underline decoration-zinc-300 hover:decoration-zinc-900 dark:decoration-zinc-600 dark:hover:decoration-zinc-100">
       {p.name}
     </button>
   );
@@ -67,16 +67,16 @@ export function PersonPanel({
   const otherSheets = tree.sheets.filter((s) => !buildSheetView(tree, s).persons.some((p) => p.id === person.id));
 
   return (
-    <aside aria-label="Person details" className="flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-zinc-200 bg-white p-4 text-zinc-900 dark:border-zinc-800">
+    <aside aria-label="Person details" className="flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-zinc-200 bg-white p-4 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-3">
           <PersonPhoto person={person} size={72} />
           <div>
             <h2 className="text-lg font-semibold">{person.name}</h2>
-            {years && <p className="text-sm text-zinc-500">{years}</p>}
+            {years && <p className="text-sm text-zinc-500 dark:text-zinc-400">{years}</p>}
           </div>
         </div>
-        <button type="button" onClick={onClose} className="rounded px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100">
+        <button type="button" onClick={onClose} className="rounded px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800">
           Close
         </button>
       </div>
@@ -88,11 +88,11 @@ export function PersonPanel({
           )}
           <dl className="flex flex-col gap-2 text-sm">
             <div>
-              <dt className="text-zinc-500">Parents</dt>
+              <dt className="text-zinc-500 dark:text-zinc-400">Parents</dt>
               <dd className="flex flex-col">{parents.length ? parents.map((p) => <PersonLink key={p.id} p={p} onSelect={onSelect} />) : "Not added"}</dd>
             </div>
             <div>
-              <dt className="text-zinc-500">Partners</dt>
+              <dt className="text-zinc-500 dark:text-zinc-400">Partners</dt>
               <dd className="flex flex-col">
                 {couples.some((c) => c.partner)
                   ? couples.flatMap((c) =>
@@ -102,7 +102,7 @@ export function PersonPanel({
               </dd>
             </div>
             <div>
-              <dt className="text-zinc-500">Children</dt>
+              <dt className="text-zinc-500 dark:text-zinc-400">Children</dt>
               <dd className="flex flex-col">
                 {couples.some((c) => c.children.length) ? couples.flatMap((c) => c.children.map((p) => <PersonLink key={p.id} p={p} onSelect={onSelect} />)) : "None"}
               </dd>
@@ -120,12 +120,12 @@ export function PersonPanel({
                 ] as const
               ).map(([m, label, shown]) =>
                 shown ? (
-                  <button key={m} type="button" onClick={() => setMode(m)} disabled={pending} className="rounded px-2 py-1 hover:bg-zinc-100">
+                  <button key={m} type="button" onClick={() => setMode(m)} disabled={pending} className="rounded px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">
                     {label}
                   </button>
                 ) : null,
               )}
-              <button type="button" onClick={() => onDelete(person)} disabled={pending} className="rounded px-2 py-1 text-red-700 hover:bg-red-50">
+              <button type="button" onClick={() => onDelete(person)} disabled={pending} className="rounded px-2 py-1 text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50">
                 Delete
               </button>
             </div>
@@ -169,7 +169,7 @@ export function PersonPanel({
               <h3 className="font-medium">Parents of {person.name}</h3>
               <PersonFields prefix="father-" who="Father" fixedGender="male" />
               <PersonFields prefix="mother-" who="Mother" fixedGender="female" />
-              <p className="text-xs text-zinc-500">Leave one out if you don&apos;t know them yet.</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Leave one out if you don&apos;t know them yet.</p>
             </>
           )}
           <SubmitRow label={parents.length === 1 ? "Add parent" : "Add parents"} pending={pending} onCancel={back} />
@@ -198,7 +198,7 @@ export function PersonPanel({
             <input type="checkbox" name="ownSheet" defaultChecked className="mt-1" />
             <span>
               Create their own sheet
-              <span className="block text-xs text-zinc-500">For someone who married in: a tab for their parents and cousins.</span>
+              <span className="block text-xs text-zinc-500 dark:text-zinc-400">For someone who married in: a tab for their parents and cousins.</span>
             </span>
           </label>
           <SubmitRow label="Add partner" pending={pending} onCancel={back} />
@@ -215,7 +215,7 @@ export function PersonPanel({
           <h3 className="font-medium">Child of {person.name}</h3>
           <label className="flex flex-col gap-1 text-sm font-medium">
             Other parent
-            <select name="couple" defaultValue={couples.find((c) => c.partner)?.union.id ?? ""} className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm">
+            <select name="couple" defaultValue={couples.find((c) => c.partner)?.union.id ?? ""} className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900">
               {couples.filter((c) => c.partner).map((c) => (
                 <option key={c.union.id} value={c.union.id}>
                   with {c.partner!.name}
@@ -232,7 +232,7 @@ export function PersonPanel({
       {mode === "sheet" && (
         <form aria-label="Show on another sheet" onSubmit={submit((form) => showOnSheetOps(String(form.get("sheet")), person.id))} className="flex flex-col gap-3">
           <h3 className="font-medium">Show {person.name} on</h3>
-          <select name="sheet" aria-label="Sheet" className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm">
+          <select name="sheet" aria-label="Sheet" className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900">
             {otherSheets.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.title}
@@ -244,7 +244,7 @@ export function PersonPanel({
       )}
 
       {formError && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
           {formError}
         </p>
       )}

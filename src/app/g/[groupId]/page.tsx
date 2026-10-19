@@ -9,7 +9,7 @@ import { firstSheetId } from "@/server/repositories/groups";
 /** A group link opens its first pinned sheet. */
 export default function GroupPage({ params }: PageProps<"/g/[groupId]">) {
   return (
-    <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Opening the tree…</p>}>
+    <Suspense fallback={<p className="p-6 text-sm text-zinc-500 dark:text-zinc-400">Opening the tree…</p>}>
       <OpenGroup params={params} />
     </Suspense>
   );
@@ -34,7 +34,7 @@ async function OpenGroup({ params }: Pick<PageProps<"/g/[groupId]">, "params">) 
       <AppHeader user={user}>
         <span className="truncate font-medium">{access.group.name}</span>
       </AppHeader>
-      <main className="p-6 text-zinc-600">This group has no sheets yet.</main>
+      <main className="p-6 text-zinc-600 dark:text-zinc-400">This group has no sheets yet.</main>
     </>
   );
 }

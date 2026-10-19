@@ -26,7 +26,7 @@ function RoleSelect({ label, defaultValue = "view" }: { label: string; defaultVa
 }
 
 function Problem({ state }: { state: MemberFormState }) {
-  return state.error ? <p role="alert" className="text-sm text-red-700">{state.error}</p> : null;
+  return state.error ? <p role="alert" className="text-sm text-red-700 dark:text-red-400">{state.error}</p> : null;
 }
 
 /** The link to share for an invite, with Copy. Built from this page's address, so previews give preview links. */
@@ -65,7 +65,7 @@ export function InviteForm({ action }: { action: FormAction }) {
       </div>
       <Problem state={state} />
       {state.token && !pending && (
-        <div role="status" className="flex flex-col gap-2 rounded-md bg-green-50 p-3 text-sm text-green-900">
+        <div role="status" className="flex flex-col gap-2 rounded-md bg-green-50 p-3 text-sm text-green-900 dark:bg-green-950/50 dark:text-green-200">
           <p>{state.done}</p>
           <InviteLink token={state.token} label="New invite link" />
         </div>
@@ -82,7 +82,7 @@ export function InviteRow({ invite, revoke }: { invite: { email: string; role: G
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="font-medium">{invite.email}</p>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
             {ROLE_LABELS[invite.role]} · invited by {invite.invitedBy} · expires {invite.expires}
           </p>
         </div>
@@ -119,12 +119,12 @@ export function MemberRow({
         <div>
           <p className="font-medium">
             {member.name}
-            {isYou && <span className="text-zinc-500"> (you)</span>}
+            {isYou && <span className="text-zinc-500 dark:text-zinc-400"> (you)</span>}
           </p>
-          <p className="text-xs text-zinc-500">{member.email}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">{member.email}</p>
         </div>
         {member.role === "owner" ? (
-          <span className="text-sm text-zinc-600">Owner</span>
+          <span className="text-sm text-zinc-600 dark:text-zinc-400">Owner</span>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
             <form action={roleAction} className="flex items-center gap-2">
@@ -146,14 +146,14 @@ export function MemberRow({
                 </button>
               </form>
             ) : (
-              <button type="button" onClick={() => setConfirming(true)} className={`${quiet} text-red-700`}>
+              <button type="button" onClick={() => setConfirming(true)} className={`${quiet} text-red-700 dark:text-red-400`}>
                 Remove…
               </button>
             )}
           </div>
         )}
       </div>
-      {roleState.done && !changing && <p role="status" className="text-sm text-green-700">{roleState.done}</p>}
+      {roleState.done && !changing && <p role="status" className="text-sm text-green-700 dark:text-green-400">{roleState.done}</p>}
       <Problem state={roleState} />
       <Problem state={removeState} />
     </li>
@@ -167,7 +167,7 @@ export function RequestRow({ request, decide }: { request: { name: string; email
     <li className="flex flex-col gap-2 px-4 py-3">
       <div>
         <p className="font-medium">{request.name}</p>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
           {request.email} · asked {request.date}
         </p>
       </div>
