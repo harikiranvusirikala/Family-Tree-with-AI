@@ -5,6 +5,7 @@ import { NoAccess } from "@/components/NoAccess";
 import { cloudinaryConfig } from "@/server/cloudinary";
 import { getDatabase } from "@/server/db";
 import { noAccessToNull, requireRole, requireUser } from "@/server/permissions";
+import { pendingRequestCounts } from "@/server/repositories/access-requests";
 import { loadGroupTree } from "@/server/repositories/family";
 import { can } from "@/server/roles";
 import { GroupSheets } from "./GroupSheets";
@@ -31,21 +32,35 @@ async function GroupSheetsLoader({ params }: Pick<LayoutProps<"/g/[groupId]/s">,
     return (
       <>
         <AppHeader user={user} />
-        <NoAccess />
+        <NoAccess groupId={groupId} user={user} />
       </>
     );
   }
-  const tree = await loadGroupTree((await getDatabase()).db, groupId);
+  const { db } = await getDatabase();
+  const manages = can(access.role, "manageMembers");
+  const [tree, waiting] = await Promise.all([
+    loadGroupTree(db, groupId),
+    manages ? pendingRequestCounts(db, [groupId]).then((counts) => counts.get(groupId) ?? 0) : 0,
+  ]);
 
   return (
     <div className="flex h-screen flex-col">
       <AppHeader user={user}>
         <span className="truncate font-medium">{access.group.name}</span>
-        {can(access.role, "renameGroup") && (
-          <Link href={`/g/${groupId}/settings`} className="shrink-0 text-sm text-zinc-600 underline dark:text-zinc-400">
-            Settings
+        {manages && (
+          <Link
+            href={`/g/${groupId}/members`}
+            aria-label={waiting ? `Members, ${waiting} access ${waiting === 1 ? "request" : "requests"}` : "Members"}
+            className="shrink-0 text-sm text-zinc-600 underline dark:text-zinc-400"
+          >
+            Members
+            {waiting > 0 && <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900 no-underline">{waiting}</span>}
           </Link>
         )}
+        {/* Everyone: the Owner's settings, or Leave this group. */}
+        <Link href={`/g/${groupId}/settings`} className="shrink-0 text-sm text-zinc-600 underline dark:text-zinc-400">
+          Settings
+        </Link>
       </AppHeader>
       {tree.sheets.length ? (
         <GroupSheets groupId={groupId} tree={tree} canEdit={can(access.role, "edit")} cloudName={cloudinaryConfig()?.cloudName} />

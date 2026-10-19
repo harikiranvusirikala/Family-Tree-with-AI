@@ -12,16 +12,17 @@ Built with Next.js 16 (TypeScript, React 19), Tailwind CSS, React Flow and ELK.j
 
 ## What works so far
 
-Steps 1–7 of 11 are built:
+Steps 1–8 of 11 are built:
 
 - **Sign in with Google.** A link opened while signed out comes back after signing in.
 - **Family groups.** Create one with the father's and mother's names (and yourself as their child). It starts with two pinned sheets, "<Father>'s family" and "<Mother>'s family". The dashboard lists My groups and Shared with me. The Owner can rename or delete a group.
 - **Sheets.** Each person is stored once; a sheet shows a root person's ancestors, their descendants and partners, laid out automatically like the sample tree. Switching tabs is instant.
 - **Editing by hand.** Click a person to edit them, add parents, a partner (with their own sheet if they married in) or a child, show them on another sheet, or delete them (with Undo). Click a heart to mark a couple divorced. Create, rename, pin and reorder sheets.
 - **Photos.** Add, change or remove a person's photo from their panel. It uploads straight to Cloudinary, and cards show a round, face-cropped thumbnail.
+- **Sharing.** Admins invite relatives by email and share the link (WhatsApp, text); it works only for that Google account. Someone who opens a tree link without access can request it, and Admins approve or deny. Admins manage roles and remove people, the Owner can hand the group to someone else, and anyone else can leave.
 - **Roles.** View, Maintain, Admin and Owner, checked on the server for every request. Viewers see the tree without edit controls.
 
-Still to come: members and invites (until then, a group is visible only to its creator), the AI chat, import and export, and nightly backups.
+Still to come: the AI chat, import and export, and nightly backups.
 
 ## Getting started
 

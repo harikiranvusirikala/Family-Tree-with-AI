@@ -130,6 +130,16 @@ Editing by hand (step 6)
 - Tabs: "+ New sheet", rename, pin and move left/right (buttons, not drag-and-drop). Pinned tabs come first.
 - Deleting a sheet and hiding an extra person from a sheet are left for later.
 
+Members, invites and access requests (step 8)
+- A request for a group that doesn't exist is kept like a real one (it stays pending), so nobody can tell which groups exist.
+  At most 20 pending requests per person.
+- After a request is denied, that person can't ask again; an Admin can still invite them.
+- Admins can change or remove anyone except the Owner, other Admins included.
+- Ownership can be transferred to any member; the old Owner becomes an Admin.
+- Only Admins and the Owner see the member list (it shows email addresses).
+- Members can leave a group from Settings; the Owner must transfer ownership first.
+- Invites last 14 days. Inviting the same address again refreshes the invite and keeps its link.
+
 Photos (step 7)
 - Maintain and up add, change or remove a person's photo from their panel. JPEG, PNG, WebP or HEIC (iPhone), up to 10 MB.
 - Uploads go straight from the browser to Cloudinary, signed by the app for a random name in the group's folder.

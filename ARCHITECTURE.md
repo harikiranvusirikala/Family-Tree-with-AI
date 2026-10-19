@@ -1,6 +1,6 @@
 # Family Tree with AI — Architecture
 
-**Status:** steps 1–7 of 11 built (sign-in, groups and roles, sheets, editing by hand, photos); members and invites, AI chat, import/export and backups to come ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.txt](Features.txt) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-18
+**Status:** steps 1–8 of 11 built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests); AI chat, import/export and backups to come ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.txt](Features.txt) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-18
 
 A web app where a family builds its tree together. People are added by hand or by chatting with an AI assistant, laid out automatically in the style of [samples/Sample Family Tree.png](samples/Sample%20Family%20Tree.png), and shared privately with relatives through their Google accounts.
 
@@ -50,23 +50,23 @@ The reasons behind each choice are recorded in [Features.txt](Features.txt) unde
 
 ## 4. Code layout
 
-Built so far (steps 1–6). Items marked *(step N)* are still to come.
+Built so far (steps 1–8). Items marked *(step N)* are still to come.
 
 ```
 src/
   app/                                   Next.js routes
     page.tsx                             landing + "Sign in with Google" (static)
-    dashboard/                           My groups · Shared with me · create a group (F2); invites and requests (step 8)
+    dashboard/                           invitations · My groups · Shared with me · my access requests · create a group (F2)
       page.tsx, actions.ts, NewGroupForm.tsx
     g/[groupId]/
       page.tsx                           opens the first pinned sheet
-      actions.ts                         applyChangesAction: every edit made by hand (F6); signPhotoUploadAction (F8)
+      actions.ts                         applyChangesAction: every edit made by hand (F6); signPhotoUploadAction (F8); requestAccessAction (F4)
       s/layout.tsx                       loads the group once and draws its sheets: tabs, canvas, panels (F5, F6)
       s/GroupSheets.tsx                  the sheet tabs and editor in the browser
       s/[sheetId]/page.tsx               empty: the layout above reads the sheet from the URL
-      settings/                          rename, delete (Owner); transfer ownership (step 8)
-      members/page.tsx                   members, invites, access requests, Admin and up (step 8)
-    invite/[token]/page.tsx              accept or decline an invite (step 8)
+      settings/                          rename, transfer ownership, delete (Owner); leave the group (everyone else)
+      members/                           access requests, members, invites (Admin and up; F3, F4)
+    invite/[token]/                      accept or decline an invite (F3)
     dev/tree/                            developer-only pages (404 on Vercel): layout playground; db/ draws the seeded family
     api/
       auth/[...all]/route.ts             Better Auth handler
@@ -85,10 +85,14 @@ src/
     group-changed.ts                     revalidates the dashboard and a group's pages after a change
     cloudinary.ts                        signs uploads and deletes photos (no Cloudinary SDK)
     photos.ts                            signPhotoUpload: Maintain and up, into the group's folder
+    members-rules.ts                     normalizeEmail, maskEmail, who may change whom (pure)
     repositories/                        data access; every function takes groupId
       documents.ts                       document types, collections, ensureIndexes
       family.ts                          loadGroupTree, toGroupTree (documents → tree types)
       groups.ts                          roleInGroup, createGroup, applyGroupChanges, list, rename, delete
+      members.ts                         listMembers, changeRole, removeMember, leaveGroup, transferOwnership
+      invites.ts                         create, list, revoke, accept and decline invites
+      access-requests.ts                 request access, the no-access page's state, list, approve or deny
     operations/                          the single write path
       schema.ts, plan.ts, apply.ts       zod operations, the pure planner, applyOperations
       new-group.ts, from-family.ts       F2's first records; family data → operations (seed, imports)
@@ -99,7 +103,7 @@ src/
     edits.ts                             edits made by hand → operations; tab order
     layout/                              LayoutEngine interface + ELK.js adapter
   components/
-    AppHeader.tsx, NoAccess.tsx          the signed-in header; the "no access" page
+    AppHeader.tsx, NoAccess.tsx          the signed-in header; the "no access" page, with Request access (F4)
     initials.ts, use-hydrated.ts         shared helpers
     auth/                                SignInButton, UserMenu, Better Auth's browser client, safeReturnTo
     tree/                                FamilyCanvas, PersonNode, UnionNode (heart), PersonPhoto, photoUrl
@@ -133,8 +137,8 @@ erDiagram
 | `users`, `sessions`, `accounts`, `verifications` | Managed by Better Auth: email, name, image; sessions; the Google account link; sign-in states | Better Auth's own, created on first write. Ours (`ensureIndexes`): TTL on `sessions.expiresAt` and `verifications.expiresAt` |
 | `groups` | `name`, audit fields, `deletedAt?` | — |
 | `memberships` | `groupId`, `userId` (Better Auth's `users._id`), `role` (`owner` · `admin` · `maintain` · `view`), `addedBy`, `createdAt` | unique `{groupId, userId}` · `{userId}` |
-| `invites` | `groupId`, `email`, `emailNormalized`, `role`, `token`, `invitedBy`, `status` (`pending` · `accepted` · `declined` · `revoked`), `expiresAt` | unique `{token}` · `{emailNormalized, status}` · `{groupId, status}` |
-| `accessRequests` | `groupId`, `userId`, `email`, `message?`, `status` (`pending` · `approved` · `denied`), `decidedBy?`, `decidedAt?`, `createdAt` | unique `{groupId, userId}` where `status = pending` · `{groupId, status}` |
+| `invites` | `groupId`, `email`, `emailNormalized`, `role`, `token`, `invitedBy`, `status` (`pending` · `accepted` · `declined` · `revoked`), `expiresAt`, `createdAt`, `decidedBy?`, `decidedAt?` | unique `{token}` · unique `{groupId, emailNormalized}` where `status = pending` · `{emailNormalized, status}` · `{groupId, status}` |
+| `accessRequests` | `groupId` (not always a real group, see F4), `userId`, `email`, `message?`, `status` (`pending` · `approved` · `denied`), `decidedBy?`, `decidedAt?`, `createdAt` | unique `{groupId, userId}`: one per person per group · `{groupId, status}` · `{userId, status}` |
 | `persons` | `groupId`, `name`, `gender` (`male` · `female`), `birthYear?`, `deathYear?`, `photoId?`, `notes?`, audit fields, `deletedAt?` | `{groupId}` |
 | `unions` | `groupId`, `partnerIds` (1 or 2), `status` (`married` · `divorced`), `childIds`, audit fields, `deletedAt?` | `{groupId}` · `{groupId, partnerIds}` · `{groupId, childIds}` |
 | `sheets` | `groupId`, `title`, `rootPersonId`, `pinned`, `order`, `extraPersonIds`, audit fields | `{groupId}` |
@@ -241,7 +245,8 @@ Rules:
 - Repository functions require a `groupId`, so no query can read across groups.
 - The role is never stored in the session. Removing someone takes effect on their next request.
 - "No access" looks the same whether or not the group exists, so tree URLs can't be used to probe for groups.
-- Only Admins and the Owner grant access, through invites or access requests. Admins can grant up to Admin. The Owner can't be removed or demoted, and only the Owner can transfer ownership or delete the group.
+- Only Admins and the Owner grant access, through invites or access requests. Admins can grant up to Admin, and change or remove anyone except the Owner, other Admins included. The Owner can't be removed or demoted, and only the Owner can transfer ownership (to any member; they become an Admin) or delete the group. Everyone but the Owner can leave. These rules are pure functions in `members-rules.ts`; the repository functions check the actor's role themselves (decided in step 8).
+- Only Admins and the Owner see the member list, because it shows email addresses.
 - The AI chat receives only the tools the user's role allows.
 
 ## 9. Flows
@@ -320,9 +325,12 @@ sequenceDiagram
     end
 ```
 
-- Invites also appear on the invitee's dashboard, so the link is optional.
-- Emails are compared after normalizing: lowercase, and for gmail.com dots and `+tags` are ignored.
-- Admins can revoke a pending invite. Revoked and expired links do nothing.
+- Invites also appear on the invitee's dashboard, and on the no-access page of the group's tree links, so the link is optional.
+- Emails are compared after normalizing: lowercase, and for gmail.com (and googlemail.com) dots and `+tags` are ignored.
+- Inviting an address that already has a pending invite refreshes it (role and expiry) and keeps its link. Inviting a member is refused.
+- Admins can revoke a pending invite. Revoked, expired, declined and used links all show the same "isn't valid any more" page.
+- The token is stored as it is, so Admins can copy a pending invite's link again; on its own it grants nothing, because the signed-in email must match. Links are built in the browser from the page's address, so previews give preview links.
+- Accepting also approves the person's pending access request to the group, in the same transaction.
 
 ### F4. Request access from a tree link
 
@@ -354,8 +362,10 @@ sequenceDiagram
     end
 ```
 
-- The "You need access" page shows nothing about the group. It looks the same for a group that doesn't exist, and a request for one is silently dropped.
-- The requester sees the status (pending, approved or denied) on their dashboard.
+- The "You need access" page shows nothing about the group. It looks the same for a group that doesn't exist: a request for one is kept like a real one and simply stays pending (decided in step 8), so neither the page nor the dashboard shows which groups exist. A person can have at most 20 pending requests. A malformed id can't be a group; it gets the same answer and nothing is saved.
+- The requester sees pending and declined requests on their dashboard, without the group's name (they aren't a member). Approved ones show up as the group under Shared with me.
+- After a denial they can't ask again; an Admin can still invite them. Someone approved and later removed can ask again.
+- Admins and the Owner see the number of pending requests on the group's Members link and on its dashboard row. Approving also marks pending invites for that email accepted.
 
 ### F5. Open a sheet
 

@@ -23,7 +23,7 @@ async function OpenGroup({ params }: Pick<PageProps<"/g/[groupId]">, "params">) 
     return (
       <>
         <AppHeader user={user} />
-        <NoAccess />
+        <NoAccess groupId={groupId} user={user} />
       </>
     );
   }

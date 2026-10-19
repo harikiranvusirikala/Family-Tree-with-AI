@@ -2,6 +2,7 @@
 // References are ObjectIds; audit fields (createdBy, addedBy, …) hold the acting user's id as a string.
 import type { Db, ObjectId } from "mongodb";
 import type { Gender, Union } from "@/tree/types";
+import type { GrantableRole } from "../members-rules";
 import type { Role } from "../roles";
 
 export interface Audit {
@@ -25,6 +26,45 @@ export interface MembershipDoc {
   role: Role;
   addedBy: string;
   createdAt: Date;
+}
+
+/** F3: an invite by email, shared as the link /invite/{token}. Accepted only by that email. */
+export interface InviteDoc {
+  _id: ObjectId;
+  groupId: ObjectId;
+  email: string; // as typed
+  emailNormalized: string; // normalizeEmail(email): what a signed-in user's email is matched against
+  role: GrantableRole;
+  token: string;
+  invitedBy: string;
+  status: "pending" | "accepted" | "declined" | "revoked";
+  expiresAt: Date;
+  createdAt: Date;
+  decidedBy?: string; // who accepted, declined or revoked it
+  decidedAt?: Date;
+}
+
+/**
+ * F4: one per person per group; asking again (after being removed) reopens it. `groupId` may not be a
+ * real group: requests for made-up groups are kept like real ones, so they look the same (§8).
+ */
+export interface AccessRequestDoc {
+  _id: ObjectId;
+  groupId: ObjectId;
+  userId: ObjectId;
+  email: string;
+  message?: string;
+  status: "pending" | "approved" | "denied";
+  createdAt: Date;
+  decidedBy?: string;
+  decidedAt?: Date;
+}
+
+/** Better Auth's users, read here only to show names and emails. Better Auth writes them. */
+export interface UserDoc {
+  _id: ObjectId;
+  name: string;
+  email: string;
 }
 
 export interface PersonDoc extends Audit {
@@ -62,6 +102,9 @@ export function collections(db: Db) {
   return {
     groups: db.collection<GroupDoc>("groups"),
     memberships: db.collection<MembershipDoc>("memberships"),
+    invites: db.collection<InviteDoc>("invites"),
+    accessRequests: db.collection<AccessRequestDoc>("accessRequests"),
+    users: db.collection<UserDoc>("users"),
     persons: db.collection<PersonDoc>("persons"),
     unions: db.collection<UnionDoc>("unions"),
     sheets: db.collection<SheetDoc>("sheets"),
@@ -70,10 +113,18 @@ export function collections(db: Db) {
 
 /** Creates the collections' indexes (§5). Safe to run repeatedly: `npm run db:setup`. */
 export async function ensureIndexes(db: Db): Promise<void> {
-  const { memberships, persons, unions, sheets } = collections(db);
+  const { memberships, invites, accessRequests, persons, unions, sheets } = collections(db);
   await Promise.all([
     memberships.createIndex({ groupId: 1, userId: 1 }, { unique: true }),
     memberships.createIndex({ userId: 1 }),
+    invites.createIndex({ token: 1 }, { unique: true }),
+    // One pending invite per address per group (inviting again refreshes it).
+    invites.createIndex({ groupId: 1, emailNormalized: 1 }, { unique: true, partialFilterExpression: { status: "pending" } }),
+    invites.createIndex({ emailNormalized: 1, status: 1 }),
+    invites.createIndex({ groupId: 1, status: 1 }),
+    accessRequests.createIndex({ groupId: 1, userId: 1 }, { unique: true }),
+    accessRequests.createIndex({ groupId: 1, status: 1 }),
+    accessRequests.createIndex({ userId: 1, status: 1 }),
     persons.createIndex({ groupId: 1 }),
     unions.createIndex({ groupId: 1 }),
     unions.createIndex({ groupId: 1, partnerIds: 1 }),

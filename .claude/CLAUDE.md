@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Three docs drive all work. Read the relevant parts before changing anything:
 
-- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Steps 1–7 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`; Google sign-in; groups, roles and sheet pages; editing by hand; photos). Still planned: members, invites and access requests (8), AI chat (9), import/export (10), backups and hardening (11). Each built step has notes recording deviations and bugs found; read them before touching that area.
+- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Steps 1–8 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`; Google sign-in; groups, roles and sheet pages; editing by hand; photos; members, invites and access requests). Still planned: AI chat (9), import/export (10), backups and hardening (11). Each built step has notes recording deviations and bugs found; read them before touching that area.
 - **[ARCHITECTURE.md](ARCHITECTURE.md)**: the blueprint (code layout §4, data model §5, sheet rules §6, layout §7, permissions §8, flows F1–F12, AI chat §10, environments §12, env vars §13, open questions §15). Folder names, collections and function names come from here.
 - **[Features.txt](Features.txt)**: the owner's requirements plus the agreed DECISIONS section.
 
@@ -106,6 +106,15 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - Replaced or removed photos come back as `ApplyResult.unusedPhotoIds` (nobody in the group uses them, deleted people included), and `applyChangesAction` deletes them with `after()`. Any new write path that changes photos must do the same.
 - `PersonPhoto` draws the round photo or initials for cards and the panel. The cloud name reaches it through `CloudNameContext`, given by the sheets layout; without it there are no photos or photo buttons.
 
+## Members, invites and access requests (as built, step 8)
+
+- Collections `invites` and `accessRequests` (one record per person per group; its status changes), plus a read-only `users` type for Better Auth's users. Repository functions in `repositories/members.ts`, `invites.ts` and `access-requests.ts` check the actor's role themselves (`roleInGroup`) and throw `NoAccessError` or `MemberError` (a message for the person). Server actions add `requireUser()`, turn those into messages, and call `groupChanged(groupId)`.
+- The rules are pure, in `src/server/members-rules.ts`: `normalizeEmail` (gmail dots and `+tags`), `maskEmail`, and who may change whom (`memberChangeProblem`, `transferProblem`, `leaveProblem`). Change them together with their unit table.
+- "No access looks the same" now includes the no-access page's Request access and its outcomes. `accessState`/`requestAccess` must behave identically for real, made-up and deleted groups (requests for made-up groups are stored). Only someone holding an invite to the group sees something different.
+- Requesters never see a group's name until they're in it (dashboard included). Member emails are shown only to Admins and the Owner.
+- React 19 resets a `<form action>` after the action finishes, to each field's first default, and never updates a `<select>`'s `defaultValue` after it first renders. A dropdown that stays on screen after saving must be keyed by the saved value (see `MemberRow`), or it jumps back to its first value.
+- A server component can't import plain values from a `"use client"` module (they become client references): shared strings live in plain modules such as `src/components/request-messages.ts`. Page files may only export what Next.js expects, so helpers like `shortDate` live in `src/components/`.
+
 ## Sign-in (as built, step 4)
 
 - `src/server/auth.ts` is the Better Auth instance (`import "server-only"`). Its settings are in `auth-options.ts`, which has no `server-only` so the e2e fixture can build an identical instance (same cookie names and signatures). Base URL and trusted origins come from the pure `authUrls(env)` in `auth-urls.ts`: exact origins only, never `*.vercel.app`.
@@ -140,7 +149,8 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - `src/app/dev/*` pages (e.g. `/dev/tree`, the layout playground) return 404 unless running `next dev` or built with `ENABLE_DEV_PAGES=1`. Playwright's web server sets that flag, so e2e tests can use them.
 - The tree e2e test saves `test-results/screenshots/tree.png`. View it after layout or card changes and compare with the sample image.
 - Signed-in e2e tests use the `signIn(page, name)` fixture from `e2e/fixtures.ts` (import `test` and `expect` from there). It creates a fresh user and session in the run's database with Better Auth's `testUtils` and adds the signed cookie. The app has no test-login route, and ESLint forbids importing `testUtils` under `src/`. `playwright.config.ts` gives the web server `BETTER_AUTH_URL=http://localhost:3100`, a fresh `BETTER_AUTH_SECRET` per run (shared with the fixture through `E2E_AUTH_SECRET`), and placeholder Google credentials; tests stop at the redirect to Google.
-- E2E fixtures in `e2e/fixtures.ts`: `signIn(page, name)`, `sampleGroup(owner)` (a group with the sample family and its two sheets) and `addMember(groupId, user, role)`.
+- E2E fixtures in `e2e/fixtures.ts`: `signIn(page, name)`, `sampleGroup(owner)` (a group with the sample family and its two sheets) and `addMember(groupId, user, role)`. Use `addMember` when a test only needs a role; `e2e/members.spec.ts` covers the real invite and request flows. Test users' emails are `<name>.<6 hex>@example.com`.
+- E2E sections on the dashboard and the members page are `<section aria-label>`, so tests find them with `getByRole("region", { name, exact: true })`.
 - No e2e test reaches Cloudinary. `playwright.config.ts` starts `e2e/cloudinary-stub.mts` on port 3101 and points the app at it (`CLOUDINARY_API_URL`, placeholder `CLOUDINARY_*`). It checks signatures like Cloudinary and lists uploads and deletions at `GET /calls` (`E2E_CLOUDINARY_URL`). Tests answer `res.cloudinary.com` photo URLs themselves with `page.route` (see `e2e/photos.spec.ts`).
 - In e2e tests, reach pages the way people do (links, Back) as well as with `page.goto`: a full reload hides stale-page bugs. Compare text with `textContent`, not `innerText`, which changes while React moves streamed content into place.
 - In e2e tests, locate inputs with `getByRole("textbox", { name })`, not `getByLabel`. Next.js 16 keeps recently visited pages in the DOM, hidden, and `getByLabel` can match their inputs; `getByRole` skips hidden elements. Filter alerts by text: Next.js's route announcer is also `role="alert"`.

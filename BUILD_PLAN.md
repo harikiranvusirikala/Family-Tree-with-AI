@@ -15,8 +15,8 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 4 | Google sign-in (F1) | Done 2026-10-18 (merged to `main`). Real Google sign-in checked on production; indexes set up in `familytree_preview` and `familytree`. See the step 4 notes |
 | 5 | Groups, roles and opening a sheet (F2, F5) | Done 2026-10-18 (merged to `main`). §15 question 3 settled: our own collections. Google sign-in through the OAuth proxy checked on its preview. See the step 5 notes |
 | 6 | Editing the tree by hand (F6) | Done 2026-10-18 (merged to `main`). See the step 6 notes |
-| 7 | Photos (F8) | Done 2026-10-19. A real upload on the preview is the last check. See the step 7 notes |
-| 8 | Members, invites and access requests (F3, F4) | Not started |
+| 7 | Photos (F8) | Done 2026-10-19 (merged to `main`). See the step 7 notes |
+| 8 | Members, invites and access requests (F3, F4) | Done 2026-10-19. Indexes set up in `familytree_preview` and `familytree`. See the step 8 notes |
 | 9 | AI chat (F7) | Not started |
 | 10 | Import and export (F9, F10) | Not started |
 | 11 | Nightly backup and hardening (F12) | Not started |
@@ -349,23 +349,100 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - The 10 MB limit, and the full path in the public ID working in both folder modes, come from Cloudinary's documentation as remembered. The owner's real upload checks them.
 
 ## Step 8: Members, invites and access requests (F3, F4)
+- **Owner:**
+  - Review the detailed plan and decide its open questions (see Decisions).
+  - `npm run db:setup` against `familytree_preview` and `familytree`, for the new indexes.
+  - Nothing else: invites are links to share (WhatsApp, text). No email service yet.
 - **Build:**
-  - `/g/[groupId]/members` (Admin and up): list members, change roles (up to Admin), remove members, invite by email and role, copy the invite link, revoke invites, and approve or deny access requests.
-  - `/invite/[token]`: accept or decline. It works only if the normalised signed-in email matches, and otherwise shows only the masked address.
-  - Dashboard: pending invites and the status of my requests. A "You need access" page with Request access (it reveals nothing about the group), or "Accept invite" if one is waiting.
-  - A request badge for Admins and the Owner. Only Admins and the Owner approve requests.
-  - Owner protections, and transfer ownership in Settings.
-- **Tests:**
-  - Unit: `normalizeEmail` (case, dots and `+tags` for gmail.com only).
-  - E2E with two or three test users:
-    - invite → accept → the group appears under Shared with me;
-    - the link opened by a different account → refused;
-    - expired or revoked link → does nothing;
-    - request → approve as Maintain → can edit;
-    - request → deny → the requester sees "denied";
-    - a Viewer and a Maintainer can't approve requests;
-    - an Admin can't remove the Owner;
-    - a request for a made-up group looks the same and is dropped.
+  - **Data** (§5): `invites` and `accessRequests` in `documents.ts`, with indexes:
+    - `invites`: unique `{token}`; unique `{groupId, emailNormalized}` while pending (a partial index: one pending invite per address); `{emailNormalized, status}`; `{groupId, status}`.
+    - `accessRequests`: one record per person per group, unique `{groupId, userId}`; its status changes. `{groupId, status}`, and `{userId, status}` for the dashboard.
+    - Better Auth's `users` gets a read-only type (`name`, `email`) for showing members and requesters.
+  - **Rules, pure** (`src/server/members-rules.ts`, unit-tested):
+    - `normalizeEmail`: trimmed and lowercased; for `gmail.com` (and `googlemail.com`, the same mailboxes) dots and `+tags` are ignored. `maskEmail`: `c*****@gmail.com`, always five stars, so the length isn't shown either.
+    - Who may change whom (`memberChangeProblem`, `transferProblem`, `leaveProblem`): Admins and the Owner grant View, Maintain or Admin, and change or remove anyone but the Owner, other Admins included. Only the Owner transfers ownership, to any member, which makes the old Owner an Admin. Everyone but the Owner can leave.
+  - **Invites (F3)**, on the members page (Admin and up):
+    - Invite by email and role (View by default). A random 32-byte token, pending for 14 days. Inviting someone who is already a member says so. Inviting an email that already has a pending invite refreshes it (new role and expiry) instead of adding a second one.
+    - The pending invites are listed with their link (a read-only box with Copy), role, who invited and when it expires, and Revoke.
+    - The token is stored as it is, so the link can be copied again later. On its own it grants nothing: the signed-in email must match.
+  - **`/invite/[token]`** (signing in first if needed: the proxy keeps the link, as in step 4):
+    - Email matches: "Carla Cruz invited you to join Cruz family as Maintain", with Accept and Decline. Accept creates the membership and marks the invite accepted in one transaction, then opens the group.
+    - A different account: "This invite is for c*****@gmail.com. You're signed in as …", with Sign out. No group details.
+    - Unknown, expired, revoked, declined or already used: one message, "This invite link isn't valid any more".
+    - Already a member: straight to the group.
+  - **Access requests (F4).** The no-access page (`NoAccess`) gets the group id and shows, in order:
+    - A pending invite for this email: "You've been invited", with a link to accept it.
+    - A pending request: "Request sent. You'll see the tree here once an Admin approves it."
+    - A denied request: "Your request was declined. An admin can still invite you." No new request.
+    - Otherwise: Request access, with an optional message (up to 500 characters).
+    - Real, made-up and deleted groups give the same page and the same "Request sent": a request for a group that doesn't exist is kept like a real one and stays pending. A malformed id can never be a group, so it is answered the same way and nothing is saved.
+    - Asking again after being approved and later removed reopens the same record.
+    - A person can have at most 20 pending requests at once, so made-up links can't fill the database. The limit message is the same for every group.
+  - **Joining closes the other route:** accepting an invite approves the person's pending request for that group, and approving a request marks their pending invite accepted.
+  - **Members page** `/g/[groupId]/members` (Admin and up only, since it shows email addresses): one page with three sections.
+    - **Access requests:** name, email, message and date. Approve as View, Maintain or Admin (View by default), or Deny. Approving creates the membership and marks the request approved in one transaction.
+    - **Members:** name, email and role. Admins and the Owner change roles and remove members (after a second click), except the Owner, whose row has no controls.
+    - **Pending invites** (above).
+    - Every action calls `requireRole(groupId, admin)` itself, then the rules. Members below Admin who open the page see "Only Admins and the Owner manage members", like Settings does today.
+  - **A request badge** for Admins and the Owner: the "Members" link in the group's header shows the number of pending requests, and the group's row on the dashboard gets "2 access requests", linking to the members page.
+  - **Dashboard:**
+    - **Invitations:** pending invites for my email, with group name, role and who invited, plus Accept and Decline.
+    - **My access requests:** pending and declined requests, with the date and my message. No group name: I'm not a member, and a made-up group must look the same. Approved requests show up as the group under Shared with me.
+  - **Settings:**
+    - Transfer ownership (Owner): choose a member, confirm by typing the group's name. The new Owner and the old Owner (now Admin) are changed in one transaction.
+    - Leave this group (everyone but the Owner), after a second click. The Settings link in the group's header is now there for every member.
+  - Server actions live next to their pages: `members/actions.ts`, `invite/[token]/actions.ts`, `requestAccessAction` in `g/[groupId]/actions.ts`, and Accept/Decline on the dashboard reuse the invite actions. Each checks for itself and calls `groupChanged(groupId)` after a change. Repository functions (`repositories/members.ts`, `invites.ts`, `access-requests.ts`) take the `groupId`.
+  - The e2e fixture `addMember` stays, for tests that only need a role. The invite and request tests use the real flow.
+  - Left for later: email notifications (Resend) and Withdraw for a pending request.
+- **Tests (221 unit, 30 database and 31 e2e tests in the suite after this step):**
+  - Unit:
+    - `normalizeEmail` (case, spaces, gmail dots and `+tags`, googlemail.com, other domains unchanged) and `maskEmail`.
+    - Who may change whom: every role pair for change role, remove, approve and transfer.
+  - Database:
+    - Invites:
+      - Accepting creates the membership once.
+      - Expired, revoked and other-email invites are refused.
+      - Re-inviting refreshes rather than duplicates.
+      - Inviting a member is refused.
+    - Requests:
+      - One pending request per person per group.
+      - A made-up group's request is kept like a real one.
+      - The limit of 20.
+      - Approve and deny need Admin or the Owner.
+      - Joining by one route closes the other.
+    - Owner protections: an Admin can't change or remove the Owner. Transfer leaves exactly one Owner.
+  - E2E, with two or three test users:
+    - Invite → accept from the link → the group appears under Shared with me, with the right role.
+    - The link opened by a different account → refused, showing only the masked address.
+    - An expired or revoked link → does nothing. Decline → the invite is gone.
+    - Invited users also see the invite on their dashboard, and on the no-access page.
+    - Request → approve as Maintain → the requester can edit.
+    - Request → deny → the requester sees "declined" on the page and the dashboard.
+    - A Viewer and a Maintainer get no Members link, badge or members page; an Admin gets all three. (The database tests show their calls are refused.)
+    - An Admin sees no controls on the Owner's row. The Owner transfers ownership to the Admin, then leaves the group.
+    - A request for a made-up group looks the same as for a real one: the same page, "Request sent", and the same dashboard entry.
+    - A changed role shows in its dropdown straight away, twice in a row (found in the owner's check).
+    - The step 5 test (no access looks the same on six URLs) still passes.
+- **Owner checks:** on `npm run dev` with two Google accounts:
+  - Invite the second account as View. Open the link in another browser profile, accept, and check the group is under Shared with me.
+  - Open one of your tree links from a third account (or after removing the second one), request access, approve it as Maintain, and check that account can edit.
+  - Then on the preview: the invite flow once more.
+- **Decisions (owner, 2026-10-19):**
+  1. A request for a group that doesn't exist is kept like a real one (it stays pending), so the page and the dashboard can't show which groups exist. At most 20 pending requests per person.
+  2. After a denial, no new request; an Admin can still invite them.
+  3. Admins change and remove anyone except the Owner, other Admins included.
+  4. Ownership can go to any member; the old Owner becomes an Admin.
+  5. Only Admins and the Owner see the member list (it shows email addresses).
+  6. Members can leave a group from Settings; the Owner must transfer ownership first.
+- **Step 8 notes (2026-10-19):**
+  - Found in the owner's check: after changing a member's role, the role was saved but its dropdown went back to View until a reload. React 19 resets a form after its action finishes, to each field's first default, and never updates a dropdown's default after it first renders (text boxes do get updated, so Rename was fine). The dropdown is now keyed by the saved role, so a new role brings a new dropdown. The e2e test failed without the fix.
+  - Deviation: access requests are one record per person per group, unique `{groupId, userId}`, instead of a unique index on pending requests only. That makes decision 2 a lookup, and lets someone approved and later removed ask again in the same record.
+  - Added: a partial unique index, one pending invite per address per group, so two invites sent at once can't both be created.
+  - Repository functions check the actor's role themselves (like `applyGroupChanges`), so the database tests call them as a Viewer, a Maintainer or a stranger. The server actions add `requireUser()` and turn `NoAccessError` and `MemberError` into messages.
+  - Joining by one route closes the other inside the same transaction: accepting an invite approves a pending request, and approving a request marks pending invites for that email accepted.
+  - The no-access page reads its messages from `request-messages.ts`, not from the client form: anything a server component imports from a `"use client"` module becomes a client reference, not the value.
+  - The dashboard's group link keeps its name and role together (a step 5 test checks it); the request badge is a separate link beside it, because links can't be nested.
+  - Invite links are built in the browser from the page's address, so a preview gives preview links.
 
 ## Step 9: AI chat (F7, §10)
 - **Owner:** create an Anthropic API key, set a monthly spending limit, and add `ANTHROPIC_API_KEY`, `CHAT_MODEL=claude-haiku-5-5` and `CHAT_DAILY_LIMIT`.
