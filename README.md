@@ -12,7 +12,7 @@ Built with Next.js 16 (TypeScript, React 19), Tailwind CSS, React Flow and ELK.j
 
 ## What works so far
 
-Steps 1–9 of 11 are built:
+Steps 1–10 of 11 are built:
 
 - **Sign in with Google.** A link opened while signed out comes back after signing in.
 - **Family groups.** Create one with the father's and mother's names (and yourself as their child). It starts with two pinned sheets, "<Father>'s family" and "<Mother>'s family". The dashboard lists My groups and Shared with me. The Owner can rename or delete a group.
@@ -21,10 +21,11 @@ Steps 1–9 of 11 are built:
 - **Photos.** Add, change or remove a person's photo from their panel. It uploads straight to Cloudinary, and cards show a round, face-cropped thumbnail.
 - **Sharing.** Admins invite relatives by email and share the link (WhatsApp, text); it works only for that Google account. Someone who opens a tree link without access can request it, and Admins approve or deny. Admins manage roles and remove people, the Owner can hand the group to someone else, and anyone else can leave.
 - **AI chat.** "Ask AI" opens an assistant beside the tree. Ask about the family, or tell it about someone new ("Priya married Ravi"): it asks when a name is ambiguous, then proposes the changes on a card, and nothing is saved until you press Confirm. Viewers can ask questions only. 50 messages per person per day.
+- **Import and export.** Download a sheet or the whole group as GEDCOM (for Ancestry, FamilySearch, MyHeritage and others) or as the app's own JSON, and import either into a group or a new one, with a preview that finds possible duplicates first. Everyone can save a sheet as a picture or print it to PDF.
 - **Day and night themes.** Day, Night or Follow device, from the switch in the top bar.
 - **Roles.** View, Maintain, Admin and Owner, checked on the server for every request. Viewers see the tree without edit controls.
 
-Still to come: import and export, and nightly backups.
+Still to come: nightly backups and a final hardening pass.
 
 ## Getting started
 

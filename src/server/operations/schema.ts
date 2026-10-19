@@ -63,6 +63,13 @@ export const operationSchema = z.discriminatedUnion("op", [
   z.strictObject({ op: z.literal("reorderSheets"), sheetIds: z.array(ref).min(1).max(1000) }), // every sheet, in tab order
 ]);
 
-export const operationsSchema = z.array(operationSchema).min(1, "Nothing to apply").max(5000);
+/** People one batch may add: an import's limit (step 10), far above any edit by hand or the chat. */
+export const MAX_NEW_PEOPLE = 2000;
+
+export const operationsSchema = z
+  .array(operationSchema)
+  .min(1, "Nothing to apply")
+  .max(20_000, "Too many changes at once")
+  .refine((ops) => ops.filter((op) => op.op === "createPerson").length <= MAX_NEW_PEOPLE, `At most ${MAX_NEW_PEOPLE} people can be added at once`);
 
 export type Operation = z.infer<typeof operationSchema>;

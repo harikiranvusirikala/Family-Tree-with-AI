@@ -1,6 +1,6 @@
 # Family Tree with AI — Architecture
 
-**Status:** steps 1–9 of 11 built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests, AI chat); import/export and backups to come ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.txt](Features.txt) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-18
+**Status:** steps 1–10 of 11 built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests, AI chat, import and export); backups to come ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.txt](Features.txt) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-18
 
 A web app where a family builds its tree together. People are added by hand or by chatting with an AI assistant, laid out automatically in the style of [samples/Sample Family Tree.png](samples/Sample%20Family%20Tree.png), and shared privately with relatives through their Google accounts.
 
@@ -50,7 +50,7 @@ The reasons behind each choice are recorded in [Features.txt](Features.txt) unde
 
 ## 4. Code layout
 
-Built so far (steps 1–9). Items marked *(step N)* are still to come.
+Built so far (steps 1–10). Items marked *(step N)* are still to come.
 
 ```
 src/
@@ -71,8 +71,7 @@ src/
     api/
       auth/[...all]/route.ts             Better Auth handler
       chat/route.ts                      AI chat: one turn, streamed as JSON lines (F7)
-      groups/[groupId]/export/route.ts   JSON / GEDCOM download (step 10)
-      groups/[groupId]/import/route.ts   parse and preview an import (step 10)
+      groups/[groupId]/export/route.ts   JSON / GEDCOM download of the group or one sheet (F9)
   proxy.ts                               signed-out visitors → sign in, keeping the link (cookie check only)
   server/                                server-only code
     db.ts                                MongoDB client, reused across invocations (lazyDatabase, getDatabase)
@@ -98,7 +97,7 @@ src/
       schema.ts, plan.ts, apply.ts       zod operations, the pure planner, applyOperations
       new-group.ts, from-family.ts       F2's first records; family data → operations (seed, imports)
     ai/                                  the chat: config, tools, handlers (lookups, proposals dry-run by the planner), prompt, chat loop, request check
-    import-export/                       json.ts, gedcom.ts (step 10)
+    import-export/                       json.ts, gedcom.ts, import-plan.ts (duplicates, choices → operations), types.ts; pure, also run in the browser
   tree/                                  pure functions, run in the browser and in tests
     sheet-view.ts                        which people and unions belong on a sheet
     edits.ts                             edits made by hand → operations; tab order
@@ -111,7 +110,9 @@ src/
     auth/                                SignInButton, UserMenu, Better Auth's browser client, safeReturnTo
     tree/                                FamilyCanvas, PersonNode, UnionNode (heart), PersonPhoto, photoUrl
       edit/                              PersonPanel, CouplePanel, SheetTabs, person form (F6); PhotoControls, upload (F8)
+      sheet-picture.ts                   the whole sheet as a PNG (html-to-image), download or print (F9)
     chat/                                ChatWidget (the conversation, kept in the browser), ProposalCard, the event-stream reader
+    import-export/                       ExportMenu, ImportPanel (the preview)
 test/                                    fixtures (the sample family), database helpers, planning.ts, seed
 e2e/                                     Playwright specs and fixtures (signIn, sampleGroup, addMember); stand-ins for Cloudinary and the model
 scripts/                                 db:ping, db:setup, seed, test:ai-live
@@ -505,7 +506,8 @@ sequenceDiagram
     end
 ```
 
-- JSON is lossless and can be re-imported. GEDCOM maps persons to `INDI` records and unions to `FAM` records.
+- JSON is lossless and can be re-imported. GEDCOM (5.5.1, which Ancestry, FamilySearch and MyHeritage read) maps persons to `INDI` records and unions to `FAM` records; a same-sex couple gets two `HUSB` or two `WIFE` lines, and sheets aren't exported.
+- As built (step 10): an **Export** menu at the end of the sheet tabs. The picture is the whole sheet whatever the zoom, captured with `html-to-image` in the day colours on white (decided in step 10) at twice the resolution (at most 8,000 px). "Print or save as PDF" prints that picture from a hidden frame; the browser's dialog makes the PDF (no PDF library).
 - Exporting one sheet exports exactly the people that sheet shows ([§6](#6-sheets-views-not-copies)).
 
 ### F10. Import
@@ -526,7 +528,10 @@ sequenceDiagram
 ```
 
 - Importing into a new group creates the group first ([F2](#f2-create-a-group-with-fathers-and-mothers-sheets)), with the importer as Owner.
-- Files up to about 4 MB go through the server. Larger GEDCOM files are parsed in the browser and sent as operations.
+- As built (step 10): **every file is read in the browser** (decided in step 10), so there is no upload limit and no import route. The preview (`ImportPanel`) shows the counts, what isn't kept, repairs, possible duplicates (same name, ignoring case and accents, and the same birth year; "Keep both" or "Use existing"), people with no recorded sex (male or female must be chosen) and whose sheet opens. The resulting operations go to `applyChangesAction` (into this group) or `importGroupAction` (a new group, through `createGroup`), and are checked like any batch.
+- At most 2,000 people per file; the operations schema allows 20,000 operations and 2,000 new people per batch, and server actions take up to 4 MB.
+- GEDCOM 5.5.1 keeps names, sex, birth and death years, couples, children and divorces. Places, full dates, notes, sources and media aren't kept, and the preview says so. A family without partners is skipped, a child in two families stays with the first (or the birth family), and a couple listed twice is joined, each with a warning.
+- Photos come in only when a JSON file goes back into the group it was exported from (a photo lives in its group's Cloudinary folder).
 
 ### F11. Deploy
 
@@ -685,3 +690,4 @@ Model and prompt (built in step 9):
 4. ~~**Google sign-in on preview deployments**~~ **Resolved 2026-10-18 (step 4):** Better Auth's OAuth proxy plugin, with its own `OAUTH_PROXY_SECRET`. Previews keep their own database and secret, and Google keeps just two redirect URIs ([§12](#12-environments)). Checked working on step 5's preview.
 5. **Deleting a sheet, and hiding an extra person from a sheet:** left out of step 6 to keep it small. When they're added, each needs a UI-only operation; deleting a sheet must never delete people ([§6](#6-sheets-views-not-copies)).
 6. **Photos uploaded but never saved:** if the tab closes mid-way, or the save is refused, the uploaded photo stays in Cloudinary unused. Rare, so left out of step 7. A sweep could later delete photos in a group's folder that no person uses.
+7. **Copying photos on import:** photos come in only when a JSON file goes back into its own group. Copying them into another group's Cloudinary folder could come later.

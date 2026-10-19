@@ -13,6 +13,7 @@ import { myRequests, pendingRequestCounts, type MyRequest } from "@/server/repos
 import { listGroupsForUser, type GroupSummary } from "@/server/repositories/groups";
 import { invitesForUser, type InviteForMe } from "@/server/repositories/invites";
 import { can } from "@/server/roles";
+import { ImportNewGroup } from "./ImportNewGroup";
 import { NewGroupForm } from "./NewGroupForm";
 
 export const metadata: Metadata = { title: "Dashboard · Family Tree" };
@@ -59,6 +60,10 @@ async function Dashboard() {
         <section className="flex flex-col gap-4">
           <h2 className="text-lg font-semibold">Create a family group</h2>
           <NewGroupForm myName={user.name} />
+        </section>
+        <section className="flex flex-col gap-3" aria-label="Import">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Or start from a family file (GEDCOM or JSON) exported from another program or group.</p>
+          <ImportNewGroup />
         </section>
       </main>
     </>

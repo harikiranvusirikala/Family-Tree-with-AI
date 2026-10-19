@@ -167,6 +167,13 @@ Import / export
 - JSON: full, lossless backup of a group.
 - GEDCOM: exchange with Ancestry, FamilySearch, MyHeritage.
 - PNG/PDF: picture of a sheet.
+- Built in step 10. Decided:
+  - Every imported file is read in the browser, with a preview before anything is saved.
+  - People with no recorded sex in a GEDCOM file: choose male or female for each in the preview ("Set all to" for many).
+  - PDF through the browser's print dialog ("Save as PDF"), not a PDF library.
+  - At most 2,000 people per imported file.
+  - Photos come in only when a JSON file goes back into the group it came from.
+  - The picture always uses the day colours on white.
 
 First build step
 - Done in step 2 (ELK.js chosen). Was: spike the tree layout using the people from samples/Sample Family Tree.png,

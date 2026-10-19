@@ -84,37 +84,40 @@ export function SheetTabs({
 
   return (
     <div className="border-b border-zinc-200 dark:border-zinc-800">
-      <div className="flex items-end gap-1 overflow-x-auto px-4 pt-2">
-        <div role="tablist" aria-label="Sheets" className="flex gap-1">
-          {sheets.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              role="tab"
-              aria-selected={s.id === current.id}
-              onClick={() => onOpen(s.id)}
-              className="flex shrink-0 items-center gap-1 rounded-t-md border border-b-0 border-transparent px-3 py-1.5 text-sm text-zinc-600 hover:text-zinc-900 aria-selected:border-zinc-200 aria-selected:bg-white aria-selected:font-medium aria-selected:text-zinc-900 dark:aria-selected:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 dark:aria-selected:bg-zinc-900 dark:aria-selected:text-zinc-100"
-            >
-              {s.pinned && (
-                <svg aria-hidden width="12" height="12" viewBox="0 0 24 24" className="fill-zinc-400">
-                  <path d="M16 3l5 5-3 1-4 4 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 4-4z" />
-                </svg>
-              )}
-              {s.title}
-            </button>
-          ))}
-        </div>
-        {canEdit && (
-          <div className="mb-1 flex shrink-0 gap-1">
-            <button type="button" aria-label="Sheet options" aria-haspopup="menu" aria-expanded={tool === "menu"} onClick={() => (tool === "menu" ? close() : setTool("menu"))} className={small}>
-              ⋯
-            </button>
-            <button type="button" onClick={openNew} className={small}>
-              + New sheet
-            </button>
+      <div className="flex items-end gap-2 pr-4">
+        {/* Only the tabs scroll sideways: a scrolling box also cuts off what hangs below it, like a menu. */}
+        <div className="flex min-w-0 flex-1 items-end gap-1 overflow-x-auto pl-4 pt-2">
+          <div role="tablist" aria-label="Sheets" className="flex gap-1">
+            {sheets.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                role="tab"
+                aria-selected={s.id === current.id}
+                onClick={() => onOpen(s.id)}
+                className="flex shrink-0 items-center gap-1 rounded-t-md border border-b-0 border-transparent px-3 py-1.5 text-sm text-zinc-600 hover:text-zinc-900 aria-selected:border-zinc-200 aria-selected:bg-white aria-selected:font-medium aria-selected:text-zinc-900 dark:aria-selected:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 dark:aria-selected:bg-zinc-900 dark:aria-selected:text-zinc-100"
+              >
+                {s.pinned && (
+                  <svg aria-hidden width="12" height="12" viewBox="0 0 24 24" className="fill-zinc-400">
+                    <path d="M16 3l5 5-3 1-4 4 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 4-4z" />
+                  </svg>
+                )}
+                {s.title}
+              </button>
+            ))}
           </div>
-        )}
-        {trailing && <div className="mb-1 ml-auto shrink-0">{trailing}</div>}
+          {canEdit && (
+            <div className="mb-1 flex shrink-0 gap-1">
+              <button type="button" aria-label="Sheet options" aria-haspopup="menu" aria-expanded={tool === "menu"} onClick={() => (tool === "menu" ? close() : setTool("menu"))} className={small}>
+                ⋯
+              </button>
+              <button type="button" onClick={openNew} className={small}>
+                + New sheet
+              </button>
+            </div>
+          )}
+        </div>
+        {trailing && <div className="mb-1 shrink-0 pt-2">{trailing}</div>}
       </div>
 
       {tool === "menu" && (

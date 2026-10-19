@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState, type RefObject } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -20,6 +20,10 @@ import { useTheme } from "../theme";
 import { CanvasActionsContext, type CanvasActions } from "./canvas-actions";
 import { PersonNode, type PersonNodeType } from "./PersonNode";
 import { GENDER_COLORS } from "./PersonPhoto";
+import { sheetPicture } from "./sheet-picture";
+
+/** Set by the canvas: captures the whole sheet as a PNG data URL (Export, picture). */
+export type CapturePicture = () => Promise<string>;
 import { UNION_HEIGHT, UnionNode, type UnionNodeType } from "./UnionNode";
 
 type ForkEdgeType = Edge<Record<string, never>, "fork">;
@@ -39,12 +43,21 @@ type FlowNode = PersonNodeType | UnionNodeType;
 // clickable). Giving it a click handler keeps them on, so the cards' own buttons get the clicks.
 const keepNodesClickable = () => {};
 
-function Canvas({ view }: { view: SheetView }) {
+function Canvas({ view, captureRef }: { view: SheetView; captureRef?: RefObject<CapturePicture | null> }) {
   const { onPerson, onCouple } = useContext(CanvasActionsContext);
   const theme = useTheme() ?? "light";
   const [nodes, setNodes] = useState<FlowNode[]>([]);
   const [edges, setEdges] = useState<ForkEdgeType[]>([]);
-  const { fitView } = useReactFlow();
+  const { fitView, getNodes } = useReactFlow();
+  const flow = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!captureRef) return;
+    captureRef.current = () => sheetPicture(flow.current!, getNodes());
+    return () => {
+      captureRef.current = null;
+    };
+  }, [captureRef, getNodes]);
 
   // Lay the sheet out again whenever its people change: the "auto adjust" requirement.
   useEffect(() => {
@@ -95,6 +108,7 @@ function Canvas({ view }: { view: SheetView }) {
 
   return (
     <ReactFlow
+      ref={flow}
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
@@ -119,11 +133,11 @@ function Canvas({ view }: { view: SheetView }) {
 }
 
 /** Pan/zoom canvas for one sheet. Layout runs in the browser (ARCHITECTURE.md §7). */
-export function FamilyCanvas({ view, actions }: { view: SheetView; actions?: CanvasActions }) {
+export function FamilyCanvas({ view, actions, captureRef }: { view: SheetView; actions?: CanvasActions; captureRef?: RefObject<CapturePicture | null> }) {
   return (
     <ReactFlowProvider>
       <CanvasActionsContext value={actions ?? {}}>
-        <Canvas view={view} />
+        <Canvas view={view} captureRef={captureRef} />
       </CanvasActionsContext>
     </ReactFlowProvider>
   );

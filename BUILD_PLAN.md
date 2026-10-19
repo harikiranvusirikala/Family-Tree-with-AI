@@ -19,8 +19,8 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 8 | Members, invites and access requests (F3, F4) | Done 2026-10-19. Indexes set up in `familytree_preview` and `familytree`. See the step 8 notes |
 | – | Night theme (owner request, between steps 8 and 9) | Done 2026-10-19. See its section after step 8 |
 | – | Tree font and Google sign-in button (owner request, between steps 8 and 9) | Done 2026-10-19. See its section after step 8 |
-| 9 | AI chat (F7) | Done 2026-10-19. Indexes set up in `familytree_preview` and `familytree`; `npm run test:ai-live` and a real chat on the preview are the last checks. See the step 9 notes |
-| 10 | Import and export (F9, F10) | Not started |
+| 9 | AI chat (F7) | Done 2026-10-19 (merged to `main`). Indexes set up in `familytree_preview` and `familytree`. See the step 9 notes |
+| 10 | Import and export (F9, F10) | Done 2026-10-19. See the step 10 notes |
 | 11 | Nightly backup and hardening (F12) | Not started |
 
 ## How we work
@@ -531,16 +531,73 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - Opening the assistant panel narrows the canvas without re-fitting the tree, as the person panel already does.
 
 ## Step 10: Import and export (F9, F10)
+- **Owner:** review the detailed plan and decide its open questions (see Decisions). Nothing to set up: no new services, keys or indexes.
 - **Build:**
-  - `api/groups/[groupId]/export` (Maintain and up): JSON or GEDCOM, for the whole group or one sheet.
-  - `api/groups/[groupId]/import`: parse into operations, preview counts and possible duplicates (same name and birth year), and choose keep both or use existing for each.
-  - Imports are applied through `applyOperations`, into this group or a new one.
-  - GEDCOM files over about 4 MB are parsed in the browser.
-  - PNG/PDF capture of the canvas (View and up).
-- **Tests:**
-  - Unit: JSON and GEDCOM round trips of the fixture return the same people and unions.
-  - Unit: a one-sheet export contains exactly the people that sheet shows.
-  - E2E: import with one duplicate resolved; a Viewer can download a PNG but gets no data export.
+  - **Pure converters**, in `src/server/import-export/` (no database, no `server-only`, so they run in the browser and in unit tests):
+    - `json.ts`: our own JSON format, `{ format: "family-tree-with-ai", version: 1, exportedAt, group: { id, name }, persons, unions, sheets }`, lossless (photo ids and sheets included). The importer checks it with zod and accepts only this format.
+    - `gedcom.ts`: GEDCOM 5.5.1, the version Ancestry, FamilySearch and MyHeritage all read.
+      - Export: `INDI` records with `NAME First /Last/` (the last word as the surname), `SEX M|F` and `BIRT`/`DEAT` years, then `FAM` records with `HUSB`/`WIFE`/`CHIL` and `DIV` for divorced couples. A same-sex couple gets two `HUSB` or two `WIFE` lines, which GEDCOM 5.5.1 doesn't define but the major programs read.
+      - Import, for files in UTF-8 or ASCII (with or without a BOM, any line endings), including long values split with `CONC`/`CONT`:
+        - Kept: names, sex, birth and death years (the year is taken from dates like `12 MAR 1985`, `ABT 1900` or `BET 1900 AND 1910`), couples, children, and divorces.
+        - Not kept, and the preview says so: places, full dates, notes, sources and media.
+        - Repaired, with a warning in the preview: a family with no partners is skipped; a child listed in two families stays with the first (birth parents if marked); the same couple twice becomes one.
+  - **Export, data** (Maintain and up, §8): `GET /api/groups/[groupId]/export?format=json|gedcom[&sheet=<id>]`. `getUser()` (401), then `roleInGroup(…, maintain)`, one 404 for every no-access case. It downloads `<group> - <sheet>.json` or `.ged`. One sheet means exactly the people and couples that sheet shows (§6); the whole group includes everyone and every sheet (sheets only in JSON: GEDCOM has none).
+  - **Export, picture** (everyone): "Picture (PNG)" captures the whole current sheet, whatever the zoom, with `html-to-image` 1.11 (MIT; React Flow's `getNodesBounds` gives the area). It uses the day colours on white at twice the screen's resolution, at most 8,000 pixels on the long side, without the minimap and controls (`src/components/tree/sheet-picture.ts`). "Print or save as PDF" prints that picture from a hidden frame, so no pop-up blocker interferes.
+  - **Import**, parsed in the browser (`ImportPanel`):
+    1. Choose a `.json` or `.ged` file. The browser parses it and shows a preview:
+       - how many people, couples and sheets;
+       - what isn't kept, and any warnings;
+       - **possible duplicates**: an imported person with the same name (ignoring case, accents and spaces) and the same birth year as someone already in the group. Each gets "Keep both" (default) or "Use existing". People without a birth year aren't matched.
+       - **people with no recorded sex**, each needing male or female ("Set all to" when there are more than three);
+       - which person the new sheet shows (GEDCOM: the first person in the file by default, which is usually the file's home person; JSON: its own sheets).
+    2. **Import** sends the operations to a server action, which re-checks everything on the single write path:
+       - into this group: `applyChangesAction` (Maintain and up), the same as any edit, then the new sheet opens;
+       - into a new group: `importGroupAction(name, operations)` = `createGroup` with the importer as Owner, then the group opens.
+    3. "Use existing" swaps the imported person for the existing one in every operation. If that breaks a rule (for example, giving the existing person a second set of parents), the planner's reason shows in the preview, and "Keep both" always works.
+  - **Limits:** at most 2,000 people per file, checked in the preview and again on the server (`operationsSchema` refuses a batch adding more). The operations limit rises from 5,000 to 20,000 per batch, and the server action body limit to 4 MB (`serverActions.bodySizeLimit`; Vercel's own limit is 4.5 MB).
+  - **Photos:** a JSON export keeps photo ids. Importing it back into the same group keeps them; any other group drops them, because a photo lives in its own group's Cloudinary folder (the planner refuses the rest).
+  - **Where:**
+    - An **Export** menu at the end of the sheet tabs: Picture (PNG), Print or save as PDF, and for Maintain and up: This sheet (JSON or GEDCOM), Whole group (JSON or GEDCOM).
+    - **Import…** beside it (Maintain and up).
+    - On the dashboard, under Create a family group: **Import a family file** into a new group.
+- **Tests (261 unit, 34 database and 40 e2e tests in the suite after this step):**
+  - Unit:
+    - JSON round trip of the sample family: export, parse, and import into an empty group (`test/planning.ts`) gives the same people, couples and sheets.
+    - GEDCOM round trip: the same people and couples (sheets aren't in GEDCOM).
+    - A one-sheet export contains exactly the people and couples `buildSheetView` shows.
+    - GEDCOM parsing:
+      - names with and without slashes, and `GIVN`/`SURN`;
+      - dates (`ABT`, `BET … AND`, full dates, out-of-range years);
+      - missing sex, a family with no partners, a child in two families, a duplicate couple;
+      - `CONC`/`CONT`, CRLF line endings, a BOM.
+    - The duplicate finder and the "Use existing" swap.
+    - The 2,000-person limit; and that a JSON file in another format is refused.
+  - Database: importing into a new group creates the group with the importer as Owner and everything in one transaction; importing with "Use existing" links to the existing person.
+  - E2E:
+    - **Export:** download the whole group as GEDCOM and as JSON (Playwright's download event), check the files, then import the GEDCOM into a new group: the same 36 people appear.
+    - **Import:** a small GEDCOM into the sample group with one duplicate resolved as "Use existing", then a person with no recorded sex set in the preview; the new sheet opens and the counts are right.
+    - **Viewer:** downloads a PNG (a real PNG of the whole sheet, over 2,000 × 1,000 pixels), sees only the picture items in Export and no Import, and the export address answers 404.
+    - The exported picture and the import preview are saved as `test-results/screenshots/sheet-picture.png` and `import-preview.png`.
+    - The Export menu opens where it can be seen: every item is the topmost thing on screen at its centre (found in the owner's check).
+    - Not tested automatically: the print dialog itself.
+- **Owner checks:**
+  - On `npm run dev`: export your family as GEDCOM and open it in another program if you have one (or re-import it into a new group).
+  - If you have a GEDCOM from Ancestry, FamilySearch or MyHeritage: import it into a new group and check the preview's warnings.
+  - Save a sheet as a PNG and as a PDF.
+- **Decisions (owner, 2026-10-19):**
+  1. Every import file is parsed in the browser; there is no import route.
+  2. People with no recorded sex: chosen in the preview, one by one or with "Set all to".
+  3. PDF through the browser's print dialog, no PDF library.
+  4. At most 2,000 people per imported file.
+  5. Photos come in only when a JSON file goes back into the group it came from.
+  6. The picture always uses the day colours on white.
+- **Step 10 notes (2026-10-19):**
+  - Found in the owner's check: clicking Export showed nothing. The menu opened inside the sheet-tab row, which scrolls sideways, and a scrolling box also cuts off what hangs below it. The e2e tests still passed because Playwright scrolls a clipped element into view before clicking it. The buttons at the end of the row now sit outside the scrolling part, and a test checks the menu with `document.elementFromPoint`, which doesn't scroll; it failed without the fix.
+  - Deviation: no `importAction`. An import into this group is an ordinary batch, so it goes through `applyChangesAction`; only a new group needs `importGroupAction` (createGroup).
+  - Server actions accept 1 MB by default (checked in Next.js's docs); `serverActions.bodySizeLimit` is now 4 MB, under Vercel's 4.5 MB.
+  - The picture is captured with the `dark` class removed from `<html>` and from React Flow's element (its `colorMode` adds one too), with an overlay over the page while it's made, so night mode doesn't flash. A photo that can't be fetched (for example without CORS) becomes blank instead of stopping the picture. Cloudinary's CORS headers are checked by the owner's export of a sheet with photos.
+  - Found by the e2e test: the "Not kept" list followed the file's order; it now always reads places, dates, notes, sources, media, other facts. And the preview's message now clears when a choice changes.
+  - Unit tests at first mixed two sample groups: every `sampleState()` call makes new ids, so tests build it once.
 
 ## Step 11: Nightly backup and hardening (F12, §11)
 - **Build:**
