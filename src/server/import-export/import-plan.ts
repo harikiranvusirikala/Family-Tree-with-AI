@@ -27,6 +27,14 @@ export function findDuplicates(data: ImportData, tree: GroupTree): DuplicateMatc
   });
 }
 
+/**
+ * The preview's starting choice for each possible duplicate: "Use existing", with the first match
+ * (the owner's choice after step 10's check). "Keep both" is one click away.
+ */
+export function defaultUseExisting(duplicates: DuplicateMatch[]): Record<string, string> {
+  return Object.fromEntries(duplicates.map((d) => [d.imported.id, d.existing[0].id]));
+}
+
 export interface ImportChoices {
   /** For people the file gives no sex: male or female, by imported id. */
   genders: Record<string, Gender>;

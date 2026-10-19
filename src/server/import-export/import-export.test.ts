@@ -6,7 +6,7 @@ import { buildSheetView } from "@/tree/sheet-view";
 import type { GroupTree } from "@/tree/types";
 import { applyPlan, emptyGroup, sampleState, toGroupTree } from "@test/planning";
 import { exportGedcom, parseGedcom, yearOf } from "./gedcom";
-import { findDuplicates, importOperations, type ImportChoices } from "./import-plan";
+import { defaultUseExisting, findDuplicates, importOperations, type ImportChoices } from "./import-plan";
 import { exportJson, parseJson } from "./json";
 import { exportPart, fileName, MAX_IMPORT_PEOPLE, type ImportData } from "./types";
 
@@ -150,11 +150,13 @@ describe("importing into a group with people already in it", () => {
       "0 @F@ FAM\n1 HUSB @J@\n1 WIFE @T@\n1 CHIL @M@\n0 TRLR\n",
   ) as ImportData;
 
-  test("possible duplicates: the same name and birth year", () => {
-    expect(findDuplicates(file, tree).map((d) => [d.imported.name, d.existing.map((p) => p.id)])).toEqual([
+  test("possible duplicates: the same name and birth year, each starting as Use existing", () => {
+    const duplicates = findDuplicates(file, tree);
+    expect(duplicates.map((d) => [d.imported.name, d.existing.map((p) => p.id)])).toEqual([
       ["Jake Cruz", [jake.id]],
       ["Taylor Humes", [taylor.id]],
     ]);
+    expect(defaultUseExisting(duplicates)).toEqual({ "@J@": jake.id, "@T@": taylor.id });
   });
 
   test("a person with no recorded sex must be chosen first", () => {

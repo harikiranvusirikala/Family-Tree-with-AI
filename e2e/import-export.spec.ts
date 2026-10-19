@@ -106,8 +106,9 @@ test("import into this group: duplicates linked with Use existing, and a sex cho
   await expect(panel.getByRole("alert")).toHaveText("Choose male or female for Mia Cruz.");
   await panel.getByRole("combobox", { name: "Sex of Mia Cruz" }).selectOption("female");
   await expect(panel.getByRole("alert")).toHaveCount(0); // answered
-  await panel.getByRole("combobox", { name: "What to do with Jake Cruz" }).selectOption({ label: "Use existing Jake Cruz (1945 – 2022)" });
-  await panel.getByRole("combobox", { name: "What to do with Taylor Humes" }).selectOption({ label: "Use existing Taylor Humes (1955)" });
+  // Possible duplicates start as Use existing (the owner's choice); Keep both is the other option.
+  await expect(panel.getByRole("combobox", { name: "What to do with Jake Cruz" }).locator("option:checked")).toHaveText("Use existing Jake Cruz (1945 – 2022)");
+  await expect(panel.getByRole("combobox", { name: "What to do with Taylor Humes" }).locator("option:checked")).toHaveText("Use existing Taylor Humes (1955)");
   await page.screenshot({ path: "test-results/screenshots/import-preview.png" });
   await panel.getByRole("button", { name: "Import" }).click();
 

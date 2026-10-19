@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { parseGedcom } from "@/server/import-export/gedcom";
-import { findDuplicates, importOperations, type ImportBatch } from "@/server/import-export/import-plan";
+import { defaultUseExisting, findDuplicates, importOperations, type ImportBatch } from "@/server/import-export/import-plan";
 import { parseJson } from "@/server/import-export/json";
 import type { ImportData } from "@/server/import-export/types";
 import type { Gender, GroupTree } from "@/tree/types";
@@ -19,8 +19,8 @@ const withYears = (p: { name: string; birthYear?: number; deathYear?: number }) 
 
 /**
  * F10: import a JSON or GEDCOM file. The file is read here, in the browser (decided in step 10), and a
- * preview shows what will come in: counts, what isn't kept, warnings, possible duplicates (Keep both
- * or Use existing), people needing a sex, and whose sheet opens. `onImport` sends the operations to
+ * preview shows what will come in: counts, what isn't kept, warnings, possible duplicates (Use existing
+ * by default, or Keep both), people needing a sex, and whose sheet opens. `onImport` sends the operations to
  * the server, which checks them like any edit; it returns a message if they weren't saved.
  */
 export function ImportPanel({
@@ -64,7 +64,7 @@ export function ImportPanel({
     if (typeof parsed === "string") return setProblem(parsed);
     setData(parsed);
     setGenders({});
-    setUseExisting({});
+    setUseExisting(newGroup ? {} : defaultUseExisting(findDuplicates(parsed, tree)));
     setRoot(parsed.persons[0]?.id ?? "");
     setName(parsed.suggestedName ?? "Imported family");
   }
@@ -134,6 +134,7 @@ export function ImportPanel({
           {duplicates.length > 0 && (
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-1 font-medium">Possibly already in this group ({duplicates.length})</legend>
+              <p className="text-zinc-600 dark:text-zinc-400">They&apos;re linked to the person already here. Choose Keep both to add them as someone new.</p>
               {duplicates.map(({ imported, existing }) => (
                 <label key={imported.id} className="flex flex-wrap items-center justify-between gap-2">
                   <span>{withYears(imported)}</span>
@@ -151,12 +152,12 @@ export function ImportPanel({
                     }}
                     className={input}
                   >
-                    <option value="">Keep both</option>
                     {existing.map((p) => (
                       <option key={p.id} value={p.id}>
                         Use existing {withYears(p)}
                       </option>
                     ))}
+                    <option value="">Keep both</option>
                   </select>
                 </label>
               ))}

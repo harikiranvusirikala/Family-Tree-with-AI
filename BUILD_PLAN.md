@@ -547,7 +547,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
     1. Choose a `.json` or `.ged` file. The browser parses it and shows a preview:
        - how many people, couples and sheets;
        - what isn't kept, and any warnings;
-       - **possible duplicates**: an imported person with the same name (ignoring case, accents and spaces) and the same birth year as someone already in the group. Each gets "Keep both" (default) or "Use existing". People without a birth year aren't matched.
+       - **possible duplicates**: an imported person with the same name (ignoring case, accents and spaces) and the same birth year as someone already in the group. Each starts as "Use existing" (the first match; changed after the owner's check), with "Keep both" to add them as someone new. People without a birth year aren't matched.
        - **people with no recorded sex**, each needing male or female ("Set all to" when there are more than three);
        - which person the new sheet shows (GEDCOM: the first person in the file by default, which is usually the file's home person; JSON: its own sheets).
     2. **Import** sends the operations to a server action, which re-checks everything on the single write path:
@@ -596,6 +596,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - Deviation: no `importAction`. An import into this group is an ordinary batch, so it goes through `applyChangesAction`; only a new group needs `importGroupAction` (createGroup).
   - Server actions accept 1 MB by default (checked in Next.js's docs); `serverActions.bodySizeLimit` is now 4 MB, under Vercel's 4.5 MB.
   - The picture is captured with the `dark` class removed from `<html>` and from React Flow's element (its `colorMode` adds one too), with an overlay over the page while it's made, so night mode doesn't flash. A photo that can't be fetched (for example without CORS) becomes blank instead of stopping the picture. Cloudinary's CORS headers are checked by the owner's export of a sheet with photos.
+  - Changed after the owner's check: possible duplicates start as "Use existing" instead of "Keep both" (`defaultUseExisting`), so importing a family that's already partly in the group links rather than copies by default. If a link breaks a rule, the planner's reason names the person, and "Keep both" for that one works.
   - Found by the e2e test: the "Not kept" list followed the file's order; it now always reads places, dates, notes, sources, media, other facts. And the preview's message now clears when a choice changes.
   - Unit tests at first mixed two sample groups: every `sampleState()` call makes new ids, so tests build it once.
 
