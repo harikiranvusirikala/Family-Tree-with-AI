@@ -33,7 +33,7 @@ export function PersonNode({ data }: NodeProps<PersonNodeType>) {
       <div style={{ marginTop: PHOTO_TOP }}>
         <PersonPhoto person={person} size={PHOTO_SIZE} />
       </div>
-      <div className="mt-2 font-serif text-[15px] font-bold leading-tight text-zinc-900 dark:text-zinc-100">{person.name}</div>
+      <div className="mt-2 text-[15px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-zinc-100">{person.name}</div>
       {years && <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{years}</div>}
       <Handle type="target" position={Position.Top} isConnectable={false} className="!opacity-0" />
     </div>

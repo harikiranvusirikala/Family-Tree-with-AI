@@ -81,6 +81,7 @@ test("the sign-in page has the switch too", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/");
   await expect(html(page)).not.toHaveClass(/\bdark\b/);
+  await page.screenshot({ path: "test-results/screenshots/day-sign-in.png" });
   await page.getByRole("button", { name: "Night theme" }).click();
   await expect(html(page)).toHaveClass(/\bdark\b/);
   await screenshot(page, "sign-in");

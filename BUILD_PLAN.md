@@ -18,6 +18,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 7 | Photos (F8) | Done 2026-10-19 (merged to `main`). See the step 7 notes |
 | 8 | Members, invites and access requests (F3, F4) | Done 2026-10-19. Indexes set up in `familytree_preview` and `familytree`. See the step 8 notes |
 | – | Night theme (owner request, between steps 8 and 9) | Done 2026-10-19. See its section after step 8 |
+| – | Tree font and Google sign-in button (owner request, between steps 8 and 9) | Done 2026-10-19. See its section after step 8 |
 | 9 | AI chat (F7) | Not started |
 | 10 | Import and export (F9, F10) | Not started |
 | 11 | Nightly backup and hardening (F12) | Not started |
@@ -108,7 +109,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - Sibling order: strict birth order would add crossing lines, and the sample image isn't in birth order either. Siblings with families of their own keep the crossing-free position; the rest are re-packed eldest first. A test checks this on the sample (Carrie, Carlo, Tay; Amelia, Jake, Timothy; Taylor, Anna).
   - Speed: about 30 ms for 100 people and about 250 ms for 300, so the planned 200 ms target was missed. The faster placement option (Brandes–Köpf) looked lopsided, so the speed test is a regression guard instead.
   - The minimap needed fixed node sizes: controlled React Flow nodes aren't measured, and the minimap skips nodes without a size.
-  - The playground is `/dev/tree` so it doesn't clash with Next.js `layout.tsx` files. Cards use the system serif font (Google Fonts is blocked on the work network).
+  - The playground is `/dev/tree` so it doesn't clash with Next.js `layout.tsx` files. Cards used the system serif font (Google Fonts is blocked on the work network); since the polish after step 8 they use the app's sans-serif font.
 
 ## Step 3: Database and the single write path
 - **Owner:** create the Atlas M0 cluster, allow network access from `0.0.0.0/0`, and create separate database users per §11. The connection string goes in `.env.local` (never committed). CI needs a `MONGODB_URI` repository secret for a separate read/write test user (repo → Settings → Secrets and variables → Actions).
@@ -456,6 +457,11 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 - **Notes (2026-10-19):**
   - First built with two states (day and night); the owner asked for a third, Follow device, so a browser can go back to following the device after choosing.
   - The script lives in a plain module because the root layout, a server component, can't import values from a `"use client"` module.
+
+## Between steps 8 and 9: tree font and Google sign-in button (owner request)
+- **Tree:** names on the cards use the app's sans-serif font (semibold) instead of the system serif, so the tree matches the rest of the app.
+- **Sign-in:** "Sign in with Google" follows Google's branding guidelines for the button: the standard four-colour G before the text, a 40 px pill, 14 px medium text; white with a #747775 outline by day, Google's dark theme (#131314, #8E918F outline) at night. The text stays in the app's font: Google's guidelines name Roboto, which would need self-hosting (Google Fonts is blocked locally).
+- **Tests:** unchanged behaviour, so the existing tests cover it; the theme test also saves `test-results/screenshots/day-sign-in.png` next to the night one.
 
 ## Step 9: AI chat (F7, §10)
 - **Owner:** create an Anthropic API key, set a monthly spending limit, and add `ANTHROPIC_API_KEY`, `CHAT_MODEL=claude-haiku-5-5` and `CHAT_DAILY_LIMIT`.
