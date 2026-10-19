@@ -152,6 +152,11 @@ Photos (step 7)
   Deleting a person keeps their photo, so Undo brings it back.
 
 AI chat behaviour
+- Built in step 9 ("Ask AI" at the end of the sheet tabs). Decided:
+  - The conversation stays in the browser for the visit; a reload or New chat starts fresh.
+  - The key is CHAT_API_KEY (not ANTHROPIC_API_KEY), so a Claude Code session can't pick it up.
+  - Effort "medium"; the model gets the family list (up to 300 people) at the start of each chat.
+  - 50 messages per person per day, across all groups; plus the monthly spend limit in the Anthropic Console.
 - Tools: search_people, get_person (read); add_person, update_person, add_marriage, add_child, add_to_sheet, create_sheet (proposals).
   No delete tool - deleting is UI only.
 - Propose, then confirm: the AI describes the change, the app shows a confirmation card, and saves only after the user clicks.

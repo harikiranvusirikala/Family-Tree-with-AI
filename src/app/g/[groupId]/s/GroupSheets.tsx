@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 import { FamilyCanvas } from "@/components/tree/FamilyCanvas";
 import { CouplePanel } from "@/components/tree/edit/CouplePanel";
 import { PersonPanel } from "@/components/tree/edit/PersonPanel";
@@ -21,9 +22,22 @@ const UNDO_SECONDS = 10;
  * A group's sheets (F5) and editing them by hand (F6). Each sheet is a view computed in the browser,
  * so switching tabs is instant: the URL changes with history.pushState, which Next.js's router follows.
  * Every change goes to the server as one batch; the page then re-renders with the new data and the
- * canvas lays itself out again. `cloudName` is given when photos are set up (F8).
+ * canvas lays itself out again. `cloudName` is given when photos are set up (F8), `chat` when the
+ * assistant is (F7).
  */
-export function GroupSheets({ groupId, tree, canEdit, cloudName }: { groupId: string; tree: GroupTree; canEdit: boolean; cloudName?: string }) {
+export function GroupSheets({
+  groupId,
+  tree,
+  canEdit,
+  cloudName,
+  chat,
+}: {
+  groupId: string;
+  tree: GroupTree;
+  canEdit: boolean;
+  cloudName?: string;
+  chat: boolean;
+}) {
   const pathname = usePathname();
   const sheets = useMemo(() => tabOrder(tree.sheets), [tree.sheets]);
   const found = sheets.find((s) => pathname.endsWith(`/s/${s.id}`));
@@ -35,6 +49,7 @@ export function GroupSheets({ groupId, tree, canEdit, cloudName }: { groupId: st
   const [deleted, setDeleted] = useState<Person | null>(null); // for Undo
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [chatOpen, setChatOpen] = useState(false);
 
   // A mistyped or removed sheet in the URL: show the first one, and say so in the address bar. Not
   // while saving: a new sheet's URL is set just before the data with that sheet arrives.
@@ -88,7 +103,27 @@ export function GroupSheets({ groupId, tree, canEdit, cloudName }: { groupId: st
 
   return (
     <CloudNameContext value={cloudName}>
-      <SheetTabs tree={tree} sheets={sheets} current={current} canEdit={canEdit} pending={pending} run={run} onOpen={openSheet} />
+      <SheetTabs
+        tree={tree}
+        sheets={sheets}
+        current={current}
+        canEdit={canEdit}
+        pending={pending}
+        run={run}
+        onOpen={openSheet}
+        trailing={
+          chat && (
+            <button
+              type="button"
+              aria-expanded={chatOpen}
+              onClick={() => setChatOpen(!chatOpen)}
+              className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium hover:bg-zinc-100 aria-expanded:bg-zinc-900 aria-expanded:text-white dark:border-zinc-700 dark:hover:bg-zinc-800 dark:aria-expanded:bg-white dark:aria-expanded:text-zinc-900"
+            >
+              Ask AI
+            </button>
+          )
+        }
+      />
       {error && (
         <p role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200">
           {error}
@@ -115,6 +150,12 @@ export function GroupSheets({ groupId, tree, canEdit, cloudName }: { groupId: st
           />
         )}
         {couple && <CouplePanel key={couple.id} union={couple} {...panelProps} />}
+        {/* Kept mounted while hidden, so closing the panel doesn't lose the conversation. */}
+        {chat && (
+          <div hidden={!chatOpen} className="flex">
+            <ChatWidget groupId={groupId} tree={tree} run={run} pending={pending} onClose={() => setChatOpen(false)} />
+          </div>
+        )}
         {deleted && (
           <div role="status" className="absolute bottom-4 left-4 z-20 flex items-center gap-3 rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white shadow-lg dark:bg-white dark:text-zinc-900">
             <span>{deleted.name} deleted.</span>

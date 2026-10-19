@@ -1,5 +1,6 @@
 import type { Db } from "mongodb";
 import type { GroupTree, Person, Union } from "@/tree/types";
+import type { GroupState } from "../operations/plan";
 import { toObjectId } from "../ids";
 import { collections, type PersonDoc, type SheetDoc, type UnionDoc } from "./documents";
 
@@ -17,6 +18,21 @@ export async function loadGroupTree(db: Db, groupId: string): Promise<GroupTree>
     sheets.find({ groupId: gid }).toArray(),
   ]);
   return toGroupTree({ persons: personDocs, unions: unionDocs, sheets: sheetDocs });
+}
+
+/**
+ * Every record of the group, soft-deleted people included: what the planner checks a batch against
+ * (the AI chat dry-runs its proposals with it). `toGroupTree` turns it into what the browser draws.
+ */
+export async function loadGroupState(db: Db, groupId: string): Promise<GroupState> {
+  const gid = toObjectId(groupId);
+  const { persons, unions, sheets } = collections(db);
+  const [personDocs, unionDocs, sheetDocs] = await Promise.all([
+    persons.find({ groupId: gid }).toArray(),
+    unions.find({ groupId: gid }).toArray(),
+    sheets.find({ groupId: gid }).toArray(),
+  ]);
+  return { persons: personDocs, unions: unionDocs, sheets: sheetDocs };
 }
 
 /** Documents → the tree types used in the browser (pure; also used by tests). Skips deleted records. */

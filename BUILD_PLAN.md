@@ -19,7 +19,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 8 | Members, invites and access requests (F3, F4) | Done 2026-10-19. Indexes set up in `familytree_preview` and `familytree`. See the step 8 notes |
 | – | Night theme (owner request, between steps 8 and 9) | Done 2026-10-19. See its section after step 8 |
 | – | Tree font and Google sign-in button (owner request, between steps 8 and 9) | Done 2026-10-19. See its section after step 8 |
-| 9 | AI chat (F7) | Not started |
+| 9 | AI chat (F7) | Done 2026-10-19. Indexes set up in `familytree_preview` and `familytree`; `npm run test:ai-live` and a real chat on the preview are the last checks. See the step 9 notes |
 | 10 | Import and export (F9, F10) | Not started |
 | 11 | Nightly backup and hardening (F12) | Not started |
 
@@ -41,12 +41,12 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | Where | Variables |
 |---|---|
 | `.env.local` (local, git-ignored) | Everything in [.env.example](.env.example). `MONGODB_DB=familytree_dev`, `BETTER_AUTH_URL=http://localhost:3000` |
-| Vercel, Production | `MONGODB_URI`, `MONGODB_DB=familytree`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (own value), `BETTER_AUTH_URL=https://family-tree-with-ai.vercel.app`, `OAUTH_PROXY_SECRET` (same value as Preview), `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` |
-| Vercel, Preview | `MONGODB_URI`, `MONGODB_DB=familytree_preview`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (a different value), `OAUTH_PROXY_SECRET` (same value as Production), the same three `CLOUDINARY_*` as Production. No `BETTER_AUTH_URL`: the app uses Vercel's `VERCEL_BRANCH_URL` and `VERCEL_URL` |
+| Vercel, Production | `MONGODB_URI`, `MONGODB_DB=familytree`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (own value), `BETTER_AUTH_URL=https://family-tree-with-ai.vercel.app`, `OAUTH_PROXY_SECRET` (same value as Preview), `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CHAT_API_KEY`, `CHAT_MODEL=claude-haiku-5-5`, `CHAT_DAILY_LIMIT=50` |
+| Vercel, Preview | `MONGODB_URI`, `MONGODB_DB=familytree_preview`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (a different value), `OAUTH_PROXY_SECRET` (same value as Production), the same three `CLOUDINARY_*` and three `CHAT_*` as Production. No `BETTER_AUTH_URL`: the app uses Vercel's `VERCEL_BRANCH_URL` and `VERCEL_URL` |
 | Vercel, Development | Nothing; local work uses `.env.local` |
 | GitHub Actions secret | `MONGODB_URI` for a separate read/write test user (repo → Settings → Secrets and variables → Actions) |
 
-- Later steps add `ANTHROPIC_API_KEY`, `CHAT_MODEL`, `CHAT_DAILY_LIMIT` (step 9) to both Production and Preview, and `MONGODB_BACKUP_URI`, `BACKUP_ENCRYPTION_KEY` (step 11) as GitHub secrets.
+- Step 11 adds `MONGODB_BACKUP_URI` and `BACKUP_ENCRYPTION_KEY` as GitHub secrets.
 - Secrets are marked Sensitive in Vercel.
 - Vercel variables only reach new deployments, so redeploy (or push) after changing them.
 
@@ -464,17 +464,71 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 - **Tests:** unchanged behaviour, so the existing tests cover it; the theme test also saves `test-results/screenshots/day-sign-in.png` next to the night one.
 
 ## Step 9: AI chat (F7, §10)
-- **Owner:** create an Anthropic API key, set a monthly spending limit, and add `ANTHROPIC_API_KEY`, `CHAT_MODEL=claude-haiku-5-5` and `CHAT_DAILY_LIMIT`.
+- **Owner:**
+  - Review the detailed plan and decide its open questions (see Decisions).
+  - In the Anthropic Console: create an API key for this app, and set a monthly spending limit (for example $5) under the organization's limits.
+  - Add `CHAT_API_KEY` (the key), `CHAT_MODEL=claude-haiku-5-5` and `CHAT_DAILY_LIMIT=50` to `.env.local` (then restart the Claude Code session) and to Vercel Production and Preview (the key marked Sensitive).
+  - `npm run db:setup` against `familytree_preview` and `familytree`, for the `chatUsage` index.
+  - Once, in your terminal: `npm run test:ai-live` (a real call costing well under a cent).
 - **Build:**
-  - `ChatWidget` (bottom right) and `api/chat`, streaming through the official `@anthropic-ai/sdk`.
-  - The 8 tools from §10, with `strict: true` and filtered by role. Proposal tools return temporary IDs and save nothing.
-  - `ProposalCard` lists the changes in plain words. Confirm sends them through the step 6 server action (all or nothing).
-  - The system prompt puts stable instructions first so they can be cached, then the role and roster. Names are treated as data.
-  - `chatUsage` enforces the daily cap.
-- **Tests:**
-  - Unit: tool handlers, temporary-ID chaining, role filtering (Viewers get only the read tools), and the daily cap. None of these call the API.
-  - E2E with a stand-in for the model: "Priya Sharma married Ravi" → "which Ravi?" → "1980" → proposal card → Confirm → Priya and her sheet tab appear.
-  - `npm run test:ai-live`: a live check run once by hand, costing under a cent.
+  - **The official SDK**, `@anthropic-ai/sdk` 0.135, with the model from `CHAT_MODEL` (`claude-haiku-5-5`: $0.10 / $0.50 per million input / output tokens). `src/server/ai/config.ts` reads `CHAT_API_KEY`, `CHAT_MODEL`, `CHAT_DAILY_LIMIT` and `CHAT_API_URL`, and always gives the client its key and address.
+  - **`POST /api/chat`** (a route handler, because it streams): `getUser()` (401), `requireRole(groupId, view)` (one "no access" answer), then the daily cap. The answer is a stream of small JSON events: text as it's written, "Looking up Ravi…" while a tool runs, the updated proposal, and an end event carrying the turn for the browser to keep.
+  - **The agent loop** (`src/server/ai/chat.ts`): stream a reply; when the model calls tools, run them (`handlers.ts`), send the results back, and repeat, until it answers. At most 8 tool rounds per message, and `max_tokens` 4096, so one message can't run up a bill; past the limit every tool call still gets a result, so the conversation stays valid.
+  - **Tools** (§10), with `strict: true` so their inputs always match their schemas, offered by role: Viewers get `search_people` and `get_person` only, and the system prompt tells the model they have view-only access.
+    - `search_people` (name, optionally a year) and `get_person` (parents, partners, children, sheets) read the group's current data from MongoDB.
+    - The six proposal tools (`add_person`, `update_person`, `add_marriage`, `add_child`, `create_sheet`, `add_to_sheet`) save nothing. Each turns into an operation (§10), added to the pending proposal and **checked at once against the group with the real planner** (`planOperations`, which writes nothing). The model gets the new temporary id (`new:1`, `new:2`, …) to use in later calls, or the planner's reason, so it can correct itself.
+    - `add_child` takes the parents' ids and finds their couple, creating one if needed (the same rule as step 6's Add child).
+    - No delete tool.
+  - **The conversation is append-only.** Claude Haiku 5.5 thinks before answering, and its thinking stays valid only while everything sent before it is unchanged. So:
+    - The system prompt is fixed: instructions only, the same for everyone, so it can be cached.
+    - The group's people (id, name, years, parents, partners) and sheets go into the conversation once, as an operator (system) message after the first question. Up to 300 people; beyond that, a note says to use `search_people`.
+    - After a confirm or discard, the next request carries a short system note ("The proposal was saved: new:1 is now 65f…", or "The proposal was discarded"), instead of changing anything earlier.
+    - Names and messages are data, never instructions: the prompt says so, and changes still need a click and the user's own role.
+  - **Where the conversation lives:** in the browser for this visit. Each request sends the turns so far, checked for shape and size (`request.ts`: at most 60 messages; then "Start a new chat"). The model's thinking blocks go back unchanged, as the API requires.
+  - **`ProposalCard`**: the pending changes in plain words (`describeOperations`, pure, in `src/tree/`): "Add Priya Sharma (female)", "Priya Sharma and Ravi Kumar (1980) are married", "New sheet "Priya Sharma's family"". **Confirm** sends them to `applyChangesAction`, the same server action as editing by hand: all or nothing, and checked again for the user's role. **Discard** clears it. Errors show on the card.
+  - **`ChatWidget`**: an "Ask AI" button at the right end of the sheet tabs, opening the assistant beside the tree: messages, the proposal card, a text box (Enter sends), New chat and Close. Closing keeps the conversation. Hidden when the chat isn't set up (no key). It works in day and night themes.
+  - **Daily cap**: `chatUsage` `{userId, day, count}`, one atomic increment per message the person sends, unique `{userId, day}`, and a TTL index so old rows go after 30 days. At `CHAT_DAILY_LIMIT` (50 a day across all groups): "You've reached today's limit of 50 messages."
+  - **Model settings**: adaptive thinking (the default, not shown to users), effort `medium`, no temperature (Haiku 5.5 refuses one). Tool inputs aren't streamed early (`eager_input_streaming` off): they're short, and leaving it off keeps the API's `strict` check.
+  - **Errors**: a refusal (`stop_reason: "refusal"`; Haiku 5.5 has no fallback model) gives "I can't help with that." Rate limits give "The assistant is busy; try again in a minute." Other API errors are logged and give "The assistant isn't available right now."
+  - **E2E stand-in for the model** (`e2e/model-stub.mts`), like step 7's Cloudinary one: it answers the Messages API's streaming format with scripted turns, and lists the requests it received. `playwright.config.ts` points the app at it (`CHAT_API_URL`) with a placeholder key, so no test calls Anthropic.
+  - **`npm run test:ai-live`**: one real conversation against the sample family in memory ("Who are Jake Cruz's children?", then "Add a daughter Mia to Jake and Taylor"): it checks the model looks people up, answers, and proposes the right operations, and prints the token cost.
+- **Tests (245 unit, 32 database and 36 e2e tests in the suite after this step):**
+  - Unit:
+    - Each tool against the sample family (`test/planning.ts`): search by name and year, get_person's relations, and each proposal tool's operation. Temporary ids chain across calls (add_person, then add_marriage with `new:1`). A planner refusal comes back as an error result.
+    - Role filtering: a Viewer's request offers only the two read tools.
+    - The roster message: format, the 300-person cut-off, and names kept as data.
+    - `describeOperations` for every operation the tools make.
+    - The request check: a bad shape, too many messages, a blank or overlong question, a malformed proposal.
+    - The chat loop with a stand-in client: tool results go back, thinking blocks are kept unchanged, proposals grow, the 8-round limit still answers every tool call, a refusal ends the turn; the request has no temperature and effort `medium`.
+    - The settings: no key, no chat; never the ambient `ANTHROPIC_BASE_URL`.
+  - Database: five messages sent at once against a limit of 3 count exactly 3; each day (UTC) and each person counts separately.
+  - E2E with the stand-in:
+    - "Priya Sharma married Ravi" → "Which Ravi: born 1955 or 1980?" → "1980" → a proposal card with three lines → Confirm → Priya's card and her sheet tab "Priya Sharma's family" appear.
+    - The conversation goes on after Confirm: the model is told the new ids, and the stand-in (which, like the API, refuses edited conversations) accepts it.
+    - Discard leaves the tree unchanged.
+    - A Viewer's chat offers only the read tools, and the family list says view-only access (checked in what the stand-in received).
+    - Screenshots of the panel by day and at night (`test-results/screenshots/chat.png`, `night-chat.png`).
+- **Owner checks:**
+  - On `npm run dev` with the real key:
+    - Ask about your family ("Who are my grandparents?").
+    - Add someone through the chat, confirm, and check the tree.
+    - Try an ambiguous name.
+  - Then on the preview: once more.
+  - In the Console: check the cost of the session.
+- **Decisions (owner, 2026-10-19):**
+  1. The conversation lives in the browser for the visit; a reload or New chat starts fresh.
+  2. The key's variable is `CHAT_API_KEY`, not `ANTHROPIC_API_KEY`, so a Claude Code session that loads `.env.local` can't pick it up for itself.
+  3. Effort `medium`, the model's default.
+  4. The model gets the family list (up to 300 people) at the start of each chat.
+  5. A daily limit of 50 messages per person, across all groups.
+- **Step 9 notes (2026-10-19):**
+  - Checked in the Claude API reference and the installed SDK (0.135) before building: Claude Haiku 5.5 thinks by default (effort default `medium`), refuses `temperature` and prefill, has no server-side refusal fallback, and checks that a conversation sent back with thinking blocks hasn't been edited (enforced for accounts created from 2026-08-31). That is why the family list moved from the system prompt (which would change after every confirmed edit) to an operator message after the first question, and why the conversation is append-only. Operator (`role: "system"`) messages must follow a user message, so the server sends at most one per turn, right after the question.
+  - Found while checking the session: a process started from Claude Code inherits `ANTHROPIC_BASE_URL` and `ANTHROPIC_CUSTOM_HEADERS` (Claude Code's own gateway), which the SDK reads by default. The client is always given its key, address and no auth token; the e2e web server gets those variables cleared, and `test:ai-live` removes them before starting. This also confirmed decision 2.
+  - Found by the database test: two of the day's first messages sent at once both tried to create the day's row, and the loser was counted as over the limit. It now counts on the row the other created, if it has room.
+  - The "Ask AI" button sits at the end of the sheet tabs rather than at the bottom right, where React Flow's minimap and the Undo notice already are.
+  - Tool inputs aren't streamed early (`eager_input_streaming` off): they're short (a name, a year), and leaving it off keeps the API's `strict` check.
+  - The e2e stand-in streams thinking blocks with signatures and refuses a conversation whose thinking blocks or operator messages were altered or misplaced, like the API, so the e2e tests check the append-only handling end to end.
+  - Opening the assistant panel narrows the canvas without re-fitting the tree, as the person panel already does.
 
 ## Step 10: Import and export (F9, F10)
 - **Build:**

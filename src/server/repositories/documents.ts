@@ -60,6 +60,15 @@ export interface AccessRequestDoc {
   decidedAt?: Date;
 }
 
+/** F7: chat messages one person sent on one day (UTC), for the daily cap. Removed 30 days later. */
+export interface ChatUsageDoc {
+  _id: ObjectId;
+  userId: ObjectId;
+  day: string; // YYYY-MM-DD
+  count: number;
+  expiresAt: Date;
+}
+
 /** Better Auth's users, read here only to show names and emails. Better Auth writes them. */
 export interface UserDoc {
   _id: ObjectId;
@@ -105,6 +114,7 @@ export function collections(db: Db) {
     invites: db.collection<InviteDoc>("invites"),
     accessRequests: db.collection<AccessRequestDoc>("accessRequests"),
     users: db.collection<UserDoc>("users"),
+    chatUsage: db.collection<ChatUsageDoc>("chatUsage"),
     persons: db.collection<PersonDoc>("persons"),
     unions: db.collection<UnionDoc>("unions"),
     sheets: db.collection<SheetDoc>("sheets"),
@@ -113,7 +123,7 @@ export function collections(db: Db) {
 
 /** Creates the collections' indexes (§5). Safe to run repeatedly: `npm run db:setup`. */
 export async function ensureIndexes(db: Db): Promise<void> {
-  const { memberships, invites, accessRequests, persons, unions, sheets } = collections(db);
+  const { memberships, invites, accessRequests, chatUsage, persons, unions, sheets } = collections(db);
   await Promise.all([
     memberships.createIndex({ groupId: 1, userId: 1 }, { unique: true }),
     memberships.createIndex({ userId: 1 }),
@@ -125,6 +135,8 @@ export async function ensureIndexes(db: Db): Promise<void> {
     accessRequests.createIndex({ groupId: 1, userId: 1 }, { unique: true }),
     accessRequests.createIndex({ groupId: 1, status: 1 }),
     accessRequests.createIndex({ userId: 1, status: 1 }),
+    chatUsage.createIndex({ userId: 1, day: 1 }, { unique: true }),
+    chatUsage.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     persons.createIndex({ groupId: 1 }),
     unions.createIndex({ groupId: 1 }),
     unions.createIndex({ groupId: 1, partnerIds: 1 }),

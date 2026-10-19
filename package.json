@@ -17,9 +17,11 @@
     "db:ping": "node --import tsx --env-file-if-exists=.env.local scripts/db-ping.mts",
     "test:db": "vitest run --config vitest.db.config.mts",
     "db:setup": "node --import tsx --env-file-if-exists=.env.local scripts/db-setup.mts",
-    "seed": "node --import tsx --env-file-if-exists=.env.local scripts/seed.mts"
+    "seed": "node --import tsx --env-file-if-exists=.env.local scripts/seed.mts",
+    "test:ai-live": "node --import tsx --env-file-if-exists=.env.local scripts/ai-live.mts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "@xyflow/react": "^12.12.0",
     "better-auth": "^1.7.10",
     "elkjs": "^0.12.0",

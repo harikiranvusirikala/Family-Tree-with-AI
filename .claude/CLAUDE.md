@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Three docs drive all work. Read the relevant parts before changing anything:
 
-- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Steps 1–8 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`; Google sign-in; groups, roles and sheet pages; editing by hand; photos; members, invites and access requests). Still planned: AI chat (9), import/export (10), backups and hardening (11). Each built step has notes recording deviations and bugs found; read them before touching that area.
+- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Steps 1–9 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`; Google sign-in; groups, roles and sheet pages; editing by hand; photos; members, invites and access requests; AI chat). Still planned: import/export (10), backups and hardening (11). Each built step has notes recording deviations and bugs found; read them before touching that area.
 - **[ARCHITECTURE.md](ARCHITECTURE.md)**: the blueprint (code layout §4, data model §5, sheet rules §6, layout §7, permissions §8, flows F1–F12, AI chat §10, environments §12, env vars §13, open questions §15). Folder names, collections and function names come from here.
 - **[Features.txt](Features.txt)**: the owner's requirements plus the agreed DECISIONS section.
 
@@ -38,6 +38,7 @@ npx vitest run --config vitest.db.config.mts src/server/operations/apply.db.test
 npm run db:ping             # check the MONGODB_URI / MONGODB_DB connection
 npm run db:setup            # create indexes (idempotent)
 npm run seed                # sample family into MONGODB_DB, group 000000000000000000000001; view at /dev/tree/db
+npm run test:ai-live        # one real chat conversation (needs CHAT_API_KEY, costs < 1 cent); owner's terminal only
 ```
 
 Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import tsx --env-file-if-exists=.env.local`. Don't use the `tsx` CLI: it opens a local IPC pipe that the sandbox blocks.
@@ -51,6 +52,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - **Slow npm.** Installs through the private registry mirror can take several minutes; use long timeouts.
 - **Harmless warning:** `next build` reports that it "ignored package-lock.json in /Users/harikiran.v01". That's a stray lockfile in the home folder, outside the repo; ignore it.
 - **MongoDB needs the allowlist too.** The sandbox blocks MongoDB's DNS SRV lookup and TCP connections, and allowing a domain doesn't help because the driver doesn't use the web proxy. `npm run db:ping`, `db:setup`, `seed` and `test:db` are allowlisted `exact_match` like build/e2e, so run them exactly as written. If one is refused, ask the owner to run it.
+- **Claude Code's own `ANTHROPIC_*` variables.** This session (and every process started from it) has `ANTHROPIC_BASE_URL` and `ANTHROPIC_CUSTOM_HEADERS` pointing at Claude Code's gateway, and the Anthropic SDK reads them by default. The app's chat client is always given its key and address (`chatClient()`), the e2e web server gets them cleared, and `test:ai-live` deletes them. Never name an app variable `ANTHROPIC_API_KEY` (the chat's key is `CHAT_API_KEY`), and don't run the live check from here.
 - **Session environment = `.env.local` at startup.** This session's environment is loaded from `.env.local` when it starts. Node's `--env-file`, `process.loadEnvFile` and Next.js never override variables that are already set, so after the owner edits `.env.local`, the session must be restarted before commands see the change. Next.js also loads a `.env` file as a fallback for anything missing from `.env.local`; keep local settings in `.env.local` only (a `.env` with production values once appeared here).
 
 ## npm and the lockfile
@@ -116,6 +118,15 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - React 19 resets a `<form action>` after the action finishes, to each field's first default, and never updates a `<select>`'s `defaultValue` after it first renders. A dropdown that stays on screen after saving must be keyed by the saved value (see `MemberRow`), or it jumps back to its first value.
 - A server component can't import plain values from a `"use client"` module (they become client references): shared strings live in plain modules such as `src/components/request-messages.ts`. Page files may only export what Next.js expects, so helpers like `shortDate` live in `src/components/`.
 
+## AI chat (as built, step 9)
+
+- `POST /api/chat` (`src/app/api/chat/route.ts`): `getUser()` (401), `chatConfig()` (503 without `CHAT_API_KEY`), `parseChatRequest`, `roleInGroup(…, view)` (one 404 for every no-access case), `countChatMessage` (429 at the daily limit), then `runChatTurn`, streamed as JSON lines (`ChatEvent`: text, tool activity, proposal, done with the turn, error).
+- `src/server/ai/`: `config.ts` (settings and client), `tools.ts` (strict schemas, every field required and optional ones nullable; `toolsFor(role)`), `handlers.ts` (pure: lookups on the `GroupTree`, proposals dry-run with `planOperations` on the `GroupState`; temporary ids `new:1…`), `prompt.ts` (fixed system prompt, `rosterNote`, `proposalNote`), `chat.ts` (the loop), `request.ts`.
+- **Append-only conversation.** Claude Haiku 5.5's thinking blocks are valid only while everything before them is unchanged, and the API rejects altered ones. Never put changing data in the system prompt or the tools, never edit or drop earlier messages or thinking blocks, and add new information as one `role: "system"` message right after the person's question (it must follow a user message). The browser keeps the conversation and sends it back unchanged.
+- Claude Haiku 5.5: no `temperature` or prefill (400), effort default `medium`, no refusal fallback; read content blocks by type (a reply can start with an empty `thinking` block).
+- The AI never writes: proposals come back as `pending` operations; the panel's Confirm calls `applyChangesAction`. New tools: add the schema, a handler with a unit test against the sample family, and a `describeOperations` line if it proposes something.
+- The e2e stand-in `e2e/model-stub.mts` (port 3102, `CHAT_API_URL`) streams scripted replies in the API's SSE format, with signed thinking blocks, and refuses edited conversations or misplaced system messages like the API. `GET /calls` lists the tools, operator notes and last question of each request (`E2E_MODEL_URL`). Add scripted turns there for new chat tests.
+
 ## Sign-in (as built, step 4)
 
 - `src/server/auth.ts` is the Better Auth instance (`import "server-only"`). Its settings are in `auth-options.ts`, which has no `server-only` so the e2e fixture can build an identical instance (same cookie names and signatures). Base URL and trusted origins come from the pure `authUrls(env)` in `auth-urls.ts`: exact origins only, never `*.vercel.app`.
@@ -137,6 +148,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
   - `BETTER_AUTH_SECRET` differs between Production and Preview.
   - `OAUTH_PROXY_SECRET` (from step 4) is the same in Production and Preview, for Google sign-in on previews.
   - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (from step 7): one account for Production and Preview. Uploads are tagged with the database name.
+  - `CHAT_API_KEY`, `CHAT_MODEL=claude-haiku-5-5`, `CHAT_DAILY_LIMIT=50` (from step 9), the same in Production and Preview.
   - Vercel's system variables (`VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`) must be exposed; sign-in reads them. `vercel.json` sets no `regions`, so functions run in Vercel's default `iad1`.
 - CI (`.github/workflows/ci.yml`) runs lint, typecheck, `npm test`, `npm run test:db` and e2e, using the `MONGODB_URI` repository secret (a read/write test user).
 

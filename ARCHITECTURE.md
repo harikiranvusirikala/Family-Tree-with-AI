@@ -1,6 +1,6 @@
 # Family Tree with AI — Architecture
 
-**Status:** steps 1–8 of 11 built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests); AI chat, import/export and backups to come ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.txt](Features.txt) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-18
+**Status:** steps 1–9 of 11 built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests, AI chat); import/export and backups to come ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.txt](Features.txt) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-18
 
 A web app where a family builds its tree together. People are added by hand or by chatting with an AI assistant, laid out automatically in the style of [samples/Sample Family Tree.png](samples/Sample%20Family%20Tree.png), and shared privately with relatives through their Google accounts.
 
@@ -50,7 +50,7 @@ The reasons behind each choice are recorded in [Features.txt](Features.txt) unde
 
 ## 4. Code layout
 
-Built so far (steps 1–8). Items marked *(step N)* are still to come.
+Built so far (steps 1–9). Items marked *(step N)* are still to come.
 
 ```
 src/
@@ -70,7 +70,7 @@ src/
     dev/tree/                            developer-only pages (404 on Vercel): layout playground; db/ draws the seeded family
     api/
       auth/[...all]/route.ts             Better Auth handler
-      chat/route.ts                      AI chat, streaming (step 9)
+      chat/route.ts                      AI chat: one turn, streamed as JSON lines (F7)
       groups/[groupId]/export/route.ts   JSON / GEDCOM download (step 10)
       groups/[groupId]/import/route.ts   parse and preview an import (step 10)
   proxy.ts                               signed-out visitors → sign in, keeping the link (cookie check only)
@@ -93,14 +93,16 @@ src/
       members.ts                         listMembers, changeRole, removeMember, leaveGroup, transferOwnership
       invites.ts                         create, list, revoke, accept and decline invites
       access-requests.ts                 request access, the no-access page's state, list, approve or deny
+      chat-usage.ts                      the chat's daily cap (atomic count)
     operations/                          the single write path
       schema.ts, plan.ts, apply.ts       zod operations, the pure planner, applyOperations
       new-group.ts, from-family.ts       F2's first records; family data → operations (seed, imports)
-    ai/                                  system prompt, tool definitions, proposal builder (step 9)
+    ai/                                  the chat: config, tools, handlers (lookups, proposals dry-run by the planner), prompt, chat loop, request check
     import-export/                       json.ts, gedcom.ts (step 10)
   tree/                                  pure functions, run in the browser and in tests
     sheet-view.ts                        which people and unions belong on a sheet
     edits.ts                             edits made by hand → operations; tab order
+    describe.ts                          a proposal in plain words (the chat's proposal card)
     layout/                              LayoutEngine interface + ELK.js adapter
   components/
     AppHeader.tsx, NoAccess.tsx          the signed-in header; the "no access" page, with Request access (F4)
@@ -109,10 +111,10 @@ src/
     auth/                                SignInButton, UserMenu, Better Auth's browser client, safeReturnTo
     tree/                                FamilyCanvas, PersonNode, UnionNode (heart), PersonPhoto, photoUrl
       edit/                              PersonPanel, CouplePanel, SheetTabs, person form (F6); PhotoControls, upload (F8)
-    chat/                                ChatWidget, ProposalCard (step 9)
+    chat/                                ChatWidget (the conversation, kept in the browser), ProposalCard, the event-stream reader
 test/                                    fixtures (the sample family), database helpers, planning.ts, seed
-e2e/                                     Playwright specs and fixtures (signIn, sampleGroup, addMember); a stand-in for Cloudinary
-scripts/                                 db:ping, db:setup, seed
+e2e/                                     Playwright specs and fixtures (signIn, sampleGroup, addMember); stand-ins for Cloudinary and the model
+scripts/                                 db:ping, db:setup, seed, test:ai-live
 ```
 
 ## 5. Data model
@@ -143,7 +145,7 @@ erDiagram
 | `persons` | `groupId`, `name`, `gender` (`male` · `female`), `birthYear?`, `deathYear?`, `photoId?`, `notes?`, audit fields, `deletedAt?` | `{groupId}` |
 | `unions` | `groupId`, `partnerIds` (1 or 2), `status` (`married` · `divorced`), `childIds`, audit fields, `deletedAt?` | `{groupId}` · `{groupId, partnerIds}` · `{groupId, childIds}` |
 | `sheets` | `groupId`, `title`, `rootPersonId`, `pinned`, `order`, `extraPersonIds`, audit fields | `{groupId}` |
-| `chatUsage` | `userId`, `day` (`YYYY-MM-DD`), `count` | unique `{userId, day}` |
+| `chatUsage` | `userId`, `day` (`YYYY-MM-DD`, UTC), `count`, `expiresAt` | unique `{userId, day}` · TTL on `expiresAt` (30 days) |
 
 Notes:
 - Audit fields are `createdBy`, `createdAt`, `updatedBy` and `updatedAt`.
@@ -453,6 +455,7 @@ sequenceDiagram
 
 - A Viewer's chat only has the read tools. Asking it for a change gets "you have view-only access".
 - The proposal card lists the changes in plain words. Confirm applies all of them or none.
+- As built (step 9): "Ask AI" sits at the end of the sheet tabs and opens the assistant beside the tree; the conversation stays when the panel is closed, until New chat or a reload. The family list goes to the model once, after the first question, and after Confirm or Discard the next request carries a note with the new ids (§10). The answer streams as JSON lines: text, "Looking up Ravi…", the growing proposal, and the finished turn for the browser to keep.
 
 ### F8. Upload a photo
 
@@ -597,11 +600,15 @@ How `applyOperations` works (`src/server/operations/`, built in step 3):
 - `parseOperations` and `applyInTransaction` let a caller write more in the same transaction: `createGroup` adds the group and its owner membership (F2).
 - `OperationError` carries the failing change's index and its `reason`; a form shows the reason as a sentence.
 
-Model and prompt:
-- The model comes from `CHAT_MODEL` (`claude-haiku-5-5`), and responses are streamed.
-- The system prompt puts stable instructions first, so they can be cached, followed by the user's role and the group roster (id, name, years, parents, partners). For very large groups, the roster is trimmed and the model relies on `search_people`.
-- Names and notes are written by users, so they are treated as data, not instructions. Even a malicious name can't cause harm, because changes need a person's click and are limited by their role.
-- Cost guard: a per-user daily message cap (`CHAT_DAILY_LIMIT`, tracked in `chatUsage`), plus a monthly spend limit set in the Anthropic Console.
+Model and prompt (built in step 9):
+- The model comes from `CHAT_MODEL` (`claude-haiku-5-5`) through the official `@anthropic-ai/sdk`, streamed. Adaptive thinking (the model's default, not shown), effort `medium`, no temperature (Claude Haiku 5.5 refuses one), `max_tokens` 4096, and at most 8 tool rounds per message.
+- Tools are `strict`, so inputs always match their schemas; the handlers check them again. Read tools look at the group's current data; each proposal tool's operation is dry-run with the planner (`planOperations`) against the group's records, so the model hears at once about anything `applyOperations` would refuse, with the reason.
+- **The conversation is append-only.** Claude Haiku 5.5's thinking stays valid only while everything sent before it is unchanged. So the system prompt is fixed (instructions only, the same for everyone, cached). The user's role and the group's people (id, name, years, parents, partners; up to 300, beyond that the model uses `search_people`) and sheets arrive as one operator (`role: "system"`) message after the first question, and confirmed or discarded proposals as a short note after the next question. Nothing earlier is ever edited, which also keeps the prompt cache valid.
+- The conversation lives in the browser for the visit (decided in step 9) and comes back with each message, checked for shape and size (60 messages). The model's thinking blocks go back unchanged; the API refuses altered ones.
+- Names and notes are written by users, so they are treated as data, not instructions. Even a malicious name can't cause harm, because changes need a person's click and are limited by their role. A person who alters their own conversation only affects their own chat: the tools are chosen on the server by role, and Confirm goes through `applyChangesAction`.
+- Cost guard: a per-user daily message cap (`CHAT_DAILY_LIMIT`, 50, counted atomically in `chatUsage`), plus a monthly spend limit set in the Anthropic Console. A 36-person family's list is about 1,500 tokens, roughly $0.0002 per chat.
+- Refusals (`stop_reason: "refusal"`; Claude Haiku 5.5 has no fallback model) give "I can't help with that"; rate limits and other API errors give a plain message, with details in the server log.
+- The key is `CHAT_API_KEY`, not `ANTHROPIC_API_KEY`: a Claude Code session that loads `.env.local` would pick up the standard name for itself. The client is always given its key and address, because the SDK otherwise reads `ANTHROPIC_*` variables, which processes started from Claude Code inherit.
 
 ## 11. Security and privacy
 
@@ -649,13 +656,14 @@ Model and prompt:
 | `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL` | App | Set by Vercel ("Automatically expose System Environment Variables") |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | App | Google Cloud OAuth client |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | App | The same account in Production and Preview. Without them, cards show initials and photo buttons are hidden |
-| `ANTHROPIC_API_KEY` | App | |
+| `CHAT_API_KEY` | App | The Anthropic API key for the chat (not `ANTHROPIC_API_KEY`, see §10). Without it, there is no "Ask AI" |
 | `CHAT_MODEL` | App | `claude-haiku-5-5` |
 | `CHAT_DAILY_LIMIT` | App | Messages per user per day, for example 50 |
 | `MONGODB_BACKUP_URI` | GitHub Actions | Read-only database user |
 | `BACKUP_ENCRYPTION_KEY` | GitHub Actions | Stored in GitHub Secrets |
 | `ENABLE_DEV_PAGES` | Tests only | `1` includes the `/dev/*` pages in a production build (set by `playwright.config.ts`); never on Vercel |
 | `E2E_MONGODB_DB`, `E2E_BASE_URL`, `E2E_AUTH_SECRET` | Tests only | Set by `playwright.config.ts` for each run and shared by the web server and the test workers |
+| `CHAT_API_URL`, `E2E_MODEL_URL` | Tests only | The e2e stand-in for the Messages API (`e2e/model-stub.mts`); the app defaults to `https://api.anthropic.com` |
 | `CLOUDINARY_API_URL`, `E2E_CLOUDINARY_URL` | Tests only | The e2e stand-in for Cloudinary's API (`e2e/cloudinary-stub.mts`); the app defaults to `https://api.cloudinary.com` |
 
 ## 14. Limits and when to upgrade

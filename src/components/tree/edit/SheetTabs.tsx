@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import type { Operation } from "@/server/operations/schema";
 import { moveSheetOps, newSheetOps, updateSheetOps } from "@/tree/edits";
 import type { GroupTree, NamedSheet } from "@/tree/types";
@@ -11,7 +11,8 @@ const small = "rounded px-2 py-1 text-sm hover:bg-zinc-100 disabled:opacity-50 d
 
 /**
  * The sheet tabs (F5), plus for Maintain and up: "+ New sheet", and the current tab's menu to rename,
- * pin or move it. Buttons rather than drag-and-drop, so they work from the keyboard.
+ * pin or move it. Buttons rather than drag-and-drop, so they work from the keyboard. `trailing` goes at
+ * the right end of the row (the chat's "Ask AI").
  */
 export function SheetTabs({
   tree,
@@ -21,6 +22,7 @@ export function SheetTabs({
   pending,
   run,
   onOpen,
+  trailing,
 }: {
   tree: GroupTree;
   sheets: NamedSheet[]; // in tab order
@@ -29,6 +31,7 @@ export function SheetTabs({
   pending: boolean;
   run: (ops: Operation[]) => Promise<Record<string, string> | null>;
   onOpen: (sheetId: string) => void;
+  trailing?: ReactNode;
 }) {
   const [tool, setTool] = useState<"menu" | "rename" | "new" | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -111,6 +114,7 @@ export function SheetTabs({
             </button>
           </div>
         )}
+        {trailing && <div className="mb-1 ml-auto shrink-0">{trailing}</div>}
       </div>
 
       {tool === "menu" && (

@@ -4,6 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3100; // separate from `npm run dev` on 3000
 const CLOUDINARY_STUB_PORT = 3101;
+const MODEL_STUB_PORT = 3102;
 const isCI = !!process.env.CI;
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local"); // MONGODB_URI; never overrides existing values
@@ -18,6 +19,10 @@ process.env.E2E_AUTH_SECRET ??= randomBytes(32).toString("base64");
 // placeholders override any real CLOUDINARY_* values from .env.local.
 process.env.E2E_CLOUDINARY_URL ??= `http://localhost:${CLOUDINARY_STUB_PORT}`;
 const cloudinary = { CLOUDINARY_API_KEY: "123456789012345", CLOUDINARY_API_SECRET: "e2e-placeholder-secret" };
+// The AI chat talks to a stand-in for the Messages API (e2e/model-stub.mts), never to Anthropic. The
+// ANTHROPIC_* variables a Claude Code session sets (its gateway) are cleared for the app.
+process.env.E2E_MODEL_URL ??= `http://localhost:${MODEL_STUB_PORT}`;
+const chatKey = { CHAT_API_KEY: "e2e-placeholder-key" };
 
 export default defineConfig({
   testDir: "./e2e",
@@ -66,6 +71,14 @@ export default defineConfig({
         CLOUDINARY_CLOUD_NAME: "e2e-cloud",
         ...cloudinary,
         CLOUDINARY_API_URL: process.env.E2E_CLOUDINARY_URL,
+        ...chatKey,
+        CHAT_API_URL: process.env.E2E_MODEL_URL,
+        CHAT_MODEL: "claude-haiku-5-5",
+        CHAT_DAILY_LIMIT: "1000",
+        ANTHROPIC_BASE_URL: "",
+        ANTHROPIC_CUSTOM_HEADERS: "",
+        ANTHROPIC_API_KEY: "",
+        ANTHROPIC_AUTH_TOKEN: "",
       },
     },
     {
@@ -73,6 +86,12 @@ export default defineConfig({
       url: process.env.E2E_CLOUDINARY_URL,
       reuseExistingServer: false,
       env: { PORT: String(CLOUDINARY_STUB_PORT), ...cloudinary },
+    },
+    {
+      command: "node --import tsx e2e/model-stub.mts",
+      url: process.env.E2E_MODEL_URL,
+      reuseExistingServer: false,
+      env: { PORT: String(MODEL_STUB_PORT), ...chatKey },
     },
   ],
 });

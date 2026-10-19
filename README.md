@@ -12,7 +12,7 @@ Built with Next.js 16 (TypeScript, React 19), Tailwind CSS, React Flow and ELK.j
 
 ## What works so far
 
-Steps 1–8 of 11 are built:
+Steps 1–9 of 11 are built:
 
 - **Sign in with Google.** A link opened while signed out comes back after signing in.
 - **Family groups.** Create one with the father's and mother's names (and yourself as their child). It starts with two pinned sheets, "<Father>'s family" and "<Mother>'s family". The dashboard lists My groups and Shared with me. The Owner can rename or delete a group.
@@ -20,14 +20,15 @@ Steps 1–8 of 11 are built:
 - **Editing by hand.** Click a person to edit them, add parents, a partner (with their own sheet if they married in) or a child, show them on another sheet, or delete them (with Undo). Click a heart to mark a couple divorced. Create, rename, pin and reorder sheets.
 - **Photos.** Add, change or remove a person's photo from their panel. It uploads straight to Cloudinary, and cards show a round, face-cropped thumbnail.
 - **Sharing.** Admins invite relatives by email and share the link (WhatsApp, text); it works only for that Google account. Someone who opens a tree link without access can request it, and Admins approve or deny. Admins manage roles and remove people, the Owner can hand the group to someone else, and anyone else can leave.
+- **AI chat.** "Ask AI" opens an assistant beside the tree. Ask about the family, or tell it about someone new ("Priya married Ravi"): it asks when a name is ambiguous, then proposes the changes on a card, and nothing is saved until you press Confirm. Viewers can ask questions only. 50 messages per person per day.
 - **Day and night themes.** Day, Night or Follow device, from the switch in the top bar.
 - **Roles.** View, Maintain, Admin and Owner, checked on the server for every request. Viewers see the tree without edit controls.
 
-Still to come: the AI chat, import and export, and nightly backups.
+Still to come: import and export, and nightly backups.
 
 ## Getting started
 
-Requires Node.js 24 or newer, a MongoDB Atlas cluster, a Google Cloud OAuth client and, for photos, a free Cloudinary account.
+Requires Node.js 24 or newer, a MongoDB Atlas cluster, a Google Cloud OAuth client, and optionally a free Cloudinary account (photos) and an Anthropic API key (AI chat).
 
 ```bash
 npm install
@@ -44,10 +45,11 @@ In `.env.local` you need, for now:
 - `BETTER_AUTH_SECRET` (for example `openssl rand -base64 32`) and `BETTER_AUTH_URL=http://localhost:3000`.
 - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. The OAuth client must list `http://localhost:3000/api/auth/callback/google` as a redirect URI.
 - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET`, from Cloudinary's Console (Settings → API Keys). Without them the app works, but shows initials instead of photos and offers no photo buttons.
+- `CHAT_API_KEY` (an Anthropic API key; set a monthly spending limit in the Anthropic Console), `CHAT_MODEL=claude-haiku-5-5` and `CHAT_DAILY_LIMIT=50`. Without the key there's no "Ask AI". It isn't called `ANTHROPIC_API_KEY` because a Claude Code session that loads `.env.local` would use that name itself.
 
 Open the app at `http://localhost:3000`, not `127.0.0.1`: Google and the session cookie treat them as different sites. Keep local settings in `.env.local` only; Next.js also loads a `.env` file as a fallback for anything missing.
 
-[.env.example](.env.example) lists every variable, including the ones later steps need (the Claude API).
+[.env.example](.env.example) lists every variable.
 
 ## Scripts
 
@@ -60,7 +62,8 @@ Open the app at `http://localhost:3000`, not `127.0.0.1`: Google and the session
 | `npm test` | Unit tests (Vitest); no database needed |
 | `npm run test:watch` | Vitest in watch mode |
 | `npm run test:db` | Database integration tests against MongoDB Atlas (`*.db.test.ts`), each file in its own throwaway database |
-| `npm run test:e2e` | End-to-end tests (Playwright). Builds the app, serves it on port 3100 with a throwaway seeded database, and signs test users in through a fixture (there is no test-login route in the app). Photos go to a local stand-in for Cloudinary on port 3101 |
+| `npm run test:e2e` | End-to-end tests (Playwright). Builds the app, serves it on port 3100 with a throwaway seeded database, and signs test users in through a fixture (there is no test-login route in the app). Photos go to a local stand-in for Cloudinary on port 3101, and the AI chat to a stand-in for the Claude API on port 3102 |
+| `npm run test:ai-live` | One real conversation with the chat model, run by hand (costs well under a cent; needs `CHAT_API_KEY`) |
 | `npm run db:ping` | Checks the connection in `.env.local` |
 | `npm run db:setup` | Creates the collections' indexes (safe to repeat) |
 | `npm run seed` | Loads the sample family into `MONGODB_DB`; view it at `/dev/tree/db` |
