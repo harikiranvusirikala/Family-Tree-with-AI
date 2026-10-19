@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { AppHeader } from "@/components/AppHeader";
 import { NoAccess } from "@/components/NoAccess";
+import { cloudinaryConfig } from "@/server/cloudinary";
 import { getDatabase } from "@/server/db";
 import { noAccessToNull, requireRole, requireUser } from "@/server/permissions";
 import { loadGroupTree } from "@/server/repositories/family";
@@ -47,7 +48,7 @@ async function GroupSheetsLoader({ params }: Pick<LayoutProps<"/g/[groupId]/s">,
         )}
       </AppHeader>
       {tree.sheets.length ? (
-        <GroupSheets groupId={groupId} tree={tree} canEdit={can(access.role, "edit")} />
+        <GroupSheets groupId={groupId} tree={tree} canEdit={can(access.role, "edit")} cloudName={cloudinaryConfig()?.cloudName} />
       ) : (
         <main className="p-6 text-zinc-600">This group has no sheets yet.</main>
       )}

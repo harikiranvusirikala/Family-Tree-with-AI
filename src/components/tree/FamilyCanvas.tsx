@@ -17,7 +17,8 @@ import "@xyflow/react/dist/style.css";
 import { CARD_HEIGHT, CARD_WIDTH, HEART_GAP, ROW_GAP, layoutEngine } from "@/tree/layout";
 import type { SheetView } from "@/tree/types";
 import { CanvasActionsContext, type CanvasActions } from "./canvas-actions";
-import { GENDER_COLORS, PersonNode, type PersonNodeType } from "./PersonNode";
+import { PersonNode, type PersonNodeType } from "./PersonNode";
+import { GENDER_COLORS } from "./PersonPhoto";
 import { UNION_HEIGHT, UnionNode, type UnionNodeType } from "./UnionNode";
 
 type ForkEdgeType = Edge<Record<string, never>, "fork">;

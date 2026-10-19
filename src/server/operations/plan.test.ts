@@ -286,6 +286,46 @@ describe("planOperations: deleted parents count as absent (found in the owner's 
   });
 });
 
+describe("planOperations: photos (step 7)", () => {
+  const folder = `groups/${groupId.toHexString()}`;
+  const setPhoto = (name: string, photoId: string | null): Operation => ({ op: "setPhoto", personId: idOf(name), photoId });
+  const personNamed = (state: GroupState, name: string) => state.persons.find((p) => p.name === name)!;
+  const withJakesPhoto = after(sample, plan(sample, [setPhoto("Jake Cruz", `${folder}/first-photo`)]));
+
+  test("a photo in the group's folder is saved; one elsewhere is refused", () => {
+    expect(personNamed(withJakesPhoto, "Jake Cruz").photoId).toBe(`${folder}/first-photo`);
+    expectRejected(sample, [setPhoto("Jake Cruz", `groups/${new ObjectId().toHexString()}/first-photo`)], /isn't in this group's folder/);
+    expectRejected(sample, [setPhoto("Jake Cruz", "first-photo")], /isn't in this group's folder/);
+  });
+
+  test("a deleted person can't be given a photo", () => {
+    const deleted = after(sample, plan(sample, [{ op: "deletePerson", personId: idOf("Jake Cruz") }]));
+    expectRejected(deleted, [setPhoto("Jake Cruz", `${folder}/first-photo`)], /not found/);
+  });
+
+  test("replacing or removing a photo lists the old one as no longer used", () => {
+    const replaced = plan(withJakesPhoto, [setPhoto("Jake Cruz", `${folder}/second-photo`)]);
+    expect(replaced.unusedPhotoIds).toEqual([`${folder}/first-photo`]);
+    const removed = plan(withJakesPhoto, [setPhoto("Jake Cruz", null)]);
+    expect(removed.unusedPhotoIds).toEqual([`${folder}/first-photo`]);
+    expect(personNamed(after(withJakesPhoto, removed), "Jake Cruz")).not.toHaveProperty("photoId");
+  });
+
+  test("a photo someone else still uses, even a deleted person, isn't listed", () => {
+    const shared = after(withJakesPhoto, plan(withJakesPhoto, [setPhoto("Taylor Humes", `${folder}/first-photo`)]));
+    expect(plan(shared, [setPhoto("Jake Cruz", null)]).unusedPhotoIds).toEqual([]);
+    const taylorDeleted = after(shared, plan(shared, [{ op: "deletePerson", personId: idOf("Taylor Humes") }]));
+    expect(plan(taylorDeleted, [setPhoto("Jake Cruz", null)]).unusedPhotoIds).toEqual([]); // Undo brings Taylor's back
+  });
+
+  test("setting the same photo again changes nothing", () => {
+    const again = plan(withJakesPhoto, [setPhoto("Jake Cruz", `${folder}/first-photo`)]);
+    expect(again.persons.updated).toEqual([]);
+    expect(again.unusedPhotoIds).toEqual([]);
+    expect(plan(sample, [setPhoto("Jake Cruz", null)]).persons.updated).toEqual([]); // no photo to remove
+  });
+});
+
 describe("operationsSchema", () => {
   test("accepts the sample family's operations", () => {
     expect(operationsSchema.safeParse(sampleOps).success).toBe(true);
@@ -299,6 +339,8 @@ describe("operationsSchema", () => {
     ["a blank name", [{ op: "createPerson", tempId: "new:1", name: "  ", gender: "male" }]],
     ["a non-integer year", [{ op: "createPerson", tempId: "new:1", name: "A", gender: "male", birthYear: 1950.5 }]],
     ["three partners", [{ op: "createUnion", partnerIds: ["new:1", "new:2", "new:3"], status: "married" }]],
+    ["a photo id that isn't in a group folder", [{ op: "setPhoto", personId: "new:1", photoId: "https://evil.example/x.jpg" }]],
+    ["a photo id with a path in it", [{ op: "setPhoto", personId: "new:1", photoId: `groups/${new ObjectId().toHexString()}/../other` }]],
   ])("rejects %s", (_label, input) => {
     expect(operationsSchema.safeParse(input).success).toBe(false);
   });

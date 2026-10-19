@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Three docs drive all work. Read the relevant parts before changing anything:
 
-- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Steps 1–6 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`; Google sign-in; groups, roles and sheet pages; editing by hand). Still planned: photos (7), members, invites and access requests (8), AI chat (9), import/export (10), backups and hardening (11). Each built step has notes recording deviations and bugs found; read them before touching that area.
+- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Steps 1–7 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`; Google sign-in; groups, roles and sheet pages; editing by hand; photos). Still planned: members, invites and access requests (8), AI chat (9), import/export (10), backups and hardening (11). Each built step has notes recording deviations and bugs found; read them before touching that area.
 - **[ARCHITECTURE.md](ARCHITECTURE.md)**: the blueprint (code layout §4, data model §5, sheet rules §6, layout §7, permissions §8, flows F1–F12, AI chat §10, environments §12, env vars §13, open questions §15). Folder names, collections and function names come from here.
 - **[Features.txt](Features.txt)**: the owner's requirements plus the agreed DECISIONS section.
 
@@ -45,6 +45,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 ## Environment gotchas (owner's machine)
 
 - **Port binding is sandboxed.** The Claude Code sandbox on this machine blocks opening local ports, so `npm run build` (Turbopack spawns a worker on a port) and `npm run test:e2e` fail inside it with `Operation not permitted`. The owner allowlists them as `exact_match`, so run them exactly as written, on their own: no `cd …&&`, no `timeout` prefix, no `2>&1 | grep`, nothing chained. Anything else is a different command and runs sandboxed. Rarely the exact `npm run test:e2e` is refused anyway; try again later, or ask the owner to run it.
+- **Some docs sites are blocked.** The network proxy refuses e.g. cloudinary.com. To check how a service's API works, read its official npm package's source instead: `npm pack <name>` into a new scratch folder under `/tmp`, unpack it, read it, and don't install or run it (step 7 did this for Cloudinary).
 - **No Google Fonts.** The network proxy blocks `fonts.googleapis.com`, so `next/font/google` breaks the local build. The app uses the system font stack; self-host any font from an npm package instead.
 - **Playwright browser.** Playwright's own browser download is blocked, so locally it runs against the installed Google Chrome (`channel: "chrome"` unless `CI`). CI installs Playwright's Chromium.
 - **Slow npm.** Installs through the private registry mirror can take several minutes; use long timeouts.
@@ -76,7 +77,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
   - "No access" looks identical whether or not a group exists.
   - Only Admins and the Owner grant access, by invite or access request.
 - **The AI never writes.** Proposal tools collect operations and save nothing. The user confirms on a `ProposalCard`, and the confirmed batch goes through `applyChangesAction`, the same server action as manual edits, so it is re-validated and permission-checked there. Tools are filtered by role (Viewers get read tools only), and there is no delete tool.
-- **Photos** go straight from the browser to Cloudinary under `groups/{groupId}/`. Store the Cloudinary `photoId` (public ID), not a URL.
+- **Photos** go straight from the browser to Cloudinary under `groups/{groupId}/`. Store the Cloudinary `photoId` (public ID), not a URL; build URLs with `photoUrl()`.
 - **Databases** live in one Atlas cluster: `familytree_dev` (local), `familytree_preview` (Vercel previews), `familytree` (production), plus a throwaway `familytree_test_<run-id>` per test run.
 
 ## Server and data layer (as built)
@@ -98,6 +99,13 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - The canvas is read-only unless given `actions` (`CanvasActions`: onPerson, onCouple, selectedId). Cards and hearts then render overlay buttons named "Jake Cruz, 1945 – 2022" and "Steve Cruz and Arham Chopra, married", which e2e tests click.
 - Server actions live next to their page in `actions.ts`, take bound ids (`action.bind(null, groupId)`), and call `requireRole` themselves. After changing a group (or later, its members or content), call `groupChanged(groupId)` from `src/server/group-changed.ts` before returning or redirecting. It revalidates `/dashboard` and the group's pages; otherwise Back/Forward and the header link show the pages the browser kept from before the change.
 
+## Photos (as built, step 7)
+
+- No Cloudinary SDK: `src/server/cloudinary.ts` signs requests itself (`signParams`: SHA-1 of the sorted `key=value` pairs plus the secret), builds upload tickets (`uploadTicket`) and deletes photos (`deletePhotos`, best effort, logged). Pass the settings in explicitly (`cloudinaryConfig()` in server actions and the layout), so tests never pick up the real `CLOUDINARY_*` from `.env.local`.
+- Upload: `signPhotoUploadAction` → `signPhotoUpload` (`roleInGroup(…, maintain)`; the server picks the random public ID) → the browser posts the file to Cloudinary (`upload-photo.ts`) → `applyChangesAction(setPhotoOps(...))`. The planner refuses a photo outside `groups/{groupId}/`.
+- Replaced or removed photos come back as `ApplyResult.unusedPhotoIds` (nobody in the group uses them, deleted people included), and `applyChangesAction` deletes them with `after()`. Any new write path that changes photos must do the same.
+- `PersonPhoto` draws the round photo or initials for cards and the panel. The cloud name reaches it through `CloudNameContext`, given by the sheets layout; without it there are no photos or photo buttons.
+
 ## Sign-in (as built, step 4)
 
 - `src/server/auth.ts` is the Better Auth instance (`import "server-only"`). Its settings are in `auth-options.ts`, which has no `server-only` so the e2e fixture can build an identical instance (same cookie names and signatures). Base URL and trusted origins come from the pure `authUrls(env)` in `auth-urls.ts`: exact origins only, never `*.vercel.app`.
@@ -117,6 +125,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
   - `BETTER_AUTH_URL` is set only in Production (`https://family-tree-with-ai.vercel.app`); previews use Vercel's `VERCEL_BRANCH_URL` and `VERCEL_URL`.
   - `BETTER_AUTH_SECRET` differs between Production and Preview.
   - `OAUTH_PROXY_SECRET` (from step 4) is the same in Production and Preview, for Google sign-in on previews.
+  - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (from step 7): one account for Production and Preview. Uploads are tagged with the database name.
   - Vercel's system variables (`VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`) must be exposed; sign-in reads them. `vercel.json` sets no `regions`, so functions run in Vercel's default `iad1`.
 - CI (`.github/workflows/ci.yml`) runs lint, typecheck, `npm test`, `npm run test:db` and e2e, using the `MONGODB_URI` repository secret (a read/write test user).
 
@@ -132,6 +141,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - The tree e2e test saves `test-results/screenshots/tree.png`. View it after layout or card changes and compare with the sample image.
 - Signed-in e2e tests use the `signIn(page, name)` fixture from `e2e/fixtures.ts` (import `test` and `expect` from there). It creates a fresh user and session in the run's database with Better Auth's `testUtils` and adds the signed cookie. The app has no test-login route, and ESLint forbids importing `testUtils` under `src/`. `playwright.config.ts` gives the web server `BETTER_AUTH_URL=http://localhost:3100`, a fresh `BETTER_AUTH_SECRET` per run (shared with the fixture through `E2E_AUTH_SECRET`), and placeholder Google credentials; tests stop at the redirect to Google.
 - E2E fixtures in `e2e/fixtures.ts`: `signIn(page, name)`, `sampleGroup(owner)` (a group with the sample family and its two sheets) and `addMember(groupId, user, role)`.
+- No e2e test reaches Cloudinary. `playwright.config.ts` starts `e2e/cloudinary-stub.mts` on port 3101 and points the app at it (`CLOUDINARY_API_URL`, placeholder `CLOUDINARY_*`). It checks signatures like Cloudinary and lists uploads and deletions at `GET /calls` (`E2E_CLOUDINARY_URL`). Tests answer `res.cloudinary.com` photo URLs themselves with `page.route` (see `e2e/photos.spec.ts`).
 - In e2e tests, reach pages the way people do (links, Back) as well as with `page.goto`: a full reload hides stale-page bugs. Compare text with `textContent`, not `innerText`, which changes while React moves streamed content into place.
 - In e2e tests, locate inputs with `getByRole("textbox", { name })`, not `getByLabel`. Next.js 16 keeps recently visited pages in the DOM, hidden, and `getByLabel` can match their inputs; `getByRole` skips hidden elements. Filter alerts by text: Next.js's route announcer is also `role="alert"`.
 - Locally each save is a transaction plus a re-render against the remote M0 cluster (1–5 s with four workers), so `playwright.config.ts` allows 15 s per assertion and 60 s per test. Wait for the change to appear rather than for a fixed time.

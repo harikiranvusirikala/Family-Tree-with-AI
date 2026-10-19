@@ -130,6 +130,13 @@ Editing by hand (step 6)
 - Tabs: "+ New sheet", rename, pin and move left/right (buttons, not drag-and-drop). Pinned tabs come first.
 - Deleting a sheet and hiding an extra person from a sheet are left for later.
 
+Photos (step 7)
+- Maintain and up add, change or remove a person's photo from their panel. JPEG, PNG, WebP or HEIC (iPhone), up to 10 MB.
+- Uploads go straight from the browser to Cloudinary, signed by the app for a random name in the group's folder.
+- Stored at most 1600 px on the long side; cards show a face crop. Automatic face crop only, no manual cropping for now.
+- Replacing or removing a photo deletes the old one from Cloudinary (Remove asks first: no Undo).
+  Deleting a person keeps their photo, so Undo brings it back.
+
 AI chat behaviour
 - Tools: search_people, get_person (read); add_person, update_person, add_marriage, add_child, add_to_sheet, create_sheet (proposals).
   No delete tool - deleting is UI only.

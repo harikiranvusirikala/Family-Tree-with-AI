@@ -10,6 +10,8 @@ export { OperationError } from "./plan";
 export interface ApplyResult {
   /** Temporary id ("new:1") → the real id it became. */
   idMap: Record<string, string>;
+  /** Photos this batch replaced or removed that nobody uses any more: delete them from Cloudinary once committed. */
+  unusedPhotoIds: string[];
 }
 
 /**
@@ -70,7 +72,7 @@ export async function applyInTransaction(
   await write(persons, plan.persons, session);
   await write(unions, plan.unions, session);
   await write(sheets, plan.sheets, session);
-  return { idMap: plan.idMap };
+  return { idMap: plan.idMap, unusedPhotoIds: plan.unusedPhotoIds };
 }
 
 async function write<T extends Document & { _id: unknown; groupId: unknown }>(

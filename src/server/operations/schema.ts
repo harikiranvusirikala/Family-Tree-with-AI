@@ -12,6 +12,8 @@ const gender = z.enum(["male", "female"]);
 const year = z.number().int("Enter a whole year").min(1000, "Enter a year from 1000 on").max(2200, "Enter a year up to 2200");
 const unionStatus = z.enum(["married", "divorced"]);
 const sheetTitle = z.string().trim().min(1, "Title is required").max(120);
+/** A Cloudinary public ID in a group's folder (F8): groups/<group id>/<random part>. */
+export const PHOTO_ID = /^groups\/[a-f\d]{24}\/[\w-]{10,64}$/;
 
 export const operationSchema = z.discriminatedUnion("op", [
   z.strictObject({
@@ -48,7 +50,7 @@ export const operationSchema = z.discriminatedUnion("op", [
     pinned: z.boolean().optional(),
   }),
   z.strictObject({ op: z.literal("addToSheet"), sheetId: ref, personId: ref }),
-  z.strictObject({ op: z.literal("setPhoto"), personId: ref, photoId: z.string().min(1).max(200) }),
+  z.strictObject({ op: z.literal("setPhoto"), personId: ref, photoId: z.string().regex(PHOTO_ID, "Not a photo id").nullable() }), // null removes it
   // UI only, never offered to the AI:
   z.strictObject({ op: z.literal("deletePerson"), personId: ref }),
   z.strictObject({ op: z.literal("restorePerson"), personId: ref }),

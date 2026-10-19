@@ -1,6 +1,6 @@
 # Family Tree with AI — Architecture
 
-**Status:** steps 1–6 of 11 built and live (sign-in, groups and roles, sheets, editing by hand); photos, members and invites, AI chat, import/export and backups to come ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.txt](Features.txt) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-18
+**Status:** steps 1–7 of 11 built (sign-in, groups and roles, sheets, editing by hand, photos); members and invites, AI chat, import/export and backups to come ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.txt](Features.txt) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-18
 
 A web app where a family builds its tree together. People are added by hand or by chatting with an AI assistant, laid out automatically in the style of [samples/Sample Family Tree.png](samples/Sample%20Family%20Tree.png), and shared privately with relatives through their Google accounts.
 
@@ -60,7 +60,7 @@ src/
       page.tsx, actions.ts, NewGroupForm.tsx
     g/[groupId]/
       page.tsx                           opens the first pinned sheet
-      actions.ts                         applyChangesAction: every edit made by hand (F6)
+      actions.ts                         applyChangesAction: every edit made by hand (F6); signPhotoUploadAction (F8)
       s/layout.tsx                       loads the group once and draws its sheets: tabs, canvas, panels (F5, F6)
       s/GroupSheets.tsx                  the sheet tabs and editor in the browser
       s/[sheetId]/page.tsx               empty: the layout above reads the sheet from the URL
@@ -71,7 +71,6 @@ src/
     api/
       auth/[...all]/route.ts             Better Auth handler
       chat/route.ts                      AI chat, streaming (step 9)
-      uploads/sign/route.ts              Cloudinary upload signature (step 7)
       groups/[groupId]/export/route.ts   JSON / GEDCOM download (step 10)
       groups/[groupId]/import/route.ts   parse and preview an import (step 10)
   proxy.ts                               signed-out visitors → sign in, keeping the link (cookie check only)
@@ -84,6 +83,8 @@ src/
     permissions.ts                       getUser, requireUser, requireRole
     roles.ts                             the §8 role table, NoAccessError (pure)
     group-changed.ts                     revalidates the dashboard and a group's pages after a change
+    cloudinary.ts                        signs uploads and deletes photos (no Cloudinary SDK)
+    photos.ts                            signPhotoUpload: Maintain and up, into the group's folder
     repositories/                        data access; every function takes groupId
       documents.ts                       document types, collections, ensureIndexes
       family.ts                          loadGroupTree, toGroupTree (documents → tree types)
@@ -101,11 +102,11 @@ src/
     AppHeader.tsx, NoAccess.tsx          the signed-in header; the "no access" page
     initials.ts, use-hydrated.ts         shared helpers
     auth/                                SignInButton, UserMenu, Better Auth's browser client, safeReturnTo
-    tree/                                FamilyCanvas, PersonNode, UnionNode (heart)
-      edit/                              PersonPanel, CouplePanel, SheetTabs, person form (F6)
+    tree/                                FamilyCanvas, PersonNode, UnionNode (heart), PersonPhoto, photoUrl
+      edit/                              PersonPanel, CouplePanel, SheetTabs, person form (F6); PhotoControls, upload (F8)
     chat/                                ChatWidget, ProposalCard (step 9)
 test/                                    fixtures (the sample family), database helpers, planning.ts, seed
-e2e/                                     Playwright specs and fixtures (signIn, sampleGroup, addMember)
+e2e/                                     Playwright specs and fixtures (signIn, sampleGroup, addMember); a stand-in for Cloudinary
 scripts/                                 db:ping, db:setup, seed
 ```
 
@@ -203,7 +204,7 @@ interface LayoutEngine {
 - Node placement is `NETWORK_SIMPLEX`, which centres parents over their children. `BRANDES_KOEPF` is about 35% faster but hangs each family off one child, so it looks lopsided.
 
 Card design, from Features.txt and the sample:
-- Round photo using a Cloudinary face crop, or initials when there is no photo.
+- Round photo using a Cloudinary face crop (`c_thumb,g_face`, 168 px for the 84 px circle), or initials when there is no photo or it doesn't load. A plain `<img>`: Cloudinary resizes, and `next/image` would use Vercel's image quota.
 - Border: light blue for male, light pink for female.
 - Name, then years. Living people show `1985`; people who have died show `1945 – 2022`. Unknown years are left out.
 - Partners side by side with ♥ between them (a broken heart if divorced). Children hang from the heart, eldest first where that adds no crossing lines (see Sibling order above).
@@ -451,19 +452,24 @@ sequenceDiagram
     participant CL as Cloudinary
     participant DB as MongoDB
     M->>B: Choose a photo for a person
-    B->>App: POST /api/uploads/sign (groupId, personId)
+    B->>B: Check it: JPEG, PNG, WebP or HEIC, up to 10 MB
+    B->>App: Server action signPhotoUploadAction(groupId)
     App->>DB: requireRole(maintain)
-    App-->>B: Signature for folder groups/{groupId} with a random public ID
+    App-->>B: Signed upload to groups/{groupId}/{random id}, at most 1600 px
     B->>CL: Upload the file directly
     CL-->>B: Public ID
-    B->>App: Server action setPhoto(personId, publicId)
-    App->>App: Check the ID is inside groups/{groupId}/
-    App->>DB: Save photoId on the person
+    B->>App: applyChangesAction([setPhoto(personId, publicId)])
+    App->>DB: requireRole(maintain); the planner checks the ID is inside groups/{groupId}/; save photoId
+    App-->>B: Saved; the sheets show the new photo
+    App->>CL: After the response: delete the replaced photo (if nobody else uses it)
     B->>CL: Display through a face-cropped URL (c_thumb, g_face)
 ```
 
 - Large photos never pass through Vercel, so its request size limit doesn't apply.
-- When a photo is replaced, the old one is deleted from Cloudinary to stay within the free tier.
+- Signing is a server action, the same pattern as every other change (decided in step 7). The server picks the public ID, so the browser can't choose where a photo goes.
+- When a photo is replaced or removed, the old one is deleted from Cloudinary to stay within the free tier, unless another person in the group still uses it. Deleted people count, so Undo brings their photo back. Deleting happens after the response (`after()`); a failure is logged and the save stands.
+- Remove photo asks for confirmation, because the photo is deleted and there's no Undo.
+- Uploads are tagged with the database name, so local and preview photos can be told apart in Cloudinary's Media Library.
 
 ### F9. Export
 
@@ -561,7 +567,7 @@ type Operation =
   | { op: "addChild"; unionId: Ref; childId: Ref }
   | { op: "createSheet"; tempId?: string; title: string; rootPersonId: Ref; pinned?: boolean }
   | { op: "addToSheet"; sheetId: Ref; personId: Ref }
-  | { op: "setPhoto"; personId: Ref; photoId: string }
+  | { op: "setPhoto"; personId: Ref; photoId: string | null } // a public ID in groups/{groupId}/; null removes it
   | { op: "deletePerson"; personId: Ref } // UI only, never offered to the AI (soft delete)
   | { op: "restorePerson"; personId: Ref } // UI only: Undo for deletePerson
   | { op: "addPartner"; unionId: Ref; personId: Ref } // UI only: a single parent's partner (the other parent)
@@ -573,6 +579,7 @@ How `applyOperations` works (`src/server/operations/`, built in step 3):
 - The batch is validated with zod. Then, inside one transaction, the group's records are loaded and a pure planner (`planOperations`) checks every operation against them before anything is written. Errors name the failing change ("Change 3: …").
 - Rules: references must exist in the same group; a couple has 1–2 different people and can't be created twice; a person has at most one set of parents and can't become their own ancestor; a death year can't be before the birth year. Repeating `addChild` or `addToSheet` changes nothing.
 - Added in step 6: `addPartner` only for a couple with one partner, and the new partner can't be one of the couple's descendants; `reorderSheets` must list every sheet exactly once; a person who is a sheet's root can't be deleted (the sheet would be empty). Tabs show pinned sheets first, then the saved order.
+- Added in step 7: `setPhoto`'s photo must be in the group's folder (`groups/{groupId}/`). The plan lists the photos a batch replaced or removed that nobody in the group uses any more (`unusedPhotoIds`), and `applyChangesAction` deletes them from Cloudinary once the batch is committed.
 - Deleted people stay in their couples (so Undo restores them fully) but count as absent, exactly as the browser shows them (`toGroupTree`): a couple whose partners are all deleted isn't anyone's parents, so its children can be given new parents (they leave the old couple, so restoring the old parents can't give them two sets); and a new partner can take a deleted partner's place (`addPartner`).
 - All or nothing: one invalid operation rejects the batch. Concurrent edits are safe: on a write conflict MongoDB retries the transaction, which re-reads the group.
 - `parseOperations` and `applyInTransaction` let a caller write more in the same transaction: `createGroup` adds the group and its owner membership (F2).
@@ -591,7 +598,7 @@ Model and prompt:
 - **Permissions:** checked on the server for every request ([§8](#8-permissions)). `src/proxy.ts` sends signed-out visitors to sign in (deny by default), but it only looks for a session cookie; it's a convenience, not the check.
 - **Sign-in limits:** Better Auth rate-limits sign-in attempts in production (3 per 10 seconds per IP).
 - **Group isolation:** `groupId` is on every record and in every query.
-- **Photos:** random public IDs under `groups/{groupId}/`. If stronger privacy is needed later, switch to Cloudinary's signed delivery.
+- **Photos:** only Maintain and up get an upload signature, for a random public ID the server picks under `groups/{groupId}/`. The planner refuses a photo from outside the group's folder, so a member can't attach another group's photo. Photo URLs are public but unguessable; if stronger privacy is needed later, switch to Cloudinary's signed delivery.
 - **Secrets:** only in Vercel environment variables and GitHub Secrets, never committed. `.env.local` is git-ignored. Keep local settings there only: Next.js also loads a `.env` file as a fallback.
 - **Database network access:** Vercel and GitHub Actions use changing IP addresses, so Atlas must allow connections from anywhere (`0.0.0.0/0`). This is offset by a separate database user per purpose (the app gets read/write on its own database, the backup gets read-only) and long random passwords.
 - **Preview deployments** use their own database, so testing can't damage real data.
@@ -629,7 +636,7 @@ Model and prompt:
 | `OAUTH_PROXY_SECRET` | App (Vercel) | Random, at least 32 bytes. The same value in Production and Preview: encrypts the preview sign-in handoff ([§12](#12-environments)) |
 | `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL` | App | Set by Vercel ("Automatically expose System Environment Variables") |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | App | Google Cloud OAuth client |
-| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | App | |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | App | The same account in Production and Preview. Without them, cards show initials and photo buttons are hidden |
 | `ANTHROPIC_API_KEY` | App | |
 | `CHAT_MODEL` | App | `claude-haiku-5-5` |
 | `CHAT_DAILY_LIMIT` | App | Messages per user per day, for example 50 |
@@ -637,6 +644,7 @@ Model and prompt:
 | `BACKUP_ENCRYPTION_KEY` | GitHub Actions | Stored in GitHub Secrets |
 | `ENABLE_DEV_PAGES` | Tests only | `1` includes the `/dev/*` pages in a production build (set by `playwright.config.ts`); never on Vercel |
 | `E2E_MONGODB_DB`, `E2E_BASE_URL`, `E2E_AUTH_SECRET` | Tests only | Set by `playwright.config.ts` for each run and shared by the web server and the test workers |
+| `CLOUDINARY_API_URL`, `E2E_CLOUDINARY_URL` | Tests only | The e2e stand-in for Cloudinary's API (`e2e/cloudinary-stub.mts`); the app defaults to `https://api.cloudinary.com` |
 
 ## 14. Limits and when to upgrade
 
@@ -644,7 +652,7 @@ Model and prompt:
 |---|---|---|---|
 | MongoDB Atlas M0 | 512 MB storage | Hundreds of thousands of people (photos aren't stored here) | A paid Atlas tier |
 | Vercel Hobby | Personal, non-commercial use; going over usage limits pauses the site rather than billing | Any commercial use | Vercel Pro |
-| Cloudinary | Monthly credits shared by storage, bandwidth and transformations | Thousands of large photos or heavy traffic | Resize on upload, or a paid plan |
+| Cloudinary | Monthly credits shared by storage, bandwidth and transformations; images up to 10 MB | Tens of thousands of photos or heavy traffic (photos are stored at most 1600 px, and cards load 168 px crops) | A paid plan |
 | Claude API | Paid per use | Many active chat users | Daily cap and spend limit already in place |
 | Data per page | The whole group is loaded at once | Several thousand people in one group | Load each sheet's people from the server |
 | Atlas M0 speed | Shared, throttled cluster | Slow saves from far away; many editors at once | Functions in the cluster's region; a paid tier |
@@ -656,3 +664,4 @@ Model and prompt:
 3. ~~**Better Auth organization plugin**~~ **Resolved 2026-10-18 (step 5):** our own `groups`, `memberships` and `invites`. The plugin does allow invites without email, but in 1.7.10 it writes in its own transaction (F2 needs the group, owner membership and family in one), matches invite emails by lowercase only (F3 also ignores gmail dots and `+tags`), allows several owners (§8: exactly one), and adds about 40 HTTP endpoints that change members outside `requireRole`.
 4. ~~**Google sign-in on preview deployments**~~ **Resolved 2026-10-18 (step 4):** Better Auth's OAuth proxy plugin, with its own `OAUTH_PROXY_SECRET`. Previews keep their own database and secret, and Google keeps just two redirect URIs ([§12](#12-environments)). Checked working on step 5's preview.
 5. **Deleting a sheet, and hiding an extra person from a sheet:** left out of step 6 to keep it small. When they're added, each needs a UI-only operation; deleting a sheet must never delete people ([§6](#6-sheets-views-not-copies)).
+6. **Photos uploaded but never saved:** if the tab closes mid-way, or the save is refused, the uploaded photo stays in Cloudinary unused. Rare, so left out of step 7. A sweep could later delete photos in a group's folder that no person uses.

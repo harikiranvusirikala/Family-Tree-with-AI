@@ -6,7 +6,9 @@ import { addChildOps, addParentsOps, addPartnerOps, editPersonOps, relationsOf, 
 import { buildSheetView } from "@/tree/sheet-view";
 import type { GroupTree, Person } from "@/tree/types";
 import { formatYears } from "@/tree/years";
+import { PersonPhoto } from "../PersonPhoto";
 import { PersonFields, readPerson, SubmitRow } from "./person-form";
+import { PhotoControls, type SignPhotoUpload } from "./PhotoControls";
 
 type Mode = "details" | "edit" | "parents" | "partner" | "child" | "sheet";
 
@@ -32,8 +34,16 @@ function PersonLink({ p, onSelect }: { p: Person; onSelect: (personId: string) =
   );
 }
 
-/** F6: one person's details and, for Maintain and up, what can be done with them. */
-export function PersonPanel({ person, onDelete, ...props }: PanelProps & { person: Person; onDelete: (person: Person) => void }) {
+/**
+ * F6: one person's details and, for Maintain and up, what can be done with them. `signPhotoUpload` is
+ * given when they may change photos and photos are set up (F8).
+ */
+export function PersonPanel({
+  person,
+  onDelete,
+  signPhotoUpload,
+  ...props
+}: PanelProps & { person: Person; onDelete: (person: Person) => void; signPhotoUpload?: SignPhotoUpload }) {
   const { tree, canEdit, pending, run, onSelect, onClose } = props;
   const [mode, setMode] = useState<Mode>("details");
   const [formError, setFormError] = useState<string | null>(null);
@@ -59,9 +69,12 @@ export function PersonPanel({ person, onDelete, ...props }: PanelProps & { perso
   return (
     <aside aria-label="Person details" className="flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-zinc-200 bg-white p-4 text-zinc-900 dark:border-zinc-800">
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-semibold">{person.name}</h2>
-          {years && <p className="text-sm text-zinc-500">{years}</p>}
+        <div className="flex items-center gap-3">
+          <PersonPhoto person={person} size={72} />
+          <div>
+            <h2 className="text-lg font-semibold">{person.name}</h2>
+            {years && <p className="text-sm text-zinc-500">{years}</p>}
+          </div>
         </div>
         <button type="button" onClick={onClose} className="rounded px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100">
           Close
@@ -70,6 +83,9 @@ export function PersonPanel({ person, onDelete, ...props }: PanelProps & { perso
 
       {mode === "details" && (
         <>
+          {canEdit && signPhotoUpload && (
+            <PhotoControls person={person} signUpload={signPhotoUpload} pending={pending} run={run} onError={setFormError} />
+          )}
           <dl className="flex flex-col gap-2 text-sm">
             <div>
               <dt className="text-zinc-500">Parents</dt>

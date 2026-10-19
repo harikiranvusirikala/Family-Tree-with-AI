@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3100; // separate from `npm run dev` on 3000
+const CLOUDINARY_STUB_PORT = 3101;
 const isCI = !!process.env.CI;
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local"); // MONGODB_URI; never overrides existing values
@@ -13,6 +14,10 @@ process.env.E2E_MONGODB_DB ??= `familytree_test_${Date.now().toString(36)}_e2e`;
 // the server must accept. A fresh secret per run: `next start` refuses Better Auth's default, and CI has none.
 process.env.E2E_BASE_URL ??= `http://localhost:${PORT}`;
 process.env.E2E_AUTH_SECRET ??= randomBytes(32).toString("base64");
+// Photos go to a stand-in for Cloudinary's API (e2e/cloudinary-stub.mts), never to Cloudinary. These
+// placeholders override any real CLOUDINARY_* values from .env.local.
+process.env.E2E_CLOUDINARY_URL ??= `http://localhost:${CLOUDINARY_STUB_PORT}`;
+const cloudinary = { CLOUDINARY_API_KEY: "123456789012345", CLOUDINARY_API_SECRET: "e2e-placeholder-secret" };
 
 export default defineConfig({
   testDir: "./e2e",
@@ -41,21 +46,33 @@ export default defineConfig({
       },
     },
   ],
-  // Test against a production build, as the Next.js testing guide recommends.
-  webServer: {
-    command: `npm run build && npm run start -- --port ${PORT}`,
-    url: process.env.E2E_BASE_URL,
-    reuseExistingServer: false, // a running server would point at another database
-    timeout: 180_000,
-    env: {
-      ENABLE_DEV_PAGES: "1", // include /dev/* pages in the test build (src/app/dev/layout.tsx)
-      MONGODB_DB: process.env.E2E_MONGODB_DB,
-      // Otherwise .env.local's port 3000 leaks in, and Better Auth rejects requests from port 3100.
-      BETTER_AUTH_URL: process.env.E2E_BASE_URL,
-      BETTER_AUTH_SECRET: process.env.E2E_AUTH_SECRET,
-      // Placeholders: the tests stop at the redirect to Google and never contact it.
-      GOOGLE_CLIENT_ID: "e2e-placeholder.apps.googleusercontent.com",
-      GOOGLE_CLIENT_SECRET: "e2e-placeholder",
+  webServer: [
+    {
+      // Test against a production build, as the Next.js testing guide recommends.
+      command: `npm run build && npm run start -- --port ${PORT}`,
+      url: process.env.E2E_BASE_URL,
+      reuseExistingServer: false, // a running server would point at another database
+      timeout: 180_000,
+      env: {
+        ENABLE_DEV_PAGES: "1", // include /dev/* pages in the test build (src/app/dev/layout.tsx)
+        MONGODB_DB: process.env.E2E_MONGODB_DB,
+        // Otherwise .env.local's port 3000 leaks in, and Better Auth rejects requests from port 3100.
+        BETTER_AUTH_URL: process.env.E2E_BASE_URL,
+        BETTER_AUTH_SECRET: process.env.E2E_AUTH_SECRET,
+        // Placeholders: the tests stop at the redirect to Google and never contact it.
+        GOOGLE_CLIENT_ID: "e2e-placeholder.apps.googleusercontent.com",
+        GOOGLE_CLIENT_SECRET: "e2e-placeholder",
+        // Uploads and deletes go to the stand-in; tests answer photo URLs (res.cloudinary.com/e2e-cloud) themselves.
+        CLOUDINARY_CLOUD_NAME: "e2e-cloud",
+        ...cloudinary,
+        CLOUDINARY_API_URL: process.env.E2E_CLOUDINARY_URL,
+      },
     },
-  },
+    {
+      command: "node --import tsx e2e/cloudinary-stub.mts",
+      url: process.env.E2E_CLOUDINARY_URL,
+      reuseExistingServer: false,
+      env: { PORT: String(CLOUDINARY_STUB_PORT), ...cloudinary },
+    },
+  ],
 });

@@ -6,11 +6,12 @@ import { FamilyCanvas } from "@/components/tree/FamilyCanvas";
 import { CouplePanel } from "@/components/tree/edit/CouplePanel";
 import { PersonPanel } from "@/components/tree/edit/PersonPanel";
 import { SheetTabs } from "@/components/tree/edit/SheetTabs";
+import { CloudNameContext } from "@/components/tree/photo";
 import type { Operation } from "@/server/operations/schema";
 import { deletePersonOps, restorePersonOps, tabOrder } from "@/tree/edits";
 import { buildSheetView } from "@/tree/sheet-view";
 import type { GroupTree, Person } from "@/tree/types";
-import { applyChangesAction } from "../actions";
+import { applyChangesAction, signPhotoUploadAction } from "../actions";
 
 type Selection = { kind: "person" | "couple"; id: string } | null;
 
@@ -20,9 +21,9 @@ const UNDO_SECONDS = 10;
  * A group's sheets (F5) and editing them by hand (F6). Each sheet is a view computed in the browser,
  * so switching tabs is instant: the URL changes with history.pushState, which Next.js's router follows.
  * Every change goes to the server as one batch; the page then re-renders with the new data and the
- * canvas lays itself out again.
+ * canvas lays itself out again. `cloudName` is given when photos are set up (F8).
  */
-export function GroupSheets({ groupId, tree, canEdit }: { groupId: string; tree: GroupTree; canEdit: boolean }) {
+export function GroupSheets({ groupId, tree, canEdit, cloudName }: { groupId: string; tree: GroupTree; canEdit: boolean; cloudName?: string }) {
   const pathname = usePathname();
   const sheets = useMemo(() => tabOrder(tree.sheets), [tree.sheets]);
   const found = sheets.find((s) => pathname.endsWith(`/s/${s.id}`));
@@ -86,7 +87,7 @@ export function GroupSheets({ groupId, tree, canEdit }: { groupId: string; tree:
   } as const;
 
   return (
-    <>
+    <CloudNameContext value={cloudName}>
       <SheetTabs tree={tree} sheets={sheets} current={current} canEdit={canEdit} pending={pending} run={run} onOpen={openSheet} />
       {error && (
         <p role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
@@ -104,7 +105,15 @@ export function GroupSheets({ groupId, tree, canEdit }: { groupId: string; tree:
             }}
           />
         </div>
-        {person && <PersonPanel key={person.id} person={person} onDelete={deletePerson} {...panelProps} />}
+        {person && (
+          <PersonPanel
+            key={person.id}
+            person={person}
+            onDelete={deletePerson}
+            signPhotoUpload={cloudName ? () => signPhotoUploadAction(groupId) : undefined}
+            {...panelProps}
+          />
+        )}
         {couple && <CouplePanel key={couple.id} union={couple} {...panelProps} />}
         {deleted && (
           <div role="status" className="absolute bottom-4 left-4 z-20 flex items-center gap-3 rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white shadow-lg">
@@ -115,6 +124,6 @@ export function GroupSheets({ groupId, tree, canEdit }: { groupId: string; tree:
           </div>
         )}
       </div>
-    </>
+    </CloudNameContext>
   );
 }

@@ -12,19 +12,20 @@ Built with Next.js 16 (TypeScript, React 19), Tailwind CSS, React Flow and ELK.j
 
 ## What works so far
 
-Steps 1–6 of 11 are built:
+Steps 1–7 of 11 are built:
 
 - **Sign in with Google.** A link opened while signed out comes back after signing in.
 - **Family groups.** Create one with the father's and mother's names (and yourself as their child). It starts with two pinned sheets, "<Father>'s family" and "<Mother>'s family". The dashboard lists My groups and Shared with me. The Owner can rename or delete a group.
 - **Sheets.** Each person is stored once; a sheet shows a root person's ancestors, their descendants and partners, laid out automatically like the sample tree. Switching tabs is instant.
 - **Editing by hand.** Click a person to edit them, add parents, a partner (with their own sheet if they married in) or a child, show them on another sheet, or delete them (with Undo). Click a heart to mark a couple divorced. Create, rename, pin and reorder sheets.
+- **Photos.** Add, change or remove a person's photo from their panel. It uploads straight to Cloudinary, and cards show a round, face-cropped thumbnail.
 - **Roles.** View, Maintain, Admin and Owner, checked on the server for every request. Viewers see the tree without edit controls.
 
-Still to come: photos, members and invites (until then, a group is visible only to its creator), the AI chat, import and export, and nightly backups.
+Still to come: members and invites (until then, a group is visible only to its creator), the AI chat, import and export, and nightly backups.
 
 ## Getting started
 
-Requires Node.js 24 or newer, a MongoDB Atlas cluster and a Google Cloud OAuth client.
+Requires Node.js 24 or newer, a MongoDB Atlas cluster, a Google Cloud OAuth client and, for photos, a free Cloudinary account.
 
 ```bash
 npm install
@@ -40,10 +41,11 @@ In `.env.local` you need, for now:
 - `MONGODB_URI` and `MONGODB_DB=familytree_dev`.
 - `BETTER_AUTH_SECRET` (for example `openssl rand -base64 32`) and `BETTER_AUTH_URL=http://localhost:3000`.
 - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. The OAuth client must list `http://localhost:3000/api/auth/callback/google` as a redirect URI.
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET`, from Cloudinary's Console (Settings → API Keys). Without them the app works, but shows initials instead of photos and offers no photo buttons.
 
 Open the app at `http://localhost:3000`, not `127.0.0.1`: Google and the session cookie treat them as different sites. Keep local settings in `.env.local` only; Next.js also loads a `.env` file as a fallback for anything missing.
 
-[.env.example](.env.example) lists every variable, including the ones later steps need (Cloudinary, the Claude API).
+[.env.example](.env.example) lists every variable, including the ones later steps need (the Claude API).
 
 ## Scripts
 
@@ -56,7 +58,7 @@ Open the app at `http://localhost:3000`, not `127.0.0.1`: Google and the session
 | `npm test` | Unit tests (Vitest); no database needed |
 | `npm run test:watch` | Vitest in watch mode |
 | `npm run test:db` | Database integration tests against MongoDB Atlas (`*.db.test.ts`), each file in its own throwaway database |
-| `npm run test:e2e` | End-to-end tests (Playwright). Builds the app, serves it on port 3100 with a throwaway seeded database, and signs test users in through a fixture (there is no test-login route in the app) |
+| `npm run test:e2e` | End-to-end tests (Playwright). Builds the app, serves it on port 3100 with a throwaway seeded database, and signs test users in through a fixture (there is no test-login route in the app). Photos go to a local stand-in for Cloudinary on port 3101 |
 | `npm run db:ping` | Checks the connection in `.env.local` |
 | `npm run db:setup` | Creates the collections' indexes (safe to repeat) |
 | `npm run seed` | Loads the sample family into `MONGODB_DB`; view it at `/dev/tree/db` |

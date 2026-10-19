@@ -33,6 +33,8 @@ export interface Plan {
   sheets: Changes<SheetDoc>;
   /** Temporary id ("new:1") → the real id it became. */
   idMap: Record<string, string>;
+  /** Photos replaced or removed by this batch that no person in the group uses any more (F8). */
+  unusedPhotoIds: string[];
 }
 
 type Kind = "person" | "union" | "sheet";
@@ -51,6 +53,7 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
   const created = { person: new Set<string>(), union: new Set<string>(), sheet: new Set<string>() };
   const changed = { person: new Set<string>(), union: new Set<string>(), sheet: new Set<string>() };
   const temp = new Map<string, { kind: Kind; id: string }>();
+  const replacedPhotos = new Set<string>();
 
   // child id → id of the couple they are a child of (a person has at most one)
   const parentUnionOf = new Map<string, string>();
@@ -260,7 +263,15 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
         break;
       }
       case "setPhoto": {
-        edit("person", person(op.personId)).photoId = op.photoId;
+        const p = person(op.personId);
+        if (op.photoId !== null && !op.photoId.startsWith(`groups/${groupId.toHexString()}/`)) {
+          throw fail("that photo isn't in this group's folder");
+        }
+        if ((p.photoId ?? null) === op.photoId) break;
+        const copy = edit("person", p);
+        if (op.photoId === null) delete copy.photoId;
+        else copy.photoId = op.photoId;
+        if (p.photoId) replacedPhotos.add(p.photoId);
         break;
       }
       case "deletePerson": {
@@ -293,5 +304,7 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
     unions: changes<UnionDoc>("union"),
     sheets: changes<SheetDoc>("sheet"),
     idMap: Object.fromEntries([...temp].map(([t, { id }]) => [t, id])),
+    // Deleted people count as users: Undo brings their photo back.
+    unusedPhotoIds: [...replacedPhotos].filter((id) => ![...docs.person.values()].some((p) => p.photoId === id)),
   };
 }

@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { ObjectId } from "mongodb";
 import { describe, expect, test } from "vitest";
 import { OperationError } from "@/server/operations/plan";
 import { applyPlan, sampleState, toGroupTree } from "@test/planning";
@@ -12,6 +13,7 @@ import {
   moveSheetOps,
   relationsOf,
   restorePersonOps,
+  setPhotoOps,
   tabOrder,
   updateSheetOps,
 } from "./edits";
@@ -121,6 +123,18 @@ describe("edits against the sample family", () => {
     expect(relationsOf(t, timothy).parents.map((p) => p.name)).toEqual(["Ruth Cruz"]); // "Add the other parent"
     state = applyPlan(state, addParentsOps(t, timothy, [{ name: "Peter Cruz", gender: "male" }]));
     expect(relationsOf(toGroupTree(state), timothy).parents.map((p) => p.name)).toEqual(["Ruth Cruz", "Peter Cruz"]);
+  });
+
+  test("a photo shows wherever the person does, and can be removed", () => {
+    const groupId = new ObjectId();
+    const jake = idOf(tree, "Jake Cruz");
+    const photoId = `groups/${groupId.toHexString()}/jake-photo-1`;
+    const withPhoto = applyPlan(start, setPhotoOps(jake, photoId), groupId);
+    const t = toGroupTree(withPhoto);
+    for (const sheet of t.sheets) {
+      expect(buildSheetView(t, sheet).persons.find((p) => p.id === jake)?.photoId).toBe(photoId);
+    }
+    expect(toGroupTree(applyPlan(withPhoto, setPhotoOps(jake, null), groupId)).persons.find((p) => p.id === jake)).not.toHaveProperty("photoId");
   });
 
   test("a sheet's root can't be deleted", () => {

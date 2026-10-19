@@ -99,6 +99,8 @@ export function editPersonOps(person: Person, next: NewPerson): Operation[] {
 export const coupleStatusOps = (unionId: string, status: Union["status"]): Operation[] => [{ op: "updateUnion", unionId, status }];
 export const deletePersonOps = (personId: string): Operation[] => [{ op: "deletePerson", personId }];
 export const restorePersonOps = (personId: string): Operation[] => [{ op: "restorePerson", personId }];
+/** A photo uploaded to Cloudinary (F8), or null to remove it. The replaced photo is deleted once saved. */
+export const setPhotoOps = (personId: string, photoId: string | null): Operation[] => [{ op: "setPhoto", personId, photoId }];
 export const newSheetOps = (rootPersonId: string, title: string): Operation[] => [
   { op: "createSheet", tempId: "new:sheet", title, rootPersonId },
 ];

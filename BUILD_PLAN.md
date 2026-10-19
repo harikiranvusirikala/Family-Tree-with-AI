@@ -15,7 +15,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 4 | Google sign-in (F1) | Done 2026-10-18 (merged to `main`). Real Google sign-in checked on production; indexes set up in `familytree_preview` and `familytree`. See the step 4 notes |
 | 5 | Groups, roles and opening a sheet (F2, F5) | Done 2026-10-18 (merged to `main`). §15 question 3 settled: our own collections. Google sign-in through the OAuth proxy checked on its preview. See the step 5 notes |
 | 6 | Editing the tree by hand (F6) | Done 2026-10-18 (merged to `main`). See the step 6 notes |
-| 7 | Photos (F8) | Not started |
+| 7 | Photos (F8) | Done 2026-10-19. A real upload on the preview is the last check. See the step 7 notes |
 | 8 | Members, invites and access requests (F3, F4) | Not started |
 | 9 | AI chat (F7) | Not started |
 | 10 | Import and export (F9, F10) | Not started |
@@ -39,12 +39,12 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | Where | Variables |
 |---|---|
 | `.env.local` (local, git-ignored) | Everything in [.env.example](.env.example). `MONGODB_DB=familytree_dev`, `BETTER_AUTH_URL=http://localhost:3000` |
-| Vercel, Production | `MONGODB_URI`, `MONGODB_DB=familytree`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (own value), `BETTER_AUTH_URL=https://family-tree-with-ai.vercel.app`, `OAUTH_PROXY_SECRET` (same value as Preview) |
-| Vercel, Preview | `MONGODB_URI`, `MONGODB_DB=familytree_preview`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (a different value), `OAUTH_PROXY_SECRET` (same value as Production). No `BETTER_AUTH_URL`: the app uses Vercel's `VERCEL_BRANCH_URL` and `VERCEL_URL` |
+| Vercel, Production | `MONGODB_URI`, `MONGODB_DB=familytree`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (own value), `BETTER_AUTH_URL=https://family-tree-with-ai.vercel.app`, `OAUTH_PROXY_SECRET` (same value as Preview), `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` |
+| Vercel, Preview | `MONGODB_URI`, `MONGODB_DB=familytree_preview`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (a different value), `OAUTH_PROXY_SECRET` (same value as Production), the same three `CLOUDINARY_*` as Production. No `BETTER_AUTH_URL`: the app uses Vercel's `VERCEL_BRANCH_URL` and `VERCEL_URL` |
 | Vercel, Development | Nothing; local work uses `.env.local` |
 | GitHub Actions secret | `MONGODB_URI` for a separate read/write test user (repo → Settings → Secrets and variables → Actions) |
 
-- Later steps add `CLOUDINARY_*` (step 7) and `ANTHROPIC_API_KEY`, `CHAT_MODEL`, `CHAT_DAILY_LIMIT` (step 9) to both Production and Preview, and `MONGODB_BACKUP_URI`, `BACKUP_ENCRYPTION_KEY` (step 11) as GitHub secrets.
+- Later steps add `ANTHROPIC_API_KEY`, `CHAT_MODEL`, `CHAT_DAILY_LIMIT` (step 9) to both Production and Preview, and `MONGODB_BACKUP_URI`, `BACKUP_ENCRYPTION_KEY` (step 11) as GitHub secrets.
 - Secrets are marked Sensitive in Vercel.
 - Vercel variables only reach new deployments, so redeploy (or push) after changing them.
 
@@ -276,16 +276,77 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - Locally each save is a transaction plus a re-render against the remote M0 cluster, measured at 1–5 s with four test workers, so e2e assertions wait up to 15 s and tests up to 60 s.
 
 ## Step 7: Photos (F8)
-- **Owner:** create a Cloudinary account and add the three `CLOUDINARY_*` variables.
+- **Owner:**
+  - Review the detailed plan and decide its open questions (see Decisions).
+  - Create a free Cloudinary account. From Console → Settings → API Keys, copy the cloud name, API key and API secret.
+  - Put the three `CLOUDINARY_*` variables in `.env.local`, then restart the Claude Code session so it sees them.
+  - Add the same three to Vercel Production and Preview (the secret marked Sensitive). Previews and production share the account; photos are kept apart by group id and tagged with the database name.
+  - No GitHub secret: the e2e tests use placeholder values and a stand-in for Cloudinary. No new indexes, so no `db:setup`.
 - **Build:**
-  - `api/uploads/sign` (Maintain and up) signs uploads for the folder `groups/{groupId}` with a random public ID.
-  - The browser uploads directly to Cloudinary.
-  - `setPhoto` checks the ID is inside `groups/{groupId}/` and replaces `photoId`, deleting the old photo.
-  - `PersonNode` shows a face-cropped thumbnail (`c_thumb,g_face`).
-- **Tests:**
-  - Integration: Viewers can't get a signature; a `photoId` outside the group's folder is rejected.
-  - E2E: the upload flow with Cloudinary mocked.
-- **Owner checks:** a real upload on the preview.
+  - **No Cloudinary package.** The app makes two calls, so `src/server/cloudinary.ts` signs them with `node:crypto` and sends them with `fetch`. The signature is SHA-1 over the parameters sorted by name, joined as `key=value&…`, with the API secret appended (`signParams`, pure).
+  - **Signing an upload:** the server action `signPhotoUploadAction(groupId)` in `src/app/g/[groupId]/actions.ts` calls `requireUser()`, then `signPhotoUpload(db, groupId, userId, config)` in `src/server/photos.ts` (`roleInGroup(…, maintain)` plus the signature). A Viewer, a non-member and a made-up group all get "You don't have permission to change this tree". The signed parameters:
+    - `public_id`: `groups/{groupId}/` plus 22 random characters, chosen by the server. The full path is in the public ID, so it works in either of Cloudinary's folder modes.
+    - `timestamp`, and `tags`: the database name (`familytree_dev`, `familytree_preview`, `familytree`), so local and preview photos can be found and deleted in Cloudinary's Media Library.
+    - `allowed_formats`: JPEG, PNG, WebP and HEIC (iPhone photos).
+    - `transformation`: `c_limit,w_1600,h_1600`, so Cloudinary stores at most 1600 px on the long side.
+  - **The browser uploads straight to Cloudinary** (`POST https://api.cloudinary.com/v1_1/{cloud}/image/upload`, the file plus the signed parameters), checks the returned `public_id` is the one it was given, then saves it with `applyChangesAction(setPhotoOps(...))`. Large photos never pass through Vercel.
+  - **`setPhoto { personId, photoId }`**, through the single write path:
+    - zod: `photoId` looks like `groups/<24-hex id>/<random>` (`PHOTO_ID`), or `null` to remove the photo.
+    - Planner rule: the photo must be in this group's folder ("That photo isn't in this group's folder"). A deleted person can't be given one. Setting the photo a person already has changes nothing.
+    - The plan lists `unusedPhotoIds`: photos replaced or removed in this batch that no person in the group uses any more, deleted people included (so Undo still has their photo). `ApplyResult` carries them.
+    - `applyChangesAction` deletes them from Cloudinary with Next.js's `after()`, once the transaction has committed, so the save doesn't wait. The request is a signed `destroy` with `invalidate`, which also clears Cloudinary's CDN copy. A failed delete is logged, never shown, and the save stands.
+  - **Showing photos:**
+    - `photoUrl(cloudName, photoId)` in `src/components/tree/photo.ts`: `https://res.cloudinary.com/{cloud}/image/upload/c_thumb,g_face,w_168,h_168/f_auto,q_auto/{photoId}`. That's a face crop at twice the card's 84 px circle, in the best format and quality for the browser. The panel uses the same URL, so each photo downloads once.
+    - `PersonPhoto` (cards and the panel): the round photo inside the blue or pink border, as a plain `<img>`. Initials show when there is no photo, photos aren't set up, or the photo fails to load.
+    - The cloud name isn't secret. The sheets layout reads it at request time (`cloudinaryConfig()`) and hands it down through `CloudNameContext`. Without it (the dev pages, or missing variables), cards show initials and the photo buttons are hidden.
+  - **Person panel**, with the photo at the top. Maintain and up also get `PhotoControls`:
+    - "Add photo" or "Change photo" opens a file picker. The browser checks the file first (`photoFileProblem`): JPEG, PNG, WebP or HEIC, up to 10 MB (Cloudinary's free-plan limit for images). Anything else gets a message and is never uploaded.
+    - While it uploads, the panel shows "Uploading photo…" and its buttons are disabled. Errors, including Cloudinary's reason, show in the panel.
+    - "Remove photo" asks for confirmation: the photo is deleted from Cloudinary, so there's no Undo.
+    - Viewers see the photo with no buttons.
+  - Builder `setPhotoOps(personId, photoId | null)` in `src/tree/edits.ts`.
+  - Kept as they are:
+    - Deleting a person keeps their photo, for Undo; deleting a group keeps everything.
+    - Face crop only, with no manual cropping.
+    - A photo uploaded but never saved (tab closed mid-way, or the save refused) stays in Cloudinary unused. This is rare and is left for later (ARCHITECTURE.md §15 question 6).
+  - **E2E stand-in for Cloudinary** (`e2e/cloudinary-stub.mts`): `playwright.config.ts` starts it on port 3101 next to the app and gives both placeholder `CLOUDINARY_*` values, with `CLOUDINARY_API_URL` pointing the app at it. Like Cloudinary, it refuses a request whose signature doesn't match (checked with its own code, not the app's), and it lists what was uploaded and deleted (`GET /calls`). Tests answer photo URLs on `res.cloudinary.com` themselves with a 1×1 PNG, so no test reaches Cloudinary.
+  - Step 11's security headers must allow images from `res.cloudinary.com` and uploads to `api.cloudinary.com`.
+- **Tests (180 unit, 17 database and 23 e2e tests in the suite after this step):**
+  - Unit:
+    - Signatures: Cloudinary's documented example gives its documented signature; parameter order doesn't matter, and a `&` in a value can't add a parameter.
+    - Upload tickets: a random public ID inside `groups/{groupId}/`, the tag, formats and size limit, and every sent parameter signed.
+    - Deleting, with a stubbed `fetch`: one signed `destroy` per photo. A failure is logged, not thrown; "not found" counts as deleted; without settings nothing is sent.
+    - Planner:
+      - A photo in another group's folder, or not in a folder, is refused; so is a deleted person.
+      - Replacing or removing a photo lists the old one. One still used by another person, or by a deleted person, isn't listed. Setting the same photo again changes nothing.
+      - The schema refuses a URL or a path with `..` as a photo id.
+    - `setPhotoOps` against the sample family (`test/planning.ts`): the photo shows on both sheets, and Remove clears it.
+    - `photoUrl`; `PersonPhoto` shows the photo, initials without one or without settings, and initials after a load error.
+    - Choosing a file: JPEG, PNG, WebP and HEIC (also with no type) up to 10 MB pass; larger files, PDFs and GIFs get a message. Uploading: the signed fields are sent; Cloudinary's reason is shown; a different public ID or a network error gets a general message.
+  - Database:
+    - A Viewer, a non-member and a made-up group get `NoAccessError` from `signPhotoUpload`. A Maintainer gets a signature for their group's folder, tagged with the database name.
+    - `applyGroupChanges` with another group's photo is refused and writes nothing.
+    - Replacing a photo saves it and returns the old one to delete.
+  - E2E:
+    - The owner adds a photo for Jake Cruz: the stand-in accepts the signed upload, and Jake's card shows the face-cropped photo from this group's folder on both sheets, still there after a reload. Change it: the old photo is deleted. Remove it: the initials come back and that photo is deleted too.
+    - A file over 10 MB, or a PDF, is refused with no request to Cloudinary.
+    - A Viewer sees the photo on the card and in the panel, and no photo buttons.
+- **Owner checks:**
+  - On `npm run dev`:
+    - Add a real photo (a phone photo, HEIC if you have one) and check the face crop on the card.
+    - Change it, then check that the old one has gone from Cloudinary's Media Library.
+    - Remove it.
+  - On the preview: a real upload.
+- **Decisions (owner, 2026-10-18):**
+  1. Uploads are signed by a server action next to `applyChangesAction`, not an `api/uploads/sign` route: the same pattern as every other change.
+  2. Photos are shrunk on upload to at most 1600 px; the original full-size file isn't kept.
+  3. "Remove photo" as well as Change, through `setPhoto` with `null`.
+  4. Face crop only for now; manual cropping can come later.
+- **Step 7 notes (2026-10-18):**
+  - Cloudinary's documentation site is blocked on the work network, so the signing rules were checked in the source of the `cloudinary` npm package (2.11.0, `api_sign_request` and `destroy`), unpacked in a scratch folder and not installed. Its default is SHA-1, and it encodes a `&` inside a pair. The unit test uses the worked example from Cloudinary's documentation, recomputed independently.
+  - Deviation: the plan had the e2e tests intercept Cloudinary in the browser. Deleting old photos happens on the server, where the browser can't intercept, so the tests use a local stand-in instead. That also lets them check that a replaced photo really is deleted.
+  - `cloudinary.ts` and `photos.ts` don't use `server-only`, so unit and database tests can import them (like `auth-options.ts`). The secret is read only from the server's environment. The Cloudinary settings are passed in explicitly, so a test can't pick up the real values from `.env.local` by accident.
+  - The 10 MB limit, and the full path in the public ID working in both folder modes, come from Cloudinary's documentation as remembered. The owner's real upload checks them.
 
 ## Step 8: Members, invites and access requests (F3, F4)
 - **Build:**
