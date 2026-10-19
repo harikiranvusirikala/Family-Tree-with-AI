@@ -51,3 +51,4 @@ next-env.d.ts
 
 # local reference images (not committed)
 /samples
+/exports
