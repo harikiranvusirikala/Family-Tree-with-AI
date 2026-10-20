@@ -46,6 +46,7 @@ export function SheetTabs({
 }) {
   const [tool, setTool] = useState<"menu" | "more" | "rename" | "new" | "delete" | null>(null);
   const bar = useRef<HTMLDivElement>(null);
+  const tabRow = useRef<HTMLDivElement>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const people = [...tree.persons].sort((a, b) => a.name.localeCompare(b.name) || (a.birthYear ?? 0) - (b.birthYear ?? 0));
   const [rootId, setRootId] = useState("");
@@ -103,6 +104,30 @@ export function SheetTabs({
     };
   }, [tool]);
 
+  // The tab row scrolls sideways with no scrollbar (it covered the names; an owner request after the
+  // final check), so a mouse wheel scrolls it too. Trackpads already scroll it sideways themselves.
+  useEffect(() => {
+    const row = tabRow.current;
+    if (!row) return;
+    const wheel = (event: WheelEvent) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX) || row.scrollWidth <= row.clientWidth) return;
+      event.preventDefault();
+      row.scrollLeft += event.deltaY;
+    };
+    row.addEventListener("wheel", wheel, { passive: false }); // React's onWheel can't prevent the default
+    return () => row.removeEventListener("wheel", wheel);
+  }, []);
+
+  // The open sheet's tab is scrolled into view: on opening the page, and when "Go to" opens a far tab.
+  useEffect(() => {
+    const row = tabRow.current;
+    const tab = row?.querySelector('[role="tab"][aria-selected="true"]');
+    if (!row || !tab) return;
+    const [r, t] = [row.getBoundingClientRect(), tab.getBoundingClientRect()];
+    if (t.left < r.left) row.scrollLeft -= r.left - t.left + 16;
+    else if (t.right > r.right) row.scrollLeft += t.right - r.right + 16;
+  }, [current.id]);
+
   async function rename(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const next = String(new FormData(event.currentTarget).get("title") ?? "").trim();
@@ -124,9 +149,24 @@ export function SheetTabs({
   return (
     <div ref={bar} className="relative border-b border-zinc-200 dark:border-zinc-800">
       <div className="flex items-center gap-1 pr-2 md:items-end lg:gap-2 lg:pr-4">
-        {/* Only the tabs scroll sideways: a scrolling box also cuts off what hangs below it, like a menu. */}
-        <div className="hidden min-w-0 flex-1 items-end gap-1 overflow-x-auto pl-4 pt-2 md:flex">
-          <div role="tablist" aria-label="Sheets" className="flex gap-1">
+        {/* Computers: the sheet's options (⋯) come first, before the pinned tabs, and stay put while the
+            tabs scroll (the owner's choice). */}
+        {canEdit && (
+          <div className="mb-1 hidden shrink-0 pl-4 lg:block">
+            <button type="button" aria-label="Sheet options" aria-haspopup="menu" aria-expanded={tool === "menu"} onClick={() => (tool === "menu" ? close() : setTool("menu"))} className={small}>
+              ⋯
+            </button>
+          </div>
+        )}
+        {/* Only the tabs scroll sideways: a scrolling box also cuts off what hangs below it, like a menu.
+            The tab list never shrinks, and titles never wrap: otherwise Chrome shrinks the list to its
+            narrowest size, the tabs spill out of it, and "+ New sheet" lands on the last ones (found
+            by the owner with seven sheets). */}
+        <div
+          ref={tabRow}
+          className={`hidden min-w-0 flex-1 items-end gap-1 overflow-x-auto scrollbar-none pl-4 pt-2 md:flex ${canEdit ? "lg:pl-0" : ""}`}
+        >
+          <div role="tablist" aria-label="Sheets" className="flex shrink-0 gap-1">
             {sheets.map((s) => (
               <button
                 key={s.id}
@@ -134,7 +174,7 @@ export function SheetTabs({
                 role="tab"
                 aria-selected={s.id === current.id}
                 onClick={() => onOpen(s.id)}
-                className="flex shrink-0 items-center gap-1 rounded-t-md border border-b-0 border-transparent px-3 py-1.5 text-sm text-zinc-600 pointer-coarse:py-3 hover:text-zinc-900 aria-selected:border-zinc-200 aria-selected:bg-white aria-selected:font-medium aria-selected:text-zinc-900 dark:aria-selected:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 dark:aria-selected:bg-zinc-900 dark:aria-selected:text-zinc-100"
+                className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-t-md border border-b-0 border-transparent px-3 py-1.5 text-sm text-zinc-600 pointer-coarse:py-3 hover:text-zinc-900 aria-selected:border-zinc-200 aria-selected:bg-white aria-selected:font-medium aria-selected:text-zinc-900 dark:aria-selected:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 dark:aria-selected:bg-zinc-900 dark:aria-selected:text-zinc-100"
               >
                 {s.pinned && (
                   <svg aria-hidden width="12" height="12" viewBox="0 0 24 24" className="fill-zinc-400">
@@ -146,10 +186,7 @@ export function SheetTabs({
             ))}
           </div>
           {canEdit && (
-            <div className="mb-1 hidden shrink-0 gap-1 lg:flex">
-              <button type="button" aria-label="Sheet options" aria-haspopup="menu" aria-expanded={tool === "menu"} onClick={() => (tool === "menu" ? close() : setTool("menu"))} className={small}>
-                ⋯
-              </button>
+            <div className="mb-1 hidden shrink-0 lg:flex">
               <button type="button" onClick={openNew} className={small}>
                 + New sheet
               </button>

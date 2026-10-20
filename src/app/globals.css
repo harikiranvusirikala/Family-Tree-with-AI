@@ -26,6 +26,15 @@ body {
   color: var(--foreground);
 }
 
+/* Scrolls without showing a scrollbar: the sheet tabs, where one covered the names (an owner request
+   after the final check). A mouse wheel scrolls them instead (SheetTabs). */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* Touch screens (phones and tablets, an owner request after the final check). Outside any layer, so
    these win over Tailwind's utilities (text-sm on a field). */
 @media (pointer: coarse) {

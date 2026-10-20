@@ -136,7 +136,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 - Someone added without a sheet can get one later: "Create their own sheet" in their panel, for anyone with no sheet of their own (Maintain and up). A woman's leaves out her children with her partner by default (her side of the family, like a mother's sheet from Add parents); a man's shows all his children; the form can change either. (Owner request after the final check.)
 - A person who is a sheet's root can't be deleted.
 - Deleted people count as absent: after deleting someone's parents, new parents can be added; Undo still restores them.
-- Tabs: "+ New sheet", rename, pin, move left/right and delete (buttons, not drag-and-drop). Pinned tabs come first.
+- Tabs: "+ New sheet", rename, pin, move left/right and delete (buttons, not drag-and-drop). Pinned tabs come first. On computers the tab menu (⋯) comes before them, at the start of the row. Many tabs scroll sideways without a scrollbar (a mouse wheel scrolls them), and the open one is kept in view. (Owner requests after the final check.)
 - Deleting a sheet keeps everyone on it. Pinned sheets (the father's and mother's) can't be deleted until unpinned, nor can the last sheet. A partner's sheet is deleted first, then the partner can be.
 - Hiding an extra person from a sheet is left for later.
 

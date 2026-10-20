@@ -28,6 +28,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Final check on the live site | Done 2026-10-20 by the owner. See its section at the end |
 | – | Phones and tablets (owner request, after the final check) | Done 2026-10-20 (merged to `main`); the eye button back in the sheet row after the owner's check. See its section at the end |
 | – | A sheet of their own, later (owner request, after the final check) | Done 2026-10-20. See its section at the end |
+| – | The sheet tab row (owner requests, after the final check) | Done 2026-10-20. See its section at the end |
 
 ## How we work
 
@@ -281,6 +282,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - Click handlers and the selection reach the cards through a React context, not node data, so selecting someone doesn't lay the sheet out again.
   - `OperationError` carries `reason` (the message without "Change N:"). `loadGroupTree` is split into the query and the pure `toGroupTree`, which `test/planning.ts` uses to turn planned documents into what the browser draws. The year rule has readable messages ("Enter a year from 1000 on").
   - Sheet menu items close the menu at once; the change shows when it's saved. Renaming a tab to its current title sends nothing (an empty batch would be refused).
+  - Found by the owner (2026-10-20, with seven sheets): "+ New sheet" covered the last tabs. Inside the sideways-scrolling row, Chrome shrank the tab list to its narrowest size (as if titles wrapped at their spaces); the tabs kept their width and spilled out of it, and "+ New sheet" came right after the list's shrunken edge. The list no longer shrinks and titles don't wrap. An e2e test with nine long-titled tabs failed before the fix (the button at x = 1206, a tab ending at 1405).
   - Locally each save is a transaction plus a re-render against the remote M0 cluster, measured at 1–5 s with four test workers, so e2e assertions wait up to 15 s and tests up to 60 s.
 
 ## Step 7: Photos (F8)
@@ -863,3 +865,11 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 - **Tests:**
   - Unit: the builder against the sample family: Taylor Humes's sheet leaving out her children with Jake Cruz shows the two of them; showing all adds their children and grandchildren. The panel: the button only for someone without a sheet and only for Maintain and up; a woman's choice starts on leaving out, a man's on showing all; the title is required; saving sends the sheet with the chosen couple.
   - E2E: Taylor Humes gets "Create their own sheet" with "Leave out her children with Jake Cruz" chosen; after saving, "Go to Taylor Humes's family" opens a tab with only Taylor and Jake, and the button is gone.
+
+## After the final check: the sheet tab row (owner requests)
+- **Why:** with seven sheets, "+ New sheet" covered the last tabs (a bug, see the step 6 notes); the row's scrollbar covered the tab names; and the owner wanted the tab menu first.
+- **Build:**
+  - The tab list no longer shrinks and titles stay on one line, so the row scrolls and "+ New sheet" follows the last tab.
+  - **No scrollbar:** the row scrolls sideways without one (a `scrollbar-none` utility in `globals.css`). A mouse wheel over the row scrolls it sideways (trackpads already do), and the open sheet's tab is scrolled into view, when the page opens and when "Go to" opens a far tab.
+  - **⋯ first, on computers:** the sheet options button comes at the start of the row, before the pinned tabs, and stays put while the tabs scroll. Phones and tablets keep their ⋯ menu at the end.
+- **Tests (e2e, a group with nine long-titled sheets):** every tab ends before "+ New sheet", and the last one, scrolled into view, isn't covered and opens; ⋯ comes before the first tab and is still showing after scrolling; the row overflows with no scrollbar; a mouse wheel scrolls it; opening the last sheet brings its tab into view. Each check failed before its change.

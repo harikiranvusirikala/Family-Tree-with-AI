@@ -181,7 +181,7 @@ test("a person's panel opens over the bottom half, with their card above it", as
   await shot(page, "phone-panel");
 
   // Every button in it is big enough to tap.
-  for (const name of ["Close", "Edit details", "Add child", "Delete"]) expect((await box(panel.getByRole("button", { name, exact: true }))).height).toBeGreaterThanOrEqual(44);
+  for (const name of ["Close", "Edit details", "Add child", "Delete"]) expect((await box(panel.getByRole("button", { name, exact: true }))).height, name).toBeGreaterThanOrEqual(44);
 
   // Her father, from the panel: his card, now above the screen, comes into view too.
   await panel.getByRole("button", { name: "Jerry Willow", exact: true }).click();

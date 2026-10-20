@@ -1,4 +1,7 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import type { Database } from "@/server/db";
+import { applyOperations } from "@/server/operations/apply";
+import { loadGroupTree } from "@/server/repositories/family";
 import { expect, test, type SampleGroup, type SignIn } from "./fixtures";
 
 test.use({ viewport: { width: 1600, height: 1000 } });
@@ -8,6 +11,29 @@ const cards = (page: Page) => page.getByTestId("person-card");
 const card = (page: Page, name: string) => page.getByRole("tabpanel").getByRole("button", { name: new RegExp(`^${name}(,|$)`) });
 const personPanel = (page: Page) => page.getByRole("complementary", { name: "Person details" });
 const form = (page: Page, name: string) => page.getByRole("form", { name });
+
+/** Seven more sheets with long titles, like the owner's family: nine tabs, wider than the row. Their ids. */
+async function addManySheets(database: Database, groupId: string, actor: string) {
+  const tree = await loadGroupTree(database.db, groupId);
+  const roots = ["Taylor Humes", "Olivia Cruz", "Arjun Patel", "Emma Young", "Margaret Yap", "Cynthia Willow", "Christina Cruz"];
+  const ops = roots.map((name, i) => ({
+    op: "createSheet",
+    tempId: `new:sheet-${i}`,
+    title: `${name} Venkata Lakshmi's family`,
+    rootPersonId: tree.persons.find((p) => p.name === name)!.id,
+  }));
+  const { idMap } = await applyOperations(database, groupId, ops, actor);
+  return roots.map((_, i) => idMap[`new:sheet-${i}`]);
+}
+
+/** The element is the topmost thing at its centre: nothing covers it. */
+async function onScreen(locator: Locator) {
+  return locator.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    return !!top && (top === element || element.contains(top));
+  });
+}
 
 /** Signs in a new owner of a group holding the sample family, on its "Cruz family" sheet. */
 async function openSampleGroup(page: Page, signIn: SignIn, sampleGroup: SampleGroup) {
@@ -267,6 +293,62 @@ test("new sheet, pin and move a tab; the order is still there after a reload", a
 
   await page.reload();
   await expect(tabs).toHaveText(["Cruz family", "Emma Young's family", "Jerry Willow's family"]);
+});
+
+test("with many sheets, + New sheet never covers the last tabs (found by the owner)", async ({ page, signIn, sampleGroup, database }) => {
+  const owner = await signIn(page, "Carla Cruz");
+  const { groupId, cruzSheet } = await sampleGroup(owner);
+  await addManySheets(database, groupId, owner.id);
+
+  await page.goto(`/g/${groupId}/s/${cruzSheet}`);
+  const tabs = page.getByRole("tab");
+  await expect(tabs).toHaveCount(9);
+  // On a computer the sheet options (⋯) come first, before the pinned tabs (the owner's choice).
+  const options = (await page.getByRole("button", { name: "Sheet options" }).boundingBox())!;
+  expect(options.x + options.width).toBeLessThanOrEqual((await tabs.first().boundingBox())!.x);
+  const newSheet = (await page.getByRole("button", { name: "+ New sheet" }).boundingBox())!;
+  for (const tab of await tabs.all()) {
+    const box = (await tab.boundingBox())!;
+    expect(box.x + box.width, await tab.textContent() ?? "").toBeLessThanOrEqual(newSheet.x);
+  }
+  // The last tab, scrolled into view, is what a click there reaches, and it opens.
+  const last = tabs.last();
+  await last.scrollIntoViewIfNeeded();
+  expect(await onScreen(last)).toBe(true);
+  await last.click();
+  await expect(last).toHaveAttribute("aria-selected", "true");
+});
+
+test("the sheet tabs scroll without a scrollbar: a mouse wheel scrolls them, and the open sheet's tab comes into view (owner request)", async ({ page, signIn, sampleGroup, database }) => {
+  const owner = await signIn(page, "Carla Cruz");
+  const { groupId, cruzSheet } = await sampleGroup(owner);
+  const sheets = await addManySheets(database, groupId, owner.id);
+  await page.goto(`/g/${groupId}/s/${cruzSheet}`);
+  const tabs = page.getByRole("tab");
+  await expect(tabs).toHaveCount(9);
+
+  // Wider than the row, and no scrollbar under the names.
+  const row = page.getByRole("tablist").locator("..");
+  expect(await row.evaluate((el: HTMLElement) => ({ overflows: el.scrollWidth > el.clientWidth, scrollbar: el.offsetHeight - el.clientHeight, style: getComputedStyle(el).scrollbarWidth }))).toEqual({
+    overflows: true,
+    scrollbar: 0,
+    style: "none",
+  });
+
+  // A mouse wheel scrolls it sideways.
+  const rowBox = (await row.boundingBox())!;
+  await page.mouse.move(rowBox.x + rowBox.width / 2, rowBox.y + rowBox.height / 2);
+  await page.mouse.wheel(0, 600);
+  await expect.poll(() => row.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+  expect(await onScreen(page.getByRole("button", { name: "Sheet options" }))).toBe(true); // ⋯ stays at the start
+
+  // Opening the last sheet brings its tab into view.
+  await page.goto(`/g/${groupId}/s/${sheets.at(-1)}`);
+  await expect(tabs.last()).toHaveAttribute("aria-selected", "true");
+  await expect.poll(async () => {
+    const tab = (await tabs.last().boundingBox())!;
+    return tab.x >= rowBox.x && tab.x + tab.width <= rowBox.x + rowBox.width;
+  }).toBe(true);
 });
 
 test("a Viewer sees the tree but no edit controls", async ({ browser, page, signIn, sampleGroup, addMember }) => {
