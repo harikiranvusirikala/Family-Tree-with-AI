@@ -6,13 +6,15 @@ import { PersonPanel } from "./PersonPanel";
 afterEach(cleanup);
 
 // Jerry Willow married in: the Cruz family sheet, his given sheet, and a tab of his own made later.
+// His parents, Cynthia Willow and Fred Lambert, have no sheets.
 const tree: GroupTree = {
   persons: [
     { id: "alexander", name: "Alexander Cruz", gender: "male" },
     { id: "cynthia", name: "Cynthia Willow", gender: "female" },
+    { id: "fred", name: "Fred Lambert", gender: "male" },
     { id: "jerry", name: "Jerry Willow", gender: "male" },
   ],
-  unions: [{ id: "willows", partnerIds: ["cynthia"], status: "married", childIds: ["jerry"] }],
+  unions: [{ id: "willows", partnerIds: ["cynthia", "fred"], status: "married", childIds: ["jerry"] }],
   sheets: [
     { id: "willows-tab", title: "The Willows", rootPersonId: "jerry", extraPersonIds: [], pinned: false, order: 0 },
     { id: "jerry-tab", title: "Jerry Willow's family", rootPersonId: "jerry", extraPersonIds: [], pinned: true, order: 1 },
@@ -22,13 +24,14 @@ const tree: GroupTree = {
 
 function panel(personId: string, currentSheetId: string, canEdit = true) {
   const onOpenSheet = vi.fn();
+  const run = vi.fn(async () => ({ "new:sheet": "new-tab" }));
   render(
     <PersonPanel
       person={tree.persons.find((p) => p.id === personId)!}
       tree={tree}
       canEdit={canEdit}
       pending={false}
-      run={async () => null}
+      run={run}
       onSelect={() => {}}
       onClose={() => {}}
       onDelete={() => {}}
@@ -36,14 +39,14 @@ function panel(personId: string, currentSheetId: string, canEdit = true) {
       onOpenSheet={onOpenSheet}
     />,
   );
-  return onOpenSheet;
+  return { onOpenSheet, run };
 }
 
 const goTo = () => screen.queryAllByRole("button", { name: /^Go to / }).map((b) => b.textContent);
 
 describe("going to a person's own sheet (owner request)", () => {
   test("each sheet rooted at them, in tab order, opens that sheet", () => {
-    const onOpenSheet = panel("jerry", "cruz-tab");
+    const { onOpenSheet } = panel("jerry", "cruz-tab");
     expect(goTo()).toEqual(["Go to Jerry Willow's family", "Go to The Willows"]);
     fireEvent.click(screen.getByRole("button", { name: "Go to The Willows" }));
     expect(onOpenSheet).toHaveBeenCalledWith("willows-tab");
@@ -63,5 +66,49 @@ describe("going to a person's own sheet (owner request)", () => {
     panel("jerry", "cruz-tab", false);
     expect(screen.queryByRole("button", { name: "Edit details" })).toBeNull();
     expect(goTo()).toEqual(["Go to Jerry Willow's family", "Go to The Willows"]);
+  });
+});
+
+describe("creating someone's own sheet later (owner request)", () => {
+  const create = () => screen.queryByRole("button", { name: "Create their own sheet" });
+  const open = () => fireEvent.click(create()!);
+  const form = () => screen.getByRole("form", { name: "Create their own sheet" });
+
+  test("offered to someone without a sheet, for Maintain and up", () => {
+    panel("cynthia", "cruz-tab");
+    expect(create()).not.toBeNull();
+    cleanup();
+    panel("jerry", "cruz-tab"); // he has his sheets
+    expect(create()).toBeNull();
+    cleanup();
+    panel("cynthia", "cruz-tab", false);
+    expect(create()).toBeNull();
+  });
+
+  test("a woman's sheet starts by leaving out her children with her partner, and saves that couple", async () => {
+    const { run } = panel("cynthia", "cruz-tab");
+    open();
+    expect((screen.getByRole("textbox", { name: "Sheet title" }) as HTMLInputElement).value).toBe("Cynthia Willow's family");
+    expect(screen.getByRole("radio", { name: "Leave out her children with Fred Lambert" })).toHaveProperty("checked", true);
+    expect(screen.getByRole("radio", { name: "Show all her children" })).toHaveProperty("checked", false);
+    fireEvent.submit(form());
+    await vi.waitFor(() => expect(run).toHaveBeenCalled());
+    expect(run).toHaveBeenCalledWith([
+      { op: "createSheet", tempId: "new:sheet", title: "Cynthia Willow's family", rootPersonId: "cynthia", hideChildrenOf: "willows" },
+    ]);
+  });
+
+  test("a man's starts by showing all his children; the title is required", async () => {
+    const { run } = panel("fred", "cruz-tab");
+    open();
+    expect(screen.getByRole("radio", { name: "Show all his children" })).toHaveProperty("checked", true);
+    fireEvent.change(screen.getByRole("textbox", { name: "Sheet title" }), { target: { value: " " } });
+    fireEvent.submit(form());
+    expect(screen.getByRole("alert").textContent).toBe("Enter a title of up to 120 characters.");
+    expect(run).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Sheet title" }), { target: { value: "The Lamberts" } });
+    fireEvent.submit(form());
+    await vi.waitFor(() => expect(run).toHaveBeenCalledWith([{ op: "createSheet", tempId: "new:sheet", title: "The Lamberts", rootPersonId: "fred" }]));
   });
 });

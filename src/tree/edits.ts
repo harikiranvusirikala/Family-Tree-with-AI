@@ -129,8 +129,12 @@ export const deletePersonOps = (personId: string): Operation[] => [{ op: "delete
 export const restorePersonOps = (personId: string): Operation[] => [{ op: "restorePerson", personId }];
 /** A photo uploaded to Cloudinary (F8), or null to remove it. The replaced photo is deleted once saved. */
 export const setPhotoOps = (personId: string, photoId: string | null): Operation[] => [{ op: "setPhoto", personId, photoId }];
-export const newSheetOps = (rootPersonId: string, title: string): Operation[] => [
-  { op: "createSheet", tempId: "new:sheet", title, rootPersonId },
+/**
+ * A sheet rooted at someone. `hideChildrenOf`: one of their couples whose children it leaves out, as a
+ * mother's own sheet does (Create their own sheet, an owner request after the final check).
+ */
+export const newSheetOps = (rootPersonId: string, title: string, hideChildrenOf?: string): Operation[] => [
+  { op: "createSheet", tempId: "new:sheet", title, rootPersonId, ...(hideChildrenOf && { hideChildrenOf }) },
 ];
 export const showOnSheetOps = (sheetId: string, personId: string): Operation[] => [{ op: "addToSheet", sheetId, personId }];
 export const updateSheetOps = (sheetId: string, set: { title?: string; pinned?: boolean }): Operation[] => [

@@ -33,7 +33,7 @@ export function readPerson(form: FormData, prefix = "", who = ""): NewPerson | s
   return parsed.data;
 }
 
-const input = "w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900";
+export const input = "w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900";
 
 /**
  * Name, gender and years. With `fixedGender` the gender isn't asked (a father is male). Labels start

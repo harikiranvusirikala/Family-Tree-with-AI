@@ -12,6 +12,7 @@ import {
   deleteSheetOps,
   editPersonOps,
   moveSheetOps,
+  newSheetOps,
   relationsOf,
   restorePersonOps,
   setPhotoOps,
@@ -131,6 +132,24 @@ describe("edits against the sample family", () => {
     const sunita = t.sheets.find((s) => s.title === "Sunita Mehta's family")!;
     expect(sunita.rootPersonId).toBe(idOf(t, "Sunita Mehta"));
     expect(buildSheetView(t, sunita).persons.map((p) => p.name).sort()).toEqual(["Sunita Mehta", "Vikram Mehta"]);
+  });
+
+  test("a sheet of her own, later: leaving out her children with her partner, or showing them all (owner request)", () => {
+    const taylor = idOf(tree, "Taylor Humes");
+    const withJake = relationsOf(tree, taylor).couples.find((c) => c.partner?.name === "Jake Cruz")!.union.id;
+    expect(newSheetOps(taylor, "Taylor Humes's family", withJake)).toEqual([
+      { op: "createSheet", tempId: "new:sheet", title: "Taylor Humes's family", rootPersonId: taylor, hideChildrenOf: withJake },
+    ]);
+
+    const hidden = apply(newSheetOps(taylor, "Taylor Humes's family", withJake));
+    const hers = hidden.sheets.find((s) => s.title === "Taylor Humes's family")!;
+    expect(hers).toMatchObject({ rootPersonId: taylor, hideChildrenOf: withJake, pinned: false });
+    expect(buildSheetView(hidden, hers).persons.map((p) => p.name).sort()).toEqual(["Jake Cruz", "Taylor Humes"]);
+
+    const all = apply(newSheetOps(taylor, "Taylor Humes's family"));
+    const sheet = all.sheets.find((s) => s.title === "Taylor Humes's family")!;
+    expect(sheet.hideChildrenOf).toBeUndefined();
+    expect(buildSheetView(all, sheet).persons.map((p) => p.name)).toEqual(expect.arrayContaining(["Jake Cruz", "Christina Cruz", "Cullen Cruz", "Marie Cruz", "Carrie Young"]));
   });
 
   test("a new name renames the person's sheet when it has its given title, and keeps a title of your own (owner request)", () => {

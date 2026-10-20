@@ -2,16 +2,16 @@
 
 import { useState, type FormEvent } from "react";
 import type { Operation } from "@/server/operations/schema";
-import { addChildOps, addParentsOps, addPartnerOps, editPersonOps, relationsOf, showOnSheetOps, tabOrder, type NewParent } from "@/tree/edits";
+import { addChildOps, addParentsOps, addPartnerOps, editPersonOps, newSheetOps, relationsOf, showOnSheetOps, tabOrder, type NewParent } from "@/tree/edits";
 import { buildSheetView } from "@/tree/sheet-view";
 import type { Gender, GroupTree, Person } from "@/tree/types";
 import { formatYears } from "@/tree/years";
 import { PersonPhoto } from "../PersonPhoto";
 import { detailsPanel } from "./panel";
-import { PersonFields, readPerson, SubmitRow } from "./person-form";
+import { input, PersonFields, readPerson, SubmitRow } from "./person-form";
 import { PhotoControls, type SignPhotoUpload } from "./PhotoControls";
 
-type Mode = "details" | "edit" | "parents" | "partner" | "child" | "sheet";
+type Mode = "details" | "edit" | "parents" | "partner" | "child" | "sheet" | "ownSheet";
 
 export interface PanelProps {
   tree: GroupTree;
@@ -99,6 +99,12 @@ export function PersonPanel({
   const otherSheets = tree.sheets.filter((s) => !buildSheetView(tree, s).persons.some((p) => p.id === person.id));
   // Sheets rooted at them (someone who married in, a mother's own), apart from the one open.
   const ownSheets = tabOrder(tree.sheets).filter((s) => s.rootPersonId === person.id && s.id !== currentSheetId);
+  // Create their own sheet (an owner request after the final check): for someone without one. A woman's
+  // starts by leaving out her children with her (first) partner, like a mother's sheet from Add
+  // parents; a man's shows all his children, like a partner who married in.
+  const hasOwnSheet = tree.sheets.some((s) => s.rootPersonId === person.id);
+  const withChildren = couples.filter((c) => c.children.length > 0);
+  const their = person.gender === "female" ? "her" : "his";
 
   return (
     <aside aria-label="Person details" className={detailsPanel(mode !== "details")}>
@@ -165,6 +171,7 @@ export function PersonPanel({
                   ["partner", "Add partner", true],
                   ["child", "Add child", true],
                   ["sheet", "Show on another sheet", otherSheets.length > 0],
+                  ["ownSheet", "Create their own sheet", !hasOwnSheet],
                 ] as const
               ).map(([m, label, shown]) =>
                 shown ? (
@@ -288,6 +295,39 @@ export function PersonPanel({
             ))}
           </select>
           <SubmitRow label="Show" pending={pending} onCancel={back} />
+        </form>
+      )}
+
+      {mode === "ownSheet" && (
+        <form aria-label="Create their own sheet" onSubmit={submit((form) => {
+          const title = String(form.get("title") ?? "").trim();
+          if (!title || title.length > 120) return "Enter a title of up to 120 characters.";
+          return newSheetOps(person.id, title, String(form.get("hideChildrenOf") ?? "") || undefined);
+        })} className="flex flex-col gap-3">
+          <h3 className="font-medium">{person.name}&apos;s own sheet</h3>
+          <label className="flex flex-col gap-1 text-sm font-medium">
+            Sheet title
+            <input name="title" defaultValue={`${person.name}'s family`} maxLength={120} className={input} />
+          </label>
+          {withChildren.length > 0 && (
+            <fieldset className="flex flex-col gap-2 text-sm">
+              <legend className="mb-1 font-medium">{their === "her" ? "Her" : "His"} children</legend>
+              {withChildren.map((c, i) => (
+                <label key={c.union.id} className="flex items-start gap-2">
+                  <input type="radio" name="hideChildrenOf" value={c.union.id} defaultChecked={their === "her" && i === 0} className="mt-1" />
+                  <span>Leave out {their} children {c.partner ? `with ${c.partner.name}` : "with no other parent"}</span>
+                </label>
+              ))}
+              <label className="flex items-start gap-2">
+                <input type="radio" name="hideChildrenOf" value="" defaultChecked={their === "his"} className="mt-1" />
+                <span>Show all {their} children</span>
+              </label>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Leaving them out makes a tab for {their} side of the family: {their} parents, brothers and sisters.
+              </p>
+            </fieldset>
+          )}
+          <SubmitRow label="Create sheet" pending={pending} onCancel={back} />
         </form>
       )}
 

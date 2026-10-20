@@ -80,6 +80,23 @@ test("a person's panel goes to their own sheet (owner request)", async ({ page, 
   await expect(goTo).toHaveText(["Go to Jerry Willow's family"]);
 });
 
+test("someone added without a sheet gets one later: Taylor Humes's leaves out her children with Jake (owner request)", async ({ page, signIn, sampleGroup }) => {
+  await openSampleGroup(page, signIn, sampleGroup);
+  await card(page, "Taylor Humes").click();
+  await personPanel(page).getByRole("button", { name: "Create their own sheet" }).click();
+  const create = form(page, "Create their own sheet");
+  await expect(create.getByRole("textbox", { name: "Sheet title" })).toHaveValue("Taylor Humes's family");
+  await expect(create.getByRole("radio", { name: "Leave out her children with Jake Cruz" })).toBeChecked();
+  await create.getByRole("button", { name: "Create sheet" }).click();
+
+  await expect(page.getByRole("tab", { name: "Taylor Humes's family" })).toBeVisible();
+  await expect(personPanel(page).getByRole("button", { name: "Create their own sheet" })).toHaveCount(0); // she has one now
+  await personPanel(page).getByRole("button", { name: "Go to Taylor Humes's family" }).click();
+  await expect(page.getByRole("tab", { name: "Taylor Humes's family" })).toHaveAttribute("aria-selected", "true");
+  await expect(cards(page)).toHaveCount(2); // Taylor and Jake: their children are on the Cruz side
+  await expect(card(page, "Jake Cruz")).toBeVisible();
+});
+
 test("adding parents, the mother can get her own sheet, showing her side (owner request)", async ({ page, signIn, sampleGroup }) => {
   await openSampleGroup(page, signIn, sampleGroup);
   await card(page, "Taylor Humes").click();

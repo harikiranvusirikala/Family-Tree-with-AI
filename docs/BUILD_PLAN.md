@@ -27,6 +27,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Go to a person's sheet (owner request, after step 11) | Done 2026-10-20. See its section after step 11 |
 | – | Final check on the live site | Done 2026-10-20 by the owner. See its section at the end |
 | – | Phones and tablets (owner request, after the final check) | Done 2026-10-20 (merged to `main`); the eye button back in the sheet row after the owner's check. See its section at the end |
+| – | A sheet of their own, later (owner request, after the final check) | Done 2026-10-20. See its section at the end |
 
 ## How we work
 
@@ -847,3 +848,18 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - Safe-area padding wasn't needed: without `viewport-fit=cover` the browsers keep the page clear of the notch and the home bar themselves, and `h-dvh` keeps it between the browser's bars.
   - The user's name beside the initials is hidden below 1024 px but kept for screen readers (`sr-only`), so the menu button still has the name (and the sign-out test still finds it).
   - Every existing (desktop) e2e test passes unchanged, and desktop screenshots look the same.
+
+## After the final check: a sheet of their own, later (owner request)
+- **Why:** "Create their own sheet" is offered only while adding someone (a partner, or a mother in Add parents). A mother added without it had no way to get her sheet later: "+ New sheet" makes a sheet rooted at her, but it shows her children too, which are on the father's side.
+- **Build:**
+  - The person panel gets **Create their own sheet** (Maintain and up) for anyone with no sheet rooted at them. Once they have one, "Go to <title>" shows instead.
+  - Its form: the sheet's **title** ("<Name>'s family" to start with) and, for someone with children, a choice of what the sheet does with them: **leave out the children they had with <partner>** (one choice per couple with children, or "on her own" for a single parent's), or **show all their children**.
+  - **The default** (decision 2): a woman's children with her partner are left out, like the mother's sheet from Add parents: her side of the family (her parents, brothers and sisters). With children by more than one partner, the first couple with children is chosen. A man's sheet shows all his children, like a partner who married in. Either can be changed in the form.
+  - It saves one `createSheet`, with `hideChildrenOf` when children are left out (the planner already checks the couple is theirs). Not pinned. The panel stays open and offers "Go to" the new sheet.
+  - The assistant's `create_sheet` is unchanged (it never leaves children out).
+- **Decisions (owner, 2026-10-20):**
+  1. Anyone without a sheet of their own gets the option, not only women.
+  2. For a woman with children, the new sheet leaves them out by default; the form can show them instead.
+- **Tests:**
+  - Unit: the builder against the sample family: Taylor Humes's sheet leaving out her children with Jake Cruz shows the two of them; showing all adds their children and grandchildren. The panel: the button only for someone without a sheet and only for Maintain and up; a woman's choice starts on leaving out, a man's on showing all; the title is required; saving sends the sheet with the chosen couple.
+  - E2E: Taylor Humes gets "Create their own sheet" with "Leave out her children with Jake Cruz" chosen; after saving, "Go to Taylor Humes's family" opens a tab with only Taylor and Jake, and the button is gone.
