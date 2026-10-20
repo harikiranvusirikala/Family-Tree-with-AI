@@ -8,6 +8,12 @@ import { createContext } from "react";
  */
 export const CloudNameContext = createContext<string | undefined>(undefined);
 
+/**
+ * True while the eye button hides every photo, so cards and panels show initials, and so does a
+ * picture of the sheet (an owner request after step 11). Given by the sheets page.
+ */
+export const PhotosHiddenContext = createContext(false);
+
 /** Twice the card's photo circle (PHOTO_SIZE), for sharp screens. The panel reuses it, so each photo downloads once. */
 export const PHOTO_PIXELS = 168;
 

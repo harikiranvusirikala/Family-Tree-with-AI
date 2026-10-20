@@ -3,7 +3,7 @@
 import { useContext, useState } from "react";
 import type { Person } from "@/tree/types";
 import { initials } from "../initials";
-import { CloudNameContext, photoUrl } from "./photo";
+import { CloudNameContext, PhotosHiddenContext, photoUrl } from "./photo";
 
 // Features.md: light blue border for male, light pink for female. The minimap needs the ring as a colour.
 export const GENDER_COLORS = {
@@ -19,12 +19,13 @@ const CIRCLE = {
 
 /**
  * The round photo in its blue or pink border, or the person's initials when there is no photo, photos
- * aren't set up, or the photo doesn't load.
+ * aren't set up or are hidden, or the photo doesn't load.
  */
 export function PersonPhoto({ person, size }: { person: Pick<Person, "name" | "gender" | "photoId">; size: number }) {
   const cloudName = useContext(CloudNameContext);
+  const hidden = useContext(PhotosHiddenContext);
   const [failed, setFailed] = useState<string>(); // the photo that didn't load
-  const src = cloudName && person.photoId && person.photoId !== failed ? photoUrl(cloudName, person.photoId) : undefined;
+  const src = cloudName && !hidden && person.photoId && person.photoId !== failed ? photoUrl(cloudName, person.photoId) : undefined;
   return (
     <div
       className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border-4 font-semibold ${CIRCLE[person.gender]}`}

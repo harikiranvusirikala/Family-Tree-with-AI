@@ -33,6 +33,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 ### Photos
 
 - Allow Image upload for the person name
+- To have an eye icon that is used hide the photos of every person and display only initials. This may be usefully when taking a png of the tree and want to share with someone without revealing the faces. (added 2026-10-20)
 
 ### AI chat behaviour
 
@@ -155,6 +156,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 - Uploads go straight from the browser to Cloudinary, signed by the app for a random name in the group's folder.
 - Stored at most 1600 px on the long side; cards show a face crop. Automatic face crop only, no manual cropping for now.
 - Replacing or removing a photo deletes the old one from Cloudinary (Remove asks first: no Undo). Deleting a person keeps their photo, so Undo brings it back.
+- Hide photos (added after step 11): an eye button at the end of the sheet tabs, before Export, shows initials instead of every photo on the cards, in the person panel, and in a saved or printed picture. It saves nothing and anyone can use it; it lasts until the next visit.
 
 ### AI chat behaviour
 

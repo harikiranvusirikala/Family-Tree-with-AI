@@ -102,6 +102,8 @@ test("a Viewer sees photos but no photo buttons", async ({ browser, page, signIn
     await viewerPage.goto(`/g/${groupId}/s/${cruzSheet}`);
     await expect(cardPhoto(viewerPage, "Jake Cruz")).toHaveAttribute("src", new RegExp(`${photoId}$`));
 
+    await expect(viewerPage.getByRole("button", { name: "Hide photos" })).toBeVisible(); // a view setting, for everyone
+
     await card(viewerPage, "Jake Cruz").click();
     const panel = personPanel(viewerPage);
     await expect(panel.locator("img")).toHaveAttribute("src", new RegExp(`${photoId}$`));
@@ -111,4 +113,37 @@ test("a Viewer sees photos but no photo buttons", async ({ browser, page, signIn
   } finally {
     await viewerPage.context().close();
   }
+});
+
+test("the eye button hides every photo: cards, the panel and a saved picture show initials (owner request after step 11)", async ({ page, signIn, sampleGroup, database }) => {
+  await servePhotos(page);
+  const owner = await signIn(page, "Carla Cruz");
+  const { groupId, cruzSheet } = await sampleGroup(owner);
+  const jake = (await loadGroupTree(database.db, groupId)).persons.find((p) => p.name === "Jake Cruz")!.id;
+  await applyGroupChanges(database, groupId, owner.id, setPhotoOps(jake, `groups/${groupId}/eye-test-photo`));
+  await page.goto(`/g/${groupId}/s/${cruzSheet}`);
+  await expect(cardPhoto(page, "Jake Cruz")).toHaveCount(1);
+
+  const eye = page.getByRole("button", { name: "Hide photos" });
+  await expect(eye).toHaveAttribute("aria-pressed", "false");
+  await eye.click();
+  await expect(eye).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("tabpanel").locator("img")).toHaveCount(0); // the picture is made from this
+  await expect(wholeCard(page, "Jake Cruz")).toContainText("JC");
+  await card(page, "Jake Cruz").click();
+  await expect(personPanel(page).locator("img")).toHaveCount(0);
+  await expect(personPanel(page)).toContainText("JC");
+
+  // Still hidden on another sheet, and in a picture saved from it.
+  await page.getByRole("tab", { name: "Jerry Willow's family" }).click();
+  await expect(wholeCard(page, "Jake Cruz")).toContainText("JC");
+  await expect(page.getByRole("tabpanel").locator("img")).toHaveCount(0);
+  await page.getByRole("button", { name: "Export" }).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("menu", { name: "Export" }).getByRole("menuitem", { name: "Picture (PNG)" }).click();
+  await (await download).saveAs("test-results/screenshots/sheet-picture-no-photos.png"); // for checking by eye
+
+  await eye.click();
+  await expect(eye).toHaveAttribute("aria-pressed", "false");
+  await expect(cardPhoto(page, "Jake Cruz")).toHaveAttribute("src", new RegExp("eye-test-photo$"));
 });

@@ -22,6 +22,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 9 | AI chat (F7) | Done 2026-10-19 (merged to `main`). Indexes set up in `familytree_preview` and `familytree`. See the step 9 notes |
 | 10 | Import and export (F9, F10) | Done 2026-10-19. See the step 10 notes |
 | 11 | Nightly backup and hardening (F12) | Done 2026-10-19. Backup user, GitHub secrets and Dependabot alerts set up by the owner. Checked by the owner 2026-10-20 (merged to `main`): the backup workflow run by hand (green after the health-check fix), a restore check of its file, and the production smoke test, all passed. See the step 11 notes |
+| – | Hide photos (owner request, after step 11) | Done 2026-10-20. See its section after step 11 |
 | – | Final check on the live site | Not done yet. See its section at the end |
 
 ## How we work
@@ -713,6 +714,18 @@ The app is built in small steps. Each step ends with its tests passing, a check 
     - The sandbox blocks the live site, so the smoke test's first run is the owner's (or `smoke.yml`'s).
     - The backup scripts need Atlas, outside the allowlist. `npm run test:db` runs the same backup and restore code against Atlas. The scripts' error messages and the hidden key prompt (in a pseudo-terminal) were checked here.
   - **Previews:** Vercel's toolbar on preview deployments loads from vercel.live, which the policy blocks; the previews work without it.
+
+## After step 11: hide photos (owner request)
+- **Why:** to save or print a picture of the tree and share it without showing anyone's face.
+- **Build:**
+  - An eye button at the end of the sheet tabs, before Export (`HidePhotosButton`), shown when photos are set up. Pressed, it hides every photo on the sheets page, and the eye gets a line through it.
+  - **What it hides:** every card, and the person panel, show initials in the blue or pink ring instead. So does a picture or print of the sheet, which is made from what the canvas shows.
+  - **What it doesn't change:** nothing is saved. The photos stay in Cloudinary, the photo buttons keep working, and anyone can use it, Viewers included.
+  - **How long it lasts:** it stays while you switch sheets, and the page shows photos again on the next visit (a reload, or coming back to the group).
+  - `PhotosHiddenContext` (next to `CloudNameContext` in `src/components/tree/photo.ts`) carries the setting from `GroupSheets` to `PersonPhoto`.
+- **Tests:**
+  - Unit: `PersonPhoto` shows initials while photos are hidden, and the photo again when they aren't.
+  - E2E: with a photo on Jake, the eye button hides it on his card, in his panel and on another sheet, with no `<img>` left on the canvas. A picture is saved meanwhile, as `test-results/screenshots/sheet-picture-no-photos.png`, and pressing it again brings the photo back. Viewers get the button too.
 
 ## Final check on the live site
 1. Sign in with Google.

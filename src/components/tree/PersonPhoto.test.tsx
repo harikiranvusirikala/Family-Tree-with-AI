@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { PersonPhoto } from "./PersonPhoto";
-import { CloudNameContext, photoUrl } from "./photo";
+import { CloudNameContext, PhotosHiddenContext, photoUrl } from "./photo";
 
 afterEach(cleanup);
 
@@ -38,5 +38,20 @@ describe("photos on cards and panels", () => {
     fireEvent.error(container.querySelector("img")!);
     expect(container.querySelector("img")).toBeNull();
     expect(screen.getByText("JC")).toBeDefined();
+  });
+
+  test("initials while the eye button hides photos, and the photo again when it doesn't", () => {
+    const tree = (hidden: boolean) => (
+      <CloudNameContext value="demo">
+        <PhotosHiddenContext value={hidden}>
+          <PersonPhoto person={jake} size={84} />
+        </PhotosHiddenContext>
+      </CloudNameContext>
+    );
+    const { container, rerender } = render(tree(true));
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getByText("JC")).toBeDefined();
+    rerender(tree(false));
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(photoUrl("demo", jake.photoId));
   });
 });

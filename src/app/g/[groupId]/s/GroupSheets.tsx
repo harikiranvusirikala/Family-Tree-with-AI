@@ -11,7 +11,8 @@ import { fileName } from "@/server/import-export/types";
 import { CouplePanel } from "@/components/tree/edit/CouplePanel";
 import { PersonPanel } from "@/components/tree/edit/PersonPanel";
 import { SheetTabs } from "@/components/tree/edit/SheetTabs";
-import { CloudNameContext } from "@/components/tree/photo";
+import { HidePhotosButton } from "@/components/tree/HidePhotosButton";
+import { CloudNameContext, PhotosHiddenContext } from "@/components/tree/photo";
 import type { Operation } from "@/server/operations/schema";
 import { deletePersonOps, restorePersonOps, tabOrder } from "@/tree/edits";
 import { buildSheetView } from "@/tree/sheet-view";
@@ -56,6 +57,8 @@ export function GroupSheets({
   const [chatOpen, setChatOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [picturing, setPicturing] = useState(false);
+  // The eye button: kept while switching sheets, back to showing photos on the next visit.
+  const [photosHidden, setPhotosHidden] = useState(false);
   const capture = useRef<CapturePicture | null>(null);
 
   /** Export, picture (F9): the whole sheet, then a download or the print dialog. */
@@ -125,111 +128,114 @@ export function GroupSheets({
 
   return (
     <CloudNameContext value={cloudName}>
-      <SheetTabs
-        tree={tree}
-        sheets={sheets}
-        current={current}
-        canEdit={canEdit}
-        pending={pending}
-        run={run}
-        onOpen={openSheet}
-        trailing={
-          <div className="flex items-center gap-2">
-            <ExportMenu
-              groupId={groupId}
-              sheetId={current.id}
-              canExportData={canEdit}
-              busy={picturing}
-              onPicture={() => picture((url) => downloadPicture(url, fileName(current.title)))}
-              onPrint={() => picture((url) => printPicture(url, current.title))}
-            />
-            {canEdit && (
-              <button
-                type="button"
-                aria-expanded={importOpen}
-                onClick={() => setImportOpen(!importOpen)}
-                className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium hover:bg-zinc-100 aria-expanded:bg-zinc-900 aria-expanded:text-white dark:border-zinc-700 dark:hover:bg-zinc-800 dark:aria-expanded:bg-white dark:aria-expanded:text-zinc-900"
-              >
-                Import…
-              </button>
-            )}
-            {chat && (
-              <button
-                type="button"
-                aria-expanded={chatOpen}
-                onClick={() => setChatOpen(!chatOpen)}
-                className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium hover:bg-zinc-100 aria-expanded:bg-zinc-900 aria-expanded:text-white dark:border-zinc-700 dark:hover:bg-zinc-800 dark:aria-expanded:bg-white dark:aria-expanded:text-zinc-900"
-              >
-                Ask AI
-              </button>
-            )}
-          </div>
-        }
-      />
-      {error && (
-        <p role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200">
-          {error}
-        </p>
-      )}
-      <div className="relative flex min-h-0 flex-1">
-        <div role="tabpanel" aria-label={current.title} className="min-w-0 flex-1">
-          <FamilyCanvas
-            view={view}
-            captureRef={capture}
-            actions={{
-              onPerson: (id) => setSelection({ kind: "person", id }),
-              onCouple: (id) => setSelection({ kind: "couple", id }),
-              selectedId: selection?.id,
-            }}
-          />
-        </div>
-        {person && (
-          <PersonPanel
-            key={person.id}
-            person={person}
-            onDelete={deletePerson}
-            signPhotoUpload={cloudName ? () => signPhotoUploadAction(groupId) : undefined}
-            {...panelProps}
-          />
+      <PhotosHiddenContext value={photosHidden}>
+        <SheetTabs
+          tree={tree}
+          sheets={sheets}
+          current={current}
+          canEdit={canEdit}
+          pending={pending}
+          run={run}
+          onOpen={openSheet}
+          trailing={
+            <div className="flex items-center gap-2">
+              {cloudName && <HidePhotosButton hidden={photosHidden} onToggle={() => setPhotosHidden(!photosHidden)} />}
+              <ExportMenu
+                groupId={groupId}
+                sheetId={current.id}
+                canExportData={canEdit}
+                busy={picturing}
+                onPicture={() => picture((url) => downloadPicture(url, fileName(current.title)))}
+                onPrint={() => picture((url) => printPicture(url, current.title))}
+              />
+              {canEdit && (
+                <button
+                  type="button"
+                  aria-expanded={importOpen}
+                  onClick={() => setImportOpen(!importOpen)}
+                  className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium hover:bg-zinc-100 aria-expanded:bg-zinc-900 aria-expanded:text-white dark:border-zinc-700 dark:hover:bg-zinc-800 dark:aria-expanded:bg-white dark:aria-expanded:text-zinc-900"
+                >
+                  Import…
+                </button>
+              )}
+              {chat && (
+                <button
+                  type="button"
+                  aria-expanded={chatOpen}
+                  onClick={() => setChatOpen(!chatOpen)}
+                  className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium hover:bg-zinc-100 aria-expanded:bg-zinc-900 aria-expanded:text-white dark:border-zinc-700 dark:hover:bg-zinc-800 dark:aria-expanded:bg-white dark:aria-expanded:text-zinc-900"
+                >
+                  Ask AI
+                </button>
+              )}
+            </div>
+          }
+        />
+        {error && (
+          <p role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200">
+            {error}
+          </p>
         )}
-        {couple && <CouplePanel key={couple.id} union={couple} {...panelProps} />}
-        {importOpen && (
-          <aside aria-label="Import" className="w-96 shrink-0 overflow-y-auto border-l border-zinc-200 bg-white p-4 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
-            <ImportPanel
-              tree={tree}
-              targetGroupId={groupId}
-              onImport={async (batch) => {
-                const idMap = await run(batch.operations);
-                if (!idMap) return "Not imported: see the message above the tree.";
-                setImportOpen(false);
-                openSheet(idMap[batch.firstSheet]);
-                return null;
+        <div className="relative flex min-h-0 flex-1">
+          <div role="tabpanel" aria-label={current.title} className="min-w-0 flex-1">
+            <FamilyCanvas
+              view={view}
+              captureRef={capture}
+              actions={{
+                onPerson: (id) => setSelection({ kind: "person", id }),
+                onCouple: (id) => setSelection({ kind: "couple", id }),
+                selectedId: selection?.id,
               }}
-              onClose={() => setImportOpen(false)}
             />
-          </aside>
-        )}
-        {/* Kept mounted while hidden, so closing the panel doesn't lose the conversation. */}
-        {chat && (
-          <div hidden={!chatOpen} className="flex">
-            <ChatWidget groupId={groupId} tree={tree} run={run} pending={pending} onClose={() => setChatOpen(false)} />
           </div>
-        )}
-        {deleted && (
-          <div role="status" className="absolute bottom-4 left-4 z-20 flex items-center gap-3 rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white shadow-lg dark:bg-white dark:text-zinc-900">
-            <span>{deleted.name} deleted.</span>
-            <button type="button" onClick={undoDelete} disabled={pending} className="font-semibold underline">
-              Undo
-            </button>
-          </div>
-        )}
-      </div>
-      {/* Covers the page while the picture is made in day colours, so night mode doesn't flash. */}
-      {picturing && (
-        <div role="status" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 text-sm font-medium text-white">
-          Preparing the picture…
+          {person && (
+            <PersonPanel
+              key={person.id}
+              person={person}
+              onDelete={deletePerson}
+              signPhotoUpload={cloudName ? () => signPhotoUploadAction(groupId) : undefined}
+              {...panelProps}
+            />
+          )}
+          {couple && <CouplePanel key={couple.id} union={couple} {...panelProps} />}
+          {importOpen && (
+            <aside aria-label="Import" className="w-96 shrink-0 overflow-y-auto border-l border-zinc-200 bg-white p-4 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
+              <ImportPanel
+                tree={tree}
+                targetGroupId={groupId}
+                onImport={async (batch) => {
+                  const idMap = await run(batch.operations);
+                  if (!idMap) return "Not imported: see the message above the tree.";
+                  setImportOpen(false);
+                  openSheet(idMap[batch.firstSheet]);
+                  return null;
+                }}
+                onClose={() => setImportOpen(false)}
+              />
+            </aside>
+          )}
+          {/* Kept mounted while hidden, so closing the panel doesn't lose the conversation. */}
+          {chat && (
+            <div hidden={!chatOpen} className="flex">
+              <ChatWidget groupId={groupId} tree={tree} run={run} pending={pending} onClose={() => setChatOpen(false)} />
+            </div>
+          )}
+          {deleted && (
+            <div role="status" className="absolute bottom-4 left-4 z-20 flex items-center gap-3 rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white shadow-lg dark:bg-white dark:text-zinc-900">
+              <span>{deleted.name} deleted.</span>
+              <button type="button" onClick={undoDelete} disabled={pending} className="font-semibold underline">
+                Undo
+              </button>
+            </div>
+          )}
         </div>
-      )}
+        {/* Covers the page while the picture is made in day colours, so night mode doesn't flash. */}
+        {picturing && (
+          <div role="status" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 text-sm font-medium text-white">
+            Preparing the picture…
+          </div>
+        )}
+      </PhotosHiddenContext>
     </CloudNameContext>
   );
 }
