@@ -37,8 +37,13 @@ test("tabs, the sheet menu and side panels on a tablet", async ({ page, signIn, 
   // Like a phone, the sheet opens zoomed in at its root, names readable (cards are 150 px).
   await expect.poll(async () => (await box(cards(page).filter({ hasText: "Alexander Cruz" }))).width).toBeGreaterThan(105);
 
+  // The eye stays in the row, just before the menu.
+  const [eye, menuButton] = [await box(page.getByRole("button", { name: "Hide photos" })), await box(page.getByRole("button", { name: "Sheet menu" }))];
+  expect(eye.x + eye.width).toBeLessThanOrEqual(menuButton.x);
+
   await page.getByRole("button", { name: "Sheet menu" }).click();
   const menu = page.getByRole("menu", { name: "Sheet menu" });
+  await expect(menu.getByText("Hide photos")).toHaveCount(0);
   await expect(menu.getByRole("menuitem", { name: "Move right" })).toBeVisible();
   const menuBox = await box(menu);
   expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(viewport.width);

@@ -17,9 +17,9 @@ export const sheetMenuHeading = "px-2 pt-2 text-xs text-zinc-500 dark:text-zinc-
  * pin, move or delete it. Buttons rather than drag-and-drop, so they work from the keyboard. `trailing` goes at
  * the right end of the row (Export, Ask AI…).
  *
- * Below 1024 px (an owner request after the final check) the row keeps only the sheets and one menu
- * (⋯, "Sheet menu"), which holds the sheet's options and `menuItems` (the trailing tools as menu items).
- * Phones get a sheet picker instead of tabs.
+ * Below 1024 px (an owner request after the final check) the row keeps only the sheets, `beforeMenu`
+ * (the eye that hides photos) and one menu (⋯, "Sheet menu"), which holds the sheet's options and
+ * `menuItems` (the other trailing tools as menu items). Phones get a sheet picker instead of tabs.
  */
 export function SheetTabs({
   tree,
@@ -30,6 +30,7 @@ export function SheetTabs({
   run,
   onOpen,
   trailing,
+  beforeMenu,
   menuItems,
 }: {
   tree: GroupTree;
@@ -40,6 +41,7 @@ export function SheetTabs({
   run: (ops: Operation[]) => Promise<Record<string, string> | null>;
   onOpen: (sheetId: string) => void;
   trailing?: ReactNode;
+  beforeMenu?: ReactNode;
   menuItems?: ReactNode;
 }) {
   const [tool, setTool] = useState<"menu" | "more" | "rename" | "new" | "delete" | null>(null);
@@ -155,6 +157,7 @@ export function SheetTabs({
           )}
         </div>
         <SheetPicker sheets={sheets} current={current} onOpen={onOpen} />
+        {beforeMenu && <div className="flex shrink-0 md:mb-1 lg:hidden">{beforeMenu}</div>}
         <button
           type="button"
           aria-label="Sheet menu"

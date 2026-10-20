@@ -26,7 +26,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Sheet changes: the mother's own sheet, renaming follows, delete a sheet (owner requests, after step 11) | Done 2026-10-20. See their section after step 11 |
 | – | Go to a person's sheet (owner request, after step 11) | Done 2026-10-20. See its section after step 11 |
 | – | Final check on the live site | Done 2026-10-20 by the owner. See its section at the end |
-| – | Phones and tablets (owner request, after the final check) | Done 2026-10-20. See its section at the end |
+| – | Phones and tablets (owner request, after the final check) | Done 2026-10-20 (merged to `main`); the eye button back in the sheet row after the owner's check. See its section at the end |
 
 ## How we work
 
@@ -804,7 +804,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 - **Build:**
   - **Header on phones:** "Family Tree", the group's name (cut short with … when long) and the avatar. Members (with its requests badge), Settings, the day/night choice and Sign out move into the avatar's menu, and the avatar shows the badge too. Tablets keep today's header, without the user's name next to the avatar.
   - **Switching sheets (decision 1):** phones get a sheet picker: a full-width box with the open sheet's title and ▾. It opens the device's own list (a `<select>`) of every sheet in tab order, pinned ones first under "Pinned", and opens the one tapped. Tablets keep the tabs, which scroll sideways.
-  - **The sheet's tools (decision 2):** below 1024 px, Hide photos, Export (picture, print, GEDCOM, JSON) and Import… move into one menu (⋯) at the end of the sheet row, together with the sheet's own options for Maintain and up (New sheet, Rename, Pin, Move, Delete). Ask AI becomes a round button at the bottom right of the tree. The sheet row is then just the picker (or tabs) and that menu.
+  - **The sheet's tools (decisions 2 and 5):** below 1024 px, Export (picture, print, GEDCOM, JSON) and Import… move into one menu (⋯) at the end of the sheet row, together with the sheet's own options for Maintain and up (New sheet, Rename, Pin, Move, Delete). The eye that hides photos stays in the row, just before ⋯: a bigger eye with no circle around it, like the ⋯. Ask AI becomes a round button at the bottom right of the tree. The sheet row is then just the picker (or tabs), the eye and that menu.
   - **Panels on phones (decision 3):** the person and couple panels open as a sheet over the bottom half of the screen, full width and scrolling inside, with the tree above it; the canvas moves the selected card into the part still visible. Its forms (Edit details, Add parents…) use the full height. Chat and Import open full screen with Close. Tablets keep side panels.
   - **The tree on phones and tablets (decision 4, extended to tablets; see the notes):** a sheet opens zoomed in far enough to read names (75 %), at its root person (top centre), unless the whole sheet fits at that zoom; the ⛶ button still shows the whole tree. After a change to the same sheet the view stays where it was. A selected card is moved into view: above a phone's panel, or within a tablet's tree, which the panel beside it makes narrower. Pinch to zoom and drag to move already work (React Flow handles touch). The minimap is hidden below 1024 px, and the zoom buttons are bigger on touch screens.
   - **Phone browsers and touch:**
@@ -822,13 +822,13 @@ The app is built in small steps. Each step ends with its tests passing, a check 
     - No page scrolls sideways: sign-in, dashboard, sheets, members, settings, no access, invite, at 390 px and 360 px.
     - The avatar menu has Members, Settings, the theme choice and Sign out.
     - The picker lists both sample sheets and opens Jerry Willow's family.
-    - The ⋯ menu hides photos, saves a picture and opens Import… full screen, and a tap on the tree closes it; a Viewer's menu has no edit items.
+    - The eye sits in the row just before ⋯, 24 px with no border, and hides and shows photos; the ⋯ menu saves a picture and opens Import… full screen, has no Hide photos, and a tap on the tree closes it. A Viewer gets the eye, and a menu with no edit items.
     - Tapping Olivia Cruz, low on the screen, opens the bottom panel and moves her card above it; so does choosing her father Jerry Willow in the panel, whose card was then above the screen. Add child takes the full height and saves, and "Go to Jerry Willow's family" works.
     - Ask AI opens the chat full screen, and Close returns to the tree.
     - The first view shows the root's name at a readable size.
     - The main buttons are at least 44 px tall, and a text field has 16 px text.
-  - **Tablet (E2E):** the header with its links and theme switch, tabs, the ⋯ menu on screen, the readable first view, and the side panel with Jerry's card kept in the narrower tree; no sideways scrolling.
-  - **Unit:** the picker (order, pinned group, choosing a sheet) and the ⋯ menu (the sheet's options for Maintain and up, then the tools; an item closes it) in `SheetTabs.test.tsx`; the first view and bringing a card into view in `framing.test.ts`.
+  - **Tablet (E2E):** the header with its links and theme switch, tabs, the eye before the ⋯ menu, the menu on screen, the readable first view, and the side panel with Jerry's card kept in the narrower tree; no sideways scrolling.
+  - **Unit:** the picker (order, pinned group, choosing a sheet), the eye just before the ⋯ menu and not in it, and the menu (the sheet's options for Maintain and up, then the tools; an item closes it) in `SheetTabs.test.tsx`; the first view and bringing a card into view in `framing.test.ts`.
   - **Screenshots:** `phone-tree.png`, `phone-panel.png`, `phone-menu.png`, `phone-chat.png`, `night-phone-tree.png` and `tablet-tree.png`.
 - **Owner checks:** on the branch's Vercel preview, on your own phone (and a tablet if you have one): sign in, open a tree, switch sheets, pinch and drag, tap people, add someone, ask the AI, save a picture, and turn the phone sideways.
 - **Decisions (owner, 2026-10-20),** each the proposal over the alternatives shown:
@@ -836,6 +836,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   2. Below 1024 px the tools go into one ⋯ menu, with a round Ask AI button over the tree; not a bar at the bottom or a second row under the tabs.
   3. On a phone the person panel opens over the bottom half with the tree above, not full screen.
   4. On a phone a sheet opens zoomed in at its root with names readable, not the whole tree fitted.
+  5. After checking the preview: the eye that hides photos stays in the sheet row, just before ⋯, on phones and tablets, a bigger eye (24 px) with no circle around it; the other tools stay in the menu.
 - **Notes (2026-10-20):**
   - **Tablets get decision 4's first view too.** It was decided for phones, but the owner's message while planning said tablets had no easy view either: fitting the sample's Cruz family sheet into an iPad's 810 px left 5 px names, and opening a panel hid the tree's right side. Below 1024 px a sheet now opens at the readable zoom, and a selected card is kept in view. Easy to undo if the owner prefers the whole tree on tablets.
   - The first e2e run showed phones still opening with the whole tree (cards 26 px wide). React Flow's `fitView` prop fits once the cards are measured, after the canvas's own framing, and undid it. The canvas frames every sheet itself, so the prop is gone.

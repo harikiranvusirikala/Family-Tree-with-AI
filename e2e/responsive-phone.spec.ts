@@ -110,29 +110,38 @@ test("a sheet opens zoomed in at its root, and the picker switches sheets", asyn
   await expect(cards(page)).toHaveCount(32);
 });
 
-test("the sheet menu holds the sheet's options and tools", async ({ page, signIn, sampleGroup }) => {
+test("the eye stays in the row before the sheet menu, which holds the sheet's options and the other tools", async ({ page, signIn, sampleGroup }) => {
   await openSampleGroup(page, signIn, sampleGroup);
   for (const name of ["Export", "Import…", "Sheet options", "+ New sheet"]) await expect(page.getByRole("button", { name, exact: true })).toHaveCount(0);
+
+  // The eye that hides photos: in the row, just before the menu (the owner's choice after the preview).
+  const eye = page.getByRole("button", { name: "Hide photos" });
+  const [eyeBox, menuButton] = [await box(eye), await box(page.getByRole("button", { name: "Sheet menu" }))];
+  expect(eyeBox.x + eyeBox.width).toBeLessThanOrEqual(menuButton.x);
+  expect(Math.abs(eyeBox.y + eyeBox.height / 2 - (menuButton.y + menuButton.height / 2))).toBeLessThan(2);
+  // A bigger eye than on a computer, with no circle around it (also the owner's choice).
+  expect(await eye.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe("0px");
+  expect((await box(eye.locator("svg"))).width).toBe(24);
+  await eye.tap();
+  await expect(eye).toHaveAttribute("aria-pressed", "true");
+  await eye.tap();
+  await expect(eye).toHaveAttribute("aria-pressed", "false");
 
   await page.getByRole("button", { name: "Sheet menu" }).click();
   const menu = sheetMenu(page);
   for (const name of ["Rename", "Unpin", "Move up", "Delete sheet", "+ New sheet", "Picture (PNG)", "Data: whole group (JSON)", "Import…"]) {
     await expect(menu.getByRole("menuitem", { name, exact: true })).toBeVisible();
   }
-  await expect(menu.getByRole("menuitemcheckbox", { name: "Hide photos" })).toHaveAttribute("aria-checked", "false");
+  await expect(menu.getByText("Hide photos")).toHaveCount(0);
   await shot(page, "phone-menu");
   for (const item of await menu.getByRole("menuitem").all()) {
     await item.scrollIntoViewIfNeeded(); // the menu scrolls when it's taller than the screen
     expect(await onScreen(item)).toBe(true);
   }
 
-  await menu.getByRole("menuitemcheckbox", { name: "Hide photos" }).click();
-  await expect(menu).toHaveCount(0); // any item closes it
-  await page.getByRole("button", { name: "Sheet menu" }).click();
-  await expect(menu.getByRole("menuitemcheckbox", { name: "Hide photos" })).toHaveAttribute("aria-checked", "true");
-
   const download = page.waitForEvent("download");
   await menu.getByRole("menuitem", { name: "Picture (PNG)" }).click();
+  await expect(menu).toHaveCount(0); // any item closes it
   expect((await download).suggestedFilename()).toBe("Cruz family.png");
 
   await page.getByRole("button", { name: "Sheet menu" }).click();
@@ -215,6 +224,7 @@ test("the main controls are big enough to tap", async ({ page, signIn, sampleGro
     picker(page),
     page.getByRole("button", { name: "Sheet menu" }),
     page.getByRole("button", { name: "Ask AI" }),
+    page.getByRole("button", { name: "Hide photos" }),
     page.getByRole("banner").getByRole("button", { name: owner.name }),
   ];
   for (const control of controls) expect((await box(control)).height).toBeGreaterThanOrEqual(44);
@@ -226,7 +236,7 @@ test("the main controls are big enough to tap", async ({ page, signIn, sampleGro
   expect(await title.evaluate((el) => getComputedStyle(el).fontSize)).toBe("16px");
 });
 
-test("a Viewer's sheet menu has only the picture and photos", async ({ browser, page, signIn, sampleGroup, addMember }) => {
+test("a Viewer gets the eye, and a sheet menu with only the picture", async ({ browser, page, signIn, sampleGroup, addMember }) => {
   const { groupId, cruzSheet } = await openSampleGroup(page, signIn, sampleGroup);
   const viewerPage = await browser.newPage({ viewport: page.viewportSize()!, isMobile: true, hasTouch: true });
   try {
@@ -237,7 +247,7 @@ test("a Viewer's sheet menu has only the picture and photos", async ({ browser, 
     await viewerPage.getByRole("button", { name: "Sheet menu" }).click();
     const menu = sheetMenu(viewerPage);
     await expect(menu.getByRole("menuitem", { name: "Picture (PNG)" })).toBeVisible();
-    await expect(menu.getByRole("menuitemcheckbox", { name: "Hide photos" })).toBeVisible();
+    await expect(viewerPage.getByRole("button", { name: "Hide photos" })).toBeVisible();
     for (const name of ["Rename", "+ New sheet", "Import…", "Data: whole group (JSON)"]) await expect(menu.getByRole("menuitem", { name, exact: true })).toHaveCount(0);
   } finally {
     await viewerPage.context().close();

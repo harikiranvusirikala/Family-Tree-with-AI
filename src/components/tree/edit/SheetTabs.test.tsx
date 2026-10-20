@@ -32,6 +32,7 @@ function tabs(canEdit: boolean) {
       pending={false}
       run={async () => null}
       onOpen={onOpen}
+      beforeMenu={<button type="button">Hide photos</button>}
       menuItems={<button type="button" role="menuitem">Picture (PNG)</button>}
     />,
   );
@@ -55,6 +56,14 @@ describe("the sheet row on phones and tablets (owner request)", () => {
     ]);
     fireEvent.change(picker, { target: { value: "emma-tab" } });
     expect(onOpen).toHaveBeenCalledWith("emma-tab");
+  });
+
+  test("the eye comes just before the sheet menu, outside it", () => {
+    tabs(false);
+    const eye = screen.getByRole("button", { name: "Hide photos" });
+    const menuButton = screen.getByRole("button", { name: "Sheet menu" });
+    expect(eye.compareDocumentPosition(menuButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(openMenu()).queryByText("Hide photos")).toBeNull();
   });
 
   test("the sheet menu has the sheet's options for Maintain and up, then the tools", () => {

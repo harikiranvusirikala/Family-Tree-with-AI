@@ -144,15 +144,11 @@ export function GroupSheets({
           pending={pending}
           run={run}
           onOpen={openSheet}
-          // Below 1024 px the tools below are items in the sheet menu, and Ask AI a round button.
+          // Below 1024 px the eye stays in the row, just before the sheet menu (the owner's choice), the
+          // other tools are items in that menu, and Ask AI is a round button.
+          beforeMenu={cloudName && <HidePhotosButton plain hidden={photosHidden} onToggle={() => setPhotosHidden(!photosHidden)} />}
           menuItems={
             <>
-              {cloudName && (
-                <button type="button" role="menuitemcheckbox" aria-checked={photosHidden} onClick={() => setPhotosHidden(!photosHidden)} className={sheetMenuItem}>
-                  Hide photos
-                  {photosHidden && <span aria-hidden>✓</span>}
-                </button>
-              )}
               <p className={sheetMenuHeading}>Export</p>
               <ExportItems {...exportProps} itemClass={sheetMenuItem} headings={false} />
               {canEdit && (

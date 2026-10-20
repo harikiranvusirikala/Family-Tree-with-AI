@@ -143,7 +143,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 
 - The app works on phones and tablets as well as computers, mainly in phone browsers. Computers keep their layout.
 - Phones switch sheets with a sheet picker: the open sheet's title, opening a list of every sheet.
-- Below 1024 px (phones and tablets) the sheet's tools (Hide photos, Export, Import… and the sheet's own options) are in one ⋯ menu, and Ask AI is a round button over the tree.
+- Below 1024 px (phones and tablets) the sheet's tools (Export, Import… and the sheet's own options) are in one ⋯ menu, with the eye that hides photos just before it in the sheet row (bigger, with no circle around it), and Ask AI is a round button over the tree.
 - On a phone, tapping a person opens their details over the bottom half of the screen, with the tree and their card above. Tablets keep the details beside the tree.
 - A sheet opens zoomed in at its root, names readable, on phones (the owner's choice) and tablets; ⛶ shows the whole tree.
 
