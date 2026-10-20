@@ -41,6 +41,20 @@ describe("buildSheetView: ARCHITECTURE.md §6 worked examples", () => {
   });
 });
 
+describe("buildSheetView: a sheet that leaves out one couple's children (hideChildrenOf)", () => {
+  test("Jerry's side only: his parents and his partner, not their children or anyone below them", () => {
+    const view = buildSheetView(cruzYoung, { ...jerrySheet, hideChildrenOf: "u-alexander-jerry" });
+    expect(ids(view).sort()).toEqual(["alexander-cruz", "cynthia-willow", "fred-lambert", "jerry-willow"]);
+    expect(view.unions.find((u) => u.id === "u-alexander-jerry")).toMatchObject({ childIds: [] }); // the heart, no children
+  });
+
+  test("only that couple's children: those from another couple stay, and an extra still shows", () => {
+    const view = buildSheetView(cruzYoung, { rootPersonId: "steve-cruz", extraPersonIds: ["taylor-cruz"], hideChildrenOf: "u-steve-arham" });
+    expect(ids(view)).toEqual(expect.arrayContaining(["william-cruz-2002", "jane-howell", "william-cruz-2021", "alex-cruz", "taylor-cruz"]));
+    expect(ids(view)).not.toContain("anna-cruz");
+  });
+});
+
 describe("buildSheetView: unions on a sheet", () => {
   test("a union is shown only when all its partners are on the sheet", () => {
     const view = buildSheetView(cruzYoung, cruzSheet);

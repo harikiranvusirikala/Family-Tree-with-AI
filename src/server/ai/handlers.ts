@@ -4,7 +4,7 @@
 // about anything applyOperations would refuse.
 import type { ObjectId } from "mongodb";
 import { z } from "zod";
-import { relationsOf } from "@/tree/edits";
+import { relationsOf, renameSheetsOps } from "@/tree/edits";
 import { buildSheetView } from "@/tree/sheet-view";
 import type { GroupTree, Person } from "@/tree/types";
 import { OperationError, planOperations, type GroupState } from "../operations/plan";
@@ -116,7 +116,9 @@ function propose(ctx: ToolContext, name: Exclude<ToolName, "search_people" | "ge
       const { personId, ...fields } = input as z.infer<typeof inputs.update_person>;
       const set = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== null));
       if (Object.keys(set).length === 0) throw new OperationError("nothing to change", -1);
-      return { ops: [{ op: "updatePerson", personId, set }], said: `Added to the proposal: the change to ${personId}.` };
+      const saved = ctx.tree.persons.find((p) => p.id === personId.toLowerCase());
+      const sheets = saved && typeof set.name === "string" ? renameSheetsOps(ctx.tree.sheets, saved, set.name) : []; // their sheet's title follows
+      return { ops: [{ op: "updatePerson", personId, set }, ...sheets], said: `Added to the proposal: the change to ${personId}.` };
     }
     case "add_marriage": {
       const { personId, partnerId, status } = input as z.infer<typeof inputs.add_marriage>;

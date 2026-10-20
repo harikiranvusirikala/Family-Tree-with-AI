@@ -1,6 +1,6 @@
 # Family Tree with AI — Architecture
 
-**Status:** all 11 steps built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests, AI chat, import and export, nightly backups and hardening); the final check on the live site remains ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.md](Features.md) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-19
+**Status:** all 11 steps built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests, AI chat, import and export, nightly backups and hardening); the final check on the live site remains ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.md](Features.md) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-20
 
 A web app where a family builds its tree together. People are added by hand or by chatting with an AI assistant, laid out automatically in the style of [samples/Sample Family Tree.png](samples/Sample%20Family%20Tree.png), and shared privately with relatives through their Google accounts.
 
@@ -149,7 +149,7 @@ erDiagram
 | `accessRequests` | `groupId` (not always a real group, see F4), `userId`, `email`, `message?`, `status` (`pending` · `approved` · `denied`), `decidedBy?`, `decidedAt?`, `createdAt` | unique `{groupId, userId}`: one per person per group · `{groupId, status}` · `{userId, status}` |
 | `persons` | `groupId`, `name`, `gender` (`male` · `female`), `birthYear?`, `deathYear?`, `photoId?`, `notes?`, audit fields, `deletedAt?` | `{groupId}` |
 | `unions` | `groupId`, `partnerIds` (1 or 2), `status` (`married` · `divorced`), `childIds`, audit fields, `deletedAt?` | `{groupId}` · `{groupId, partnerIds}` · `{groupId, childIds}` |
-| `sheets` | `groupId`, `title`, `rootPersonId`, `pinned`, `order`, `extraPersonIds`, audit fields | `{groupId}` |
+| `sheets` | `groupId`, `title`, `rootPersonId`, `pinned`, `order`, `extraPersonIds`, `hideChildrenOf?` (one of the root's couples, [§6](#6-sheets-views-not-copies)), `deletedAt?`, audit fields | `{groupId}` |
 | `chatUsage` | `userId`, `day` (`YYYY-MM-DD`, UTC), `count`, `expiresAt` | unique `{userId, day}` · TTL on `expiresAt` (30 days) |
 
 Notes:
@@ -165,10 +165,10 @@ Notes:
 
 ## 6. Sheets: views, not copies
 
-A sheet stores only a root person and a list of extra people. What it shows is computed every time it is drawn:
+A sheet stores only a root person, a list of extra people and, optionally, one of the root's couples whose children it leaves out. What it shows is computed every time it is drawn:
 
 1. **Ancestors:** walk up from the root through both parents, as far as the data goes.
-2. **Blood relatives:** walk down from every ancestor found, and from the root, to all descendants. This brings in siblings, aunts and uncles, cousins, and the root's own children and grandchildren.
+2. **Blood relatives:** walk down from every ancestor found, and from the root, to all descendants. This brings in siblings, aunts and uncles, cousins, and the root's own children and grandchildren. The exception: a sheet with `hideChildrenOf` doesn't walk into that couple's children (and so not their families). A mother's own sheet uses it, so it shows her side of the family while her children with the father stay on his side (an owner request after step 11). Children from another couple of hers still show.
 3. **Partners:** add the partners of everyone found, including ex-partners. Partners' own parents are **not** followed; they belong on the partner's own sheet.
 4. **Extras:** add the sheet's `extraPersonIds` ("show X in this sheet"). They connect to whoever they are related to on the sheet.
 
@@ -181,7 +181,7 @@ Worked example using the people in the sample image (everyone is stored once in 
 What follows from this:
 - A grandchild added once appears on every sheet that reaches them. There is nothing to sync.
 - "A married into B" creates a new sheet rooted at the newcomer ([F7](#f7-ai-chat-priya-married-into-our-family)).
-- Deleting a sheet never deletes people.
+- Deleting a sheet never deletes people. A deleted sheet is kept with `deletedAt` (like people and groups) and is gone for everyone. Pinned sheets (the father's and mother's start pinned) can't be deleted until unpinned, nor can a group's last sheet.
 
 ## 7. Tree rendering and auto-layout
 
@@ -304,7 +304,7 @@ sequenceDiagram
     App-->>U: Redirect to the father's sheet
 ```
 
-- The pinned sheets are "<Father>'s family", rooted at the father, and "<Mother>'s family", rooted at the mother.
+- The pinned sheets are "<Father>'s family", rooted at the father, and "<Mother>'s family", rooted at the mother. The mother's sheet leaves out the couple's children (`hideChildrenOf`, [§6](#6-sheets-views-not-copies)), so it shows her side of the family; the children are on the father's (an owner request after step 11, for groups created from then on).
 - The user can add themselves as the couple's child in the same step.
 - One transaction: `createGroup` (`src/server/repositories/groups.ts`) inserts the group and the owner membership, then runs the family's operations through the same planner and writes as `applyOperations` (`applyInTransaction`). If any operation is invalid, nothing is saved, not even the group.
 - A group link (`/g/{groupId}`) opens the first pinned sheet. The redirect is streamed (it happens inside `<Suspense>`), not a 307.
@@ -420,10 +420,10 @@ sequenceDiagram
 ```
 
 - The same `applyOperations` handles AI proposals ([F7](#f7-ai-chat-priya-married-into-our-family)) and imports ([F10](#f10-import)).
-- Clicking a card opens the person panel: details for everyone, and for Maintain and up Edit details, Add parents (or "Add the other parent"), Add partner (with "Create their own sheet", checked by default), Add child, Show on another sheet and Delete. Clicking a heart opens the couple panel: Married or Divorced, and Add child.
-- The tabs have "+ New sheet" and a menu to rename, pin and move the current tab (buttons, not drag-and-drop).
+- Clicking a card opens the person panel: details for everyone, and for Maintain and up Edit details, Add parents (or "Add the other parent"; with "Create their own sheet" for the mother, unchecked by default: a sheet for her side of the family, without her children with the father), Add partner (with "Create their own sheet", checked by default), Add child, Show on another sheet and Delete. Clicking a heart opens the couple panel: Married or Divorced, and Add child.
+- The tabs have "+ New sheet" and a menu to rename, pin, move and delete the current tab (buttons, not drag-and-drop). Renaming a person renames their sheets that still have the title they were given, "<Name>'s family"; a title of your own stays.
 - Each form becomes one batch, so it's applied completely or not at all. Form errors show in the panel; the server's reason shows above the canvas.
-- Delete is a soft delete with a 10-second Undo. A sheet's root can't be deleted. Deleted people count as absent ([§10](#10-ai-chat-design)), so after deleting someone's parents, new ones can be added.
+- Delete is a soft delete with a 10-second Undo. A sheet's root can't be deleted: delete the sheet first (as for a partner who married in). Deleted people count as absent ([§10](#10-ai-chat-design)), so after deleting someone's parents, new ones can be added.
 - Viewers get the panels without any edit controls; the server action is the real check.
 
 ### F7. AI chat: "Priya married into our family"
@@ -593,13 +593,14 @@ type Operation =
   | { op: "createUnion"; tempId?: string; partnerIds: [Ref] | [Ref, Ref]; status: "married" | "divorced" }
   | { op: "updateUnion"; unionId: Ref; status: "married" | "divorced" }
   | { op: "addChild"; unionId: Ref; childId: Ref }
-  | { op: "createSheet"; tempId?: string; title: string; rootPersonId: Ref; pinned?: boolean }
+  | { op: "createSheet"; tempId?: string; title: string; rootPersonId: Ref; pinned?: boolean; hideChildrenOf?: Ref } // hideChildrenOf: one of the root's couples (§6)
   | { op: "addToSheet"; sheetId: Ref; personId: Ref }
   | { op: "setPhoto"; personId: Ref; photoId: string | null } // a public ID in groups/{groupId}/; null removes it
   | { op: "deletePerson"; personId: Ref } // UI only, never offered to the AI (soft delete)
   | { op: "restorePerson"; personId: Ref } // UI only: Undo for deletePerson
   | { op: "addPartner"; unionId: Ref; personId: Ref } // UI only: a single parent's partner (the other parent)
   | { op: "updateSheet"; sheetId: Ref; set: { title?: string; pinned?: boolean } } // UI only
+  | { op: "deleteSheet"; sheetId: Ref } // UI only (soft delete): never a pinned sheet or the last one
   | { op: "reorderSheets"; sheetIds: Ref[] }; // UI only: every sheet of the group, in tab order
 ```
 
@@ -610,6 +611,7 @@ How `applyOperations` works (`src/server/operations/`, built in step 3):
 - Added in step 7: `setPhoto`'s photo must be in the group's folder (`groups/{groupId}/`). The plan lists the photos a batch replaced or removed that nobody in the group uses any more (`unusedPhotoIds`), and `applyChangesAction` deletes them from Cloudinary once the batch is committed.
 - Deleted people stay in their couples (so Undo restores them fully) but count as absent, exactly as the browser shows them (`toGroupTree`): a couple whose partners are all deleted isn't anyone's parents, so its children can be given new parents (they leave the old couple, so restoring the old parents can't give them two sets); and a new partner can take a deleted partner's place (`addPartner`).
 - All or nothing: one invalid operation rejects the batch. Concurrent edits are safe: on a write conflict MongoDB retries the transaction, which re-reads the group.
+- Added after step 11 (owner requests): `createSheet`'s `hideChildrenOf` must be a couple the root is in; `deleteSheet` refuses a pinned sheet and the group's last sheet; deleted sheets are treated as absent (not found, not counted by `reorderSheets`, and no longer stop their root being deleted).
 - `parseOperations` and `applyInTransaction` let a caller write more in the same transaction: `createGroup` adds the group and its owner membership (F2).
 - `OperationError` carries the failing change's index and its `reason`; a form shows the reason as a sentence.
 
@@ -712,7 +714,7 @@ Model and prompt (built in step 9):
 2. ~~**Layout engine**~~ **Resolved 2026-10-18 (step 2):** ELK.js. relatives-tree couldn't draw in-law parents ([§7](#7-tree-rendering-and-auto-layout)).
 3. ~~**Better Auth organization plugin**~~ **Resolved 2026-10-18 (step 5):** our own `groups`, `memberships` and `invites`. The plugin does allow invites without email, but in 1.7.10 it writes in its own transaction (F2 needs the group, owner membership and family in one), matches invite emails by lowercase only (F3 also ignores gmail dots and `+tags`), allows several owners (§8: exactly one), and adds about 40 HTTP endpoints that change members outside `requireRole`.
 4. ~~**Google sign-in on preview deployments**~~ **Resolved 2026-10-18 (step 4):** Better Auth's OAuth proxy plugin, with its own `OAUTH_PROXY_SECRET`. Previews keep their own database and secret, and Google keeps just two redirect URIs ([§12](#12-environments)). Checked working on step 5's preview.
-5. **Deleting a sheet, and hiding an extra person from a sheet:** left out of step 6 to keep it small. When they're added, each needs a UI-only operation; deleting a sheet must never delete people ([§6](#6-sheets-views-not-copies)).
+5. **Deleting a sheet, and hiding an extra person from a sheet:** left out of step 6 to keep it small. Deleting a sheet: ~~open~~ **resolved 2026-10-20 (owner request):** a UI-only `deleteSheet` operation, a soft delete; never a pinned sheet or the last one, and never its people ([§6](#6-sheets-views-not-copies)). Hiding an extra person from a sheet is still open.
 6. **Photos uploaded but never saved:** if the tab closes mid-way, or the save is refused, the uploaded photo stays in Cloudinary unused. Rare, so left out of step 7. A sweep could later delete photos in a group's folder that no person uses.
 7. **Copying photos on import:** photos come in only when a JSON file goes back into its own group. Copying them into another group's Cloudinary folder could come later.
 8. ~~**Open sign-up**~~ **Resolved 2026-10-20 (owner):** sign-up stays open to any Google account, an accepted risk (§11). Found in step 11's review: a stranger could create groups and import into them until the free cluster is full, or use their 50 chat messages a day. If that ever happens, the options are a cap on groups (or people) per account, or sign-up by invite only.

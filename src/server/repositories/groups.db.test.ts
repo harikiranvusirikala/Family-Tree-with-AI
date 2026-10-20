@@ -1,7 +1,7 @@
 import { ObjectId } from "mongodb";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { OperationError } from "@/server/operations/apply";
-import { FATHER_SHEET, newGroupOperations } from "@/server/operations/new-group";
+import { FATHER_SHEET, MOTHER_SHEET, newGroupOperations } from "@/server/operations/new-group";
 import { NoAccessError } from "@/server/roles";
 import { createTestDatabase } from "@test/db";
 import { collections, ensureIndexes } from "./documents";
@@ -40,6 +40,32 @@ describe("groups against MongoDB", () => {
     expect(await roleInGroup(database.db, groupId, owner, "owner")).toEqual({ role: "owner", group: { id: groupId, name: "Sharma family" } });
     expect(await listGroupsForUser(database.db, owner)).toEqual([{ id: groupId, name: "Sharma family", role: "owner" }]);
     expect(await firstSheetId(database.db, groupId)).toBe(idMap[FATHER_SHEET]);
+  });
+
+  test("sheets after the owner's requests: a mother's sheet without her children is saved as such; a deleted sheet is kept but hidden", async () => {
+    const owner = newUser();
+    const { groupId, idMap } = await createGroup(database, "Sharma family", sharma, owner);
+    const ravi = idMap["new:father"];
+    const { idMap: added } = await applyGroupChanges(database, groupId, owner, [
+      { op: "createPerson", tempId: "new:dad", name: "Mohan Sharma", gender: "male" },
+      { op: "createPerson", tempId: "new:mum", name: "Lata Rao", gender: "female" },
+      { op: "createUnion", tempId: "new:parents", partnerIds: ["new:dad", "new:mum"], status: "married" },
+      { op: "addChild", unionId: "new:parents", childId: ravi },
+      { op: "createSheet", tempId: "new:sheet", title: "Lata Rao's family", rootPersonId: "new:mum", hideChildrenOf: "new:parents" },
+    ]);
+    let tree = await loadGroupTree(database.db, groupId);
+    expect(tree.sheets.find((s) => s.title === "Lata Rao's family")).toMatchObject({ hideChildrenOf: added["new:parents"] });
+
+    // The father's sheet goes once unpinned; the link then opens the mother's.
+    const changes = [
+      { op: "updateSheet", sheetId: idMap[FATHER_SHEET], set: { pinned: false } },
+      { op: "deleteSheet", sheetId: idMap[FATHER_SHEET] },
+    ];
+    await applyGroupChanges(database, groupId, owner, changes);
+    tree = await loadGroupTree(database.db, groupId);
+    expect(tree.sheets.map((s) => s.title)).toEqual(["Anita Sharma's family", "Lata Rao's family"]);
+    expect(await firstSheetId(database.db, groupId)).toBe(idMap[MOTHER_SHEET]);
+    expect(await collections(database.db).sheets.findOne({ _id: new ObjectId(idMap[FATHER_SHEET]) })).toMatchObject({ deletedAt: expect.any(Date) });
   });
 
   test("a batch that fails leaves no group or membership behind", async () => {

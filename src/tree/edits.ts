@@ -37,22 +37,36 @@ export function relationsOf(family: FamilyData, personId: string) {
 }
 
 /**
- * Add parents. With no parents yet: one or two new people, their couple, and this person as their
- * child. With one parent: the other parent joins that parent's couple.
+ * A parent to add. `ownSheet` also gives them a sheet rooted at them: the mother's side of the family,
+ * without the couple's children, who are on the father's side.
  */
-export function addParentsOps(family: FamilyData, personId: string, parents: NewPerson[]): Operation[] {
+export interface NewParent extends NewPerson {
+  ownSheet?: boolean;
+}
+
+/**
+ * Add parents. With no parents yet: one or two new people, their couple, and this person as their
+ * child. With one parent: the other parent joins that parent's couple. Then a sheet for each parent
+ * given `ownSheet`, "<Name>'s family", which leaves out this couple's children (this person, their
+ * brothers and sisters, and their families).
+ */
+export function addParentsOps(family: FamilyData, personId: string, parents: NewParent[]): Operation[] {
   const { parentsCouple } = relationsOf(family, personId);
   if (parentsCouple && parentsCouple.partnerIds.length === 2) throw new Error("They already have two parents.");
-  if (parentsCouple) {
-    if (parents.length !== 1) throw new Error("Add one more parent.");
-    return [createPerson("new:parent-1", parents[0]), { op: "addPartner", unionId: parentsCouple.id, personId: "new:parent-1" }];
+  if (parentsCouple ? parents.length !== 1 : parents.length < 1 || parents.length > 2) {
+    throw new Error(parentsCouple ? "Add one more parent." : "Add one or two parents.");
   }
-  if (parents.length < 1 || parents.length > 2) throw new Error("Add one or two parents.");
   const ids = parents.map((_, i) => `new:parent-${i + 1}`);
+  const couple = parentsCouple?.id ?? "new:parents";
+  const sheets = parents.flatMap((p, i): Operation[] =>
+    p.ownSheet ? [{ op: "createSheet", tempId: `new:sheet-${i + 1}`, title: `${p.name}'s family`, rootPersonId: ids[i], hideChildrenOf: couple }] : [],
+  );
+  if (parentsCouple) return [createPerson(ids[0], parents[0]), { op: "addPartner", unionId: parentsCouple.id, personId: ids[0] }, ...sheets];
   return [
     ...parents.map((p, i) => createPerson(ids[i], p)),
     { op: "createUnion", tempId: "new:parents", partnerIds: ids as [string] | [string, string], status: "married" },
     { op: "addChild", unionId: "new:parents", childId: personId },
+    ...sheets,
   ];
 }
 
@@ -85,16 +99,30 @@ export function addChildOps(family: FamilyData, personId: string, unionId: strin
   ];
 }
 
-/** Only the fields that changed. A year left empty is cleared. */
-export function editPersonOps(person: Person, next: NewPerson): Operation[] {
+/**
+ * Only the fields that changed. A year left empty is cleared. A new name also renames the person's
+ * sheets that still have the title they were given, "<Name>'s family" (an owner request after step 11).
+ */
+export function editPersonOps(person: Person, next: NewPerson, sheets: NamedSheet[] = []): Operation[] {
   const set: Extract<Operation, { op: "updatePerson" }>["set"] = {};
   if (next.name !== person.name) set.name = next.name;
   if (next.gender !== person.gender) set.gender = next.gender;
   for (const key of ["birthYear", "deathYear"] as const) {
     if (next[key] !== person[key]) set[key] = next[key] ?? null;
   }
-  return Object.keys(set).length ? [{ op: "updatePerson", personId: person.id, set }] : [];
+  if (!Object.keys(set).length) return [];
+  return [{ op: "updatePerson", personId: person.id, set }, ...(set.name ? renameSheetsOps(sheets, person, set.name) : [])];
 }
+
+/** The person's sheets still titled "<old name>'s family", renamed for their new name. Custom titles stay. */
+export function renameSheetsOps(sheets: NamedSheet[], person: Pick<Person, "id" | "name">, newName: string): Operation[] {
+  return sheets
+    .filter((s) => s.rootPersonId === person.id && s.title === `${person.name}'s family`)
+    .map((s) => ({ op: "updateSheet", sheetId: s.id, set: { title: `${newName}'s family` } }));
+}
+
+/** Never a pinned sheet (the father's and mother's) or the last one; people on it stay. */
+export const deleteSheetOps = (sheetId: string): Operation[] => [{ op: "deleteSheet", sheetId }];
 
 export const coupleStatusOps = (unionId: string, status: Union["status"]): Operation[] => [{ op: "updateUnion", unionId, status }];
 export const deletePersonOps = (personId: string): Operation[] => [{ op: "deletePerson", personId }];

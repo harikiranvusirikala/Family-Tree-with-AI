@@ -104,9 +104,10 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
     };
     const sheet = (ref: string): SheetDoc => {
       const s = docs.sheet.get(resolve(ref, "sheet"));
-      if (!s) throw fail(`sheet ${ref} not found`);
+      if (!s || s.deletedAt) throw fail(`sheet ${ref} not found`);
       return s;
     };
+    const liveSheets = () => [...docs.sheet.values()].filter((s) => !s.deletedAt);
     const checkYears = (p: Pick<PersonDoc, "birthYear" | "deathYear" | "name">) => {
       if (p.birthYear !== undefined && p.deathYear !== undefined && p.deathYear < p.birthYear) {
         throw fail(`${p.name}'s death year is before their birth year`);
@@ -224,6 +225,8 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
       }
       case "createSheet": {
         const root = person(op.rootPersonId);
+        const hidden = op.hideChildrenOf === undefined ? undefined : union(op.hideChildrenOf);
+        if (hidden && !hidden.partnerIds.some((p) => p.equals(root._id))) throw fail(`${root.name} isn't in the couple whose children the sheet leaves out`);
         const order = Math.max(-1, ...[...docs.sheet.values()].map((s) => s.order)) + 1;
         const doc: SheetDoc = {
           _id: create("sheet", op.tempId),
@@ -233,6 +236,7 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
           pinned: op.pinned ?? false,
           order,
           extraPersonIds: [],
+          ...(hidden && { hideChildrenOf: hidden._id }),
           ...audit(),
         };
         docs.sheet.set(doc._id.toHexString(), doc);
@@ -252,10 +256,18 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
         if (op.set.pinned !== undefined) copy.pinned = op.set.pinned;
         break;
       }
+      case "deleteSheet": {
+        // The father's and mother's sheets are pinned; a partner's sheet goes before the partner can.
+        const s = sheet(op.sheetId);
+        if (s.pinned) throw fail(`${s.title} is pinned: unpin it first`);
+        if (liveSheets().length === 1) throw fail("a group needs at least one sheet");
+        edit("sheet", s).deletedAt = now;
+        break;
+      }
       case "reorderSheets": {
         const ids = op.sheetIds.map((ref) => sheet(ref)._id.toHexString());
         if (new Set(ids).size !== ids.length) throw fail("a sheet is listed twice");
-        if (ids.length !== docs.sheet.size) throw fail("every sheet must be listed once");
+        if (ids.length !== liveSheets().length) throw fail("every sheet must be listed once");
         ids.forEach((id, order) => {
           const s = docs.sheet.get(id)!;
           if (s.order !== order) edit("sheet", s).order = order;
@@ -276,8 +288,8 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
       }
       case "deletePerson": {
         const p = person(op.personId);
-        // A sheet shows its root's family, so it would be left empty.
-        const rooted = [...docs.sheet.values()].find((s) => s.rootPersonId.equals(p._id));
+        // A sheet shows its root's family, so it would be left empty. Delete the sheet first.
+        const rooted = liveSheets().find((s) => s.rootPersonId.equals(p._id));
         if (rooted) throw fail(`${p.name} is the root of the sheet ${rooted.title}`);
         edit("person", p).deletedAt = now;
         break;

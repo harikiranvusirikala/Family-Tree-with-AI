@@ -74,6 +74,7 @@ export function importOperations(data: ImportData, choices: ImportChoices, tree:
   // A couple whose partners are all existing people may already be a couple in the group: use it.
   const key = (ids: string[]) => [...ids].sort().join("+");
   const coupleIn = new Map(tree.unions.map((u) => [key(u.partnerIds), u.id]));
+  const coupleRef = new Map<string, string>(); // the file's couple id → its reference in the operations
   data.unions.forEach((u, i) => {
     const partners = u.partnerIds.map(ref) as [string] | [string, string];
     let couple = partners.every((p) => !p.startsWith("new:")) ? coupleIn.get(key(partners)) : undefined;
@@ -81,6 +82,7 @@ export function importOperations(data: ImportData, choices: ImportChoices, tree:
       couple = `new:u${i}`;
       ops.push({ op: "createUnion", tempId: couple, partnerIds: partners, status: u.status });
     }
+    coupleRef.set(u.id, couple);
     for (const c of u.childIds) ops.push({ op: "addChild", unionId: couple, childId: ref(c) });
   });
 
@@ -91,7 +93,15 @@ export function importOperations(data: ImportData, choices: ImportChoices, tree:
   if (!sheets[0]?.rootPersonId) return "This file has no people to import.";
   sheets.forEach((s, i) => {
     const tempId = `new:s${i}`;
-    ops.push({ op: "createSheet", tempId, title: s.title || `${nameOf(s.rootPersonId)}'s family`, rootPersonId: ref(s.rootPersonId), pinned: choices.intoExistingGroup ? false : s.pinned });
+    const hidden = s.hideChildrenOf === undefined ? undefined : coupleRef.get(s.hideChildrenOf);
+    ops.push({
+      op: "createSheet",
+      tempId,
+      title: s.title || `${nameOf(s.rootPersonId)}'s family`,
+      rootPersonId: ref(s.rootPersonId),
+      pinned: choices.intoExistingGroup ? false : s.pinned,
+      ...(hidden && { hideChildrenOf: hidden }),
+    });
     for (const extra of s.extraPersonIds) ops.push({ op: "addToSheet", sheetId: tempId, personId: ref(extra) });
   });
   return { operations: ops, firstSheet: "new:s0" };

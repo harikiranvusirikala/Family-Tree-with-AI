@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent, type ReactNode } from "react";
 import type { Operation } from "@/server/operations/schema";
-import { moveSheetOps, newSheetOps, updateSheetOps } from "@/tree/edits";
+import { deleteSheetOps, moveSheetOps, newSheetOps, updateSheetOps } from "@/tree/edits";
 import type { GroupTree, NamedSheet } from "@/tree/types";
 import { nameWithYears } from "./PersonPanel";
 
@@ -11,7 +11,7 @@ const small = "rounded px-2 py-1 text-sm hover:bg-zinc-100 disabled:opacity-50 d
 
 /**
  * The sheet tabs (F5), plus for Maintain and up: "+ New sheet", and the current tab's menu to rename,
- * pin or move it. Buttons rather than drag-and-drop, so they work from the keyboard. `trailing` goes at
+ * pin, move or delete it. Buttons rather than drag-and-drop, so they work from the keyboard. `trailing` goes at
  * the right end of the row (the chat's "Ask AI").
  */
 export function SheetTabs({
@@ -33,7 +33,7 @@ export function SheetTabs({
   onOpen: (sheetId: string) => void;
   trailing?: ReactNode;
 }) {
-  const [tool, setTool] = useState<"menu" | "rename" | "new" | null>(null);
+  const [tool, setTool] = useState<"menu" | "rename" | "new" | "delete" | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const people = [...tree.persons].sort((a, b) => a.name.localeCompare(b.name) || (a.birthYear ?? 0) - (b.birthYear ?? 0));
   const [rootId, setRootId] = useState("");
@@ -55,6 +55,18 @@ export function SheetTabs({
   };
   const left = moveSheetOps(sheets, current.id, -1);
   const right = moveSheetOps(sheets, current.id, 1);
+  /** Why this sheet can't be deleted, if it can't. */
+  const refusal = current.pinned
+    ? `${current.title} is pinned, like the father's and mother's sheets, so it can't be deleted. Unpin it first.`
+    : sheets.length === 1
+      ? "A group needs at least one sheet."
+      : null;
+
+  /** The page then shows the first sheet left, as for any sheet that's gone. */
+  async function deleteSheet(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await runThenClose(deleteSheetOps(current.id));
+  }
 
   function openNew() {
     setRootId("");
@@ -135,7 +147,29 @@ export function SheetTabs({
           <button type="button" role="menuitem" disabled={pending || !right} onClick={() => runFromMenu(right)} className={small}>
             Move right
           </button>
+          <button type="button" role="menuitem" onClick={() => setTool("delete")} className={`${small} text-red-700 dark:text-red-400`}>
+            Delete sheet
+          </button>
         </div>
+      )}
+
+      {tool === "delete" && (
+        // Pinned sheets (the father's and mother's) and the last sheet can't go; the server says the same.
+        <form aria-label="Delete sheet" onSubmit={deleteSheet} className="flex flex-wrap items-center gap-2 px-4 py-2 text-sm">
+          {refusal ? (
+            <p>{refusal}</p>
+          ) : (
+            <>
+              <p>Delete the sheet {current.title}? Everyone on it stays in the family.</p>
+              <button type="submit" disabled={pending} className="rounded-full bg-red-700 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 dark:bg-red-500 dark:text-zinc-950">
+                {pending ? "Deleting…" : "Delete sheet"}
+              </button>
+            </>
+          )}
+          <button type="button" onClick={close} className={small}>
+            {refusal ? "Close" : "Cancel"}
+          </button>
+        </form>
       )}
 
       {tool === "rename" && (

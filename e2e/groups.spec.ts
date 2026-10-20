@@ -39,7 +39,7 @@ test("a new user starts empty, creates a group and lands on the father's sheet w
   await page.getByRole("tab", { name: "Anita Sharma's family" }).click();
   await expect(page.getByRole("tab", { name: "Anita Sharma's family" })).toHaveAttribute("aria-selected", "true");
   await expect(page).not.toHaveURL(new RegExp(`/s/${sheetId}$`));
-  await expect(page.getByTestId("person-card")).toHaveCount(3);
+  await expect(page.getByTestId("person-card")).toHaveCount(2); // her side: the couple's children are on the father's
   expect(requests.filter((url) => url.includes("/g/"))).toEqual([]);
 
   // Back the way the user came: to the father's tab, then to the dashboard. The browser kept that

@@ -20,7 +20,11 @@ export type NewGroup = z.infer<typeof newGroupSchema>;
 export const FATHER_SHEET = "new:father-sheet";
 export const MOTHER_SHEET = "new:mother-sheet";
 
-/** The new group's first records: "<Father>'s family" and "<Mother>'s family", pinned in that order. */
+/**
+ * The new group's first records: "<Father>'s family" and "<Mother>'s family", pinned in that order.
+ * The mother's sheet shows her side of the family, without the couple's children (an owner request
+ * after step 11): they're on the father's.
+ */
 export function newGroupOperations({ fatherName, motherName, child }: NewGroup): Operation[] {
   return [
     { op: "createPerson", tempId: "new:father", name: fatherName, gender: "male" },
@@ -33,6 +37,6 @@ export function newGroupOperations({ fatherName, motherName, child }: NewGroup):
         ] satisfies Operation[])
       : []),
     { op: "createSheet", tempId: FATHER_SHEET, title: `${fatherName.trim()}'s family`, rootPersonId: "new:father", pinned: true },
-    { op: "createSheet", tempId: MOTHER_SHEET, title: `${motherName.trim()}'s family`, rootPersonId: "new:mother", pinned: true },
+    { op: "createSheet", tempId: MOTHER_SHEET, title: `${motherName.trim()}'s family`, rootPersonId: "new:mother", pinned: true, hideChildrenOf: "new:parents" },
   ];
 }

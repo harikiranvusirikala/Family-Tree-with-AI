@@ -6,7 +6,7 @@ import { collections, type PersonDoc, type SheetDoc, type UnionDoc } from "./doc
 
 /**
  * Everything needed to draw a group's sheets (F5): its people, couples and sheets, without
- * soft-deleted people. Deleted people are also removed from couples and sheet extras.
+ * soft-deleted people or sheets. Deleted people are also removed from couples and sheet extras.
  */
 export async function loadGroupTree(db: Db, groupId: string): Promise<GroupTree> {
   const gid = toObjectId(groupId);
@@ -15,7 +15,7 @@ export async function loadGroupTree(db: Db, groupId: string): Promise<GroupTree>
   const [personDocs, unionDocs, sheetDocs] = await Promise.all([
     persons.find(alive).toArray(),
     unions.find(alive).toArray(),
-    sheets.find({ groupId: gid }).toArray(),
+    sheets.find(alive).toArray(),
   ]);
   return toGroupTree({ persons: personDocs, unions: unionDocs, sheets: sheetDocs });
 }
@@ -58,7 +58,8 @@ export function toGroupTree(docs: { persons: PersonDoc[]; unions: UnionDoc[]; sh
       if (partnerIds.length === 0) return [];
       return [{ id: u._id.toHexString(), partnerIds: partnerIds as Union["partnerIds"], status: u.status, childIds: keep(u.childIds) }];
     }),
-    sheets: [...docs.sheets]
+    sheets: docs.sheets
+      .filter((s) => !s.deletedAt)
       .sort((a, b) => a.order - b.order)
       .map((s) => ({
         id: s._id.toHexString(),
@@ -67,6 +68,7 @@ export function toGroupTree(docs: { persons: PersonDoc[]; unions: UnionDoc[]; sh
         order: s.order,
         rootPersonId: s.rootPersonId.toHexString(),
         extraPersonIds: keep(s.extraPersonIds),
+        ...(s.hideChildrenOf && { hideChildrenOf: s.hideChildrenOf.toHexString() }),
       })),
   };
 }

@@ -84,6 +84,16 @@ describe("proposal tools", () => {
     expect(describeOperations(update.pending, tree)).toEqual(["Change Taylor Humes (1955): death year to 2024"]);
     expect(runTool("update_person", { personId: taylor, name: null, gender: null, birthYear: null, deathYear: null }, context()).isError).toBe(true);
   });
+
+  test("update_person with a new name also renames their sheet, as the edit form does", () => {
+    const jerry = idOf("Jerry Willow");
+    const update = runTool("update_person", { personId: jerry, name: "Jerry Willow-Cruz", gender: null, birthYear: null, deathYear: null }, context());
+    expect(update.isError).toBeFalsy();
+    expect(describeOperations(update.pending, tree)).toEqual([
+      "Change Jerry Willow (1920 – 1989): name to Jerry Willow-Cruz",
+      `Rename the sheet "Jerry Willow's family" to "Jerry Willow-Cruz's family"`,
+    ]);
+  });
 });
 
 describe("role filtering and the notes", () => {

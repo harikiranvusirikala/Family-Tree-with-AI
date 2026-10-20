@@ -23,6 +23,12 @@ export interface Union {
 export interface Sheet {
   rootPersonId: string;
   extraPersonIds: string[];
+  /**
+   * One of the root's couples whose children (and their families) this sheet leaves out, because
+   * another sheet shows them: a mother's own sheet shows her side of the family, not her children
+   * with the father (an owner request after step 11).
+   */
+  hideChildrenOf?: string;
 }
 
 /** A saved sheet, as shown in the sheet tabs. */

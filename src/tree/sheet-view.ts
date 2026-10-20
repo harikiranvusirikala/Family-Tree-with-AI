@@ -5,7 +5,8 @@ import type { FamilyData, Sheet, SheetView, Union } from "./types";
  * everything else is computed here, so a person added once shows on every sheet that reaches them.
  *
  * 1. Ancestors: walk up from the root through both parents.
- * 2. Blood relatives: all descendants of the root and of every ancestor.
+ * 2. Blood relatives: all descendants of the root and of every ancestor, except the children of the
+ *    couple the sheet hides (`hideChildrenOf`) and their families.
  * 3. Partners of everyone found so far, including ex-partners. Partners' parents are not followed.
  * 4. Extras ("show X in this sheet").
  */
@@ -40,6 +41,7 @@ export function buildSheetView(data: FamilyData, sheet: Sheet): SheetView {
   const down = [...blood];
   while (down.length) {
     for (const u of unionsOf.get(down.pop()!) ?? []) {
+      if (u.id === sheet.hideChildrenOf) continue;
       for (const c of u.childIds) {
         if (!blood.has(c)) {
           blood.add(c);

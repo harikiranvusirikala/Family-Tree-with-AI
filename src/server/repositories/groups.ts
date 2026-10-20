@@ -86,7 +86,10 @@ export async function listGroupsForUser(db: Db, userId: string): Promise<GroupSu
 
 /** The sheet a group link opens: the first pinned sheet, else the first sheet. */
 export async function firstSheetId(db: Db, groupId: string): Promise<string | undefined> {
-  const sheet = await collections(db).sheets.findOne({ groupId: toObjectId(groupId) }, { sort: { pinned: -1, order: 1 }, projection: { _id: 1 } });
+  const sheet = await collections(db).sheets.findOne(
+    { groupId: toObjectId(groupId), deletedAt: { $exists: false } },
+    { sort: { pinned: -1, order: 1 }, projection: { _id: 1 } },
+  );
   return sheet?._id.toHexString();
 }
 

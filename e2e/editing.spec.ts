@@ -57,6 +57,82 @@ test("a partner who married in gets their own sheet, rooted at them", async ({ p
   await expect(card(page, "Amelia Young")).toBeVisible();
 });
 
+test("adding parents, the mother can get her own sheet, showing her side (owner request)", async ({ page, signIn, sampleGroup }) => {
+  await openSampleGroup(page, signIn, sampleGroup);
+  await card(page, "Taylor Humes").click();
+  await personPanel(page).getByRole("button", { name: "Add parents" }).click();
+  const add = form(page, "Add parents");
+  const ownSheet = add.getByRole("checkbox", { name: /Create their own sheet/ });
+  await expect(ownSheet).not.toBeChecked(); // an option, unlike a partner's
+  await add.getByRole("textbox", { name: "Father's name" }).fill("Frank Humes");
+  await ownSheet.check();
+  await add.getByRole("button", { name: "Add parents" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Enter the mother's name, or uncheck Create their own sheet." })).toBeVisible();
+
+  await add.getByRole("textbox", { name: "Mother's name" }).fill("Grace Lee");
+  await add.getByRole("button", { name: "Add parents" }).click();
+  await expect(page.getByRole("tab", { name: "Grace Lee's family" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Frank Humes's family" })).toHaveCount(0);
+  await expect(cards(page)).toHaveCount(36); // a partner's parents belong on their own sheets (§6)
+  await page.getByRole("tab", { name: "Grace Lee's family" }).click();
+  await expect(cards(page)).toHaveCount(2); // her side only: her children are on the father's side
+  for (const name of ["Grace Lee", "Frank Humes"]) await expect(card(page, name)).toBeVisible();
+  await expect(card(page, "Taylor Humes")).toHaveCount(0);
+
+  // "Add the other parent" offers it only when that parent is the mother.
+  await page.getByRole("tab", { name: "Cruz family" }).click();
+  await card(page, "Arham Chopra").click();
+  await personPanel(page).getByRole("button", { name: "Add parents" }).click();
+  await add.getByRole("textbox", { name: "Father's name" }).fill("Dev Chopra");
+  await add.getByRole("button", { name: "Add parents" }).click();
+  await expect(personPanel(page).getByRole("button", { name: "Add the other parent" })).toBeVisible();
+  await personPanel(page).getByRole("button", { name: "Add the other parent" }).click();
+  await expect(add.getByRole("radio", { name: "Female", exact: true })).toBeChecked();
+  await expect(ownSheet).toBeVisible();
+  await add.getByRole("radio", { name: "Male", exact: true }).check();
+  await expect(ownSheet).toHaveCount(0);
+  await add.getByRole("radio", { name: "Female", exact: true }).check();
+  await ownSheet.check();
+  await add.getByRole("textbox", { name: "Name" }).fill("Meera Chopra");
+  await add.getByRole("button", { name: "Add parent" }).click();
+  await expect(page.getByRole("tab", { name: "Meera Chopra's family" })).toBeVisible();
+});
+
+test("a renamed person's sheet follows; a partner's sheet is deleted, then the partner (owner request)", async ({ page, signIn, sampleGroup }) => {
+  const { cruzSheet } = await openSampleGroup(page, signIn, sampleGroup);
+  await card(page, "Jerry Willow").click();
+  await personPanel(page).getByRole("button", { name: "Edit details" }).click();
+  await form(page, "Edit details").getByRole("textbox", { name: "Name" }).fill("Jerry Willow-Cruz");
+  await form(page, "Edit details").getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("tab", { name: "Jerry Willow-Cruz's family" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Jerry Willow's family" })).toHaveCount(0);
+  await personPanel(page).getByRole("button", { name: "Close" }).click();
+
+  await page.getByRole("tab", { name: "Jerry Willow-Cruz's family" }).click();
+  const options = page.getByRole("button", { name: "Sheet options" });
+  const menu = page.getByRole("menu", { name: "Sheet options" });
+  await options.click();
+  await menu.getByRole("menuitem", { name: "Delete sheet" }).click();
+  await expect(form(page, "Delete sheet")).toContainText("Jerry Willow-Cruz's family is pinned, like the father's and mother's sheets, so it can't be deleted. Unpin it first.");
+  await form(page, "Delete sheet").getByRole("button", { name: "Close" }).click();
+  await options.click();
+  await menu.getByRole("menuitem", { name: "Unpin" }).click();
+  await options.click();
+  await expect(menu.getByRole("menuitem", { name: "Pin", exact: true })).toBeVisible(); // saved
+  await menu.getByRole("menuitem", { name: "Delete sheet" }).click();
+  await expect(form(page, "Delete sheet")).toContainText("Delete the sheet Jerry Willow-Cruz's family? Everyone on it stays in the family.");
+  await form(page, "Delete sheet").getByRole("button", { name: "Delete sheet" }).click();
+
+  await expect(page.getByRole("tab", { name: "Jerry Willow-Cruz's family" })).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`/s/${cruzSheet}$`));
+  await expect(page.getByRole("tab", { name: "Cruz family" })).toHaveAttribute("aria-selected", "true");
+  await expect(cards(page)).toHaveCount(36); // nobody was deleted with the sheet
+
+  await card(page, "Jerry Willow-Cruz").click();
+  await personPanel(page).getByRole("button", { name: "Delete" }).click();
+  await expect(cards(page)).toHaveCount(35);
+});
+
 test("edit details, delete with Undo, and a sheet's root can't be deleted", async ({ page, signIn, sampleGroup }) => {
   await openSampleGroup(page, signIn, sampleGroup);
 

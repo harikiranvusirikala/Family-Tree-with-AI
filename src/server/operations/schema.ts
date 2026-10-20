@@ -48,11 +48,13 @@ export const operationSchema = z.discriminatedUnion("op", [
     title: sheetTitle,
     rootPersonId: ref,
     pinned: z.boolean().optional(),
+    hideChildrenOf: ref.optional(), // one of the root's couples: its children aren't shown on this sheet
   }),
   z.strictObject({ op: z.literal("addToSheet"), sheetId: ref, personId: ref }),
   z.strictObject({ op: z.literal("setPhoto"), personId: ref, photoId: z.string().regex(PHOTO_ID, "Not a photo id").nullable() }), // null removes it
   // UI only, never offered to the AI:
   z.strictObject({ op: z.literal("deletePerson"), personId: ref }),
+  z.strictObject({ op: z.literal("deleteSheet"), sheetId: ref }), // never a pinned sheet, nor the last one
   z.strictObject({ op: z.literal("restorePerson"), personId: ref }),
   z.strictObject({ op: z.literal("addPartner"), unionId: ref, personId: ref }), // a single parent's partner
   z.strictObject({

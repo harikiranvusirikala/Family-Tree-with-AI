@@ -17,7 +17,15 @@ export function exportJson(tree: GroupTree, group: { id: string; name: string },
       group,
       persons,
       unions,
-      sheets: sheets.map(({ id, title, rootPersonId, extraPersonIds, pinned, order }) => ({ id, title, rootPersonId, extraPersonIds, pinned, order })),
+      sheets: sheets.map(({ id, title, rootPersonId, extraPersonIds, pinned, order, hideChildrenOf }) => ({
+        id,
+        title,
+        rootPersonId,
+        extraPersonIds,
+        pinned,
+        order,
+        ...(hideChildrenOf && { hideChildrenOf }),
+      })),
     },
     null,
     2,
@@ -42,7 +50,9 @@ const fileSchema = z.object({
     )
     .max(MAX_IMPORT_PEOPLE, `This file has more than ${MAX_IMPORT_PEOPLE} people. Split it into smaller files.`),
   unions: z.array(z.object({ id, partnerIds: z.union([z.tuple([id]), z.tuple([id, id])]), status: z.enum(["married", "divorced"]), childIds: z.array(id) })).max(20_000),
-  sheets: z.array(z.object({ title: z.string().trim().min(1).max(120), rootPersonId: id, extraPersonIds: z.array(id), pinned: z.boolean() })).max(500),
+  sheets: z
+    .array(z.object({ title: z.string().trim().min(1).max(120), rootPersonId: id, extraPersonIds: z.array(id), pinned: z.boolean(), hideChildrenOf: id.optional() }))
+    .max(500),
 });
 
 /** A file exported by this app, or the reason it can't be imported. */
@@ -63,5 +73,7 @@ export function parseJson(text: string): ImportData | string {
   const known = new Set(persons.map((p) => p.id));
   const missing = [...unions.flatMap((u) => [...u.partnerIds, ...u.childIds]), ...sheets.flatMap((s) => [s.rootPersonId, ...s.extraPersonIds])].some((p) => !known.has(p));
   if (missing) return "This file is damaged: it refers to people it doesn't contain.";
+  const couples = new Set(unions.map((u) => u.id));
+  if (sheets.some((s) => s.hideChildrenOf !== undefined && !couples.has(s.hideChildrenOf))) return "This file is damaged: it refers to couples it doesn't contain.";
   return { kind: "json", persons, unions, sheets, sourceGroupId: group.id, suggestedName: group.name, warnings: [], notKept: [] };
 }

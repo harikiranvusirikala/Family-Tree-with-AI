@@ -45,6 +45,22 @@ describe("round trips of the sample family", () => {
     }
   });
 
+  test("JSON keeps a sheet that leaves out a couple's children, from the whole group or that sheet alone", () => {
+    const jerry = tree.persons.find((p) => p.name === "Jerry Willow")!.id;
+    const couple = tree.unions.find((u) => u.partnerIds.includes(jerry))!;
+    const withSide = toGroupTree(
+      applyPlan(state, [{ op: "createSheet", title: "Jerry's side", rootPersonId: jerry, hideChildrenOf: couple.id }]),
+    );
+    const side = withSide.sheets.find((s) => s.title === "Jerry's side")!;
+    for (const file of [exportJson(withSide, group), exportJson(withSide, group, side)]) {
+      const back = importIntoEmpty(parseJson(file));
+      const sheet = back.sheets.find((s) => s.title === "Jerry's side")!;
+      const names = (ids: string[]) => ids.map((id) => back.persons.find((p) => p.id === id)!.name).sort();
+      expect(names(back.unions.find((u) => u.id === sheet.hideChildrenOf)!.partnerIds)).toEqual(["Alexander Cruz", "Jerry Willow"]);
+      expect(names(buildSheetView(back, sheet).persons.map((p) => p.id))).toEqual(["Alexander Cruz", "Cynthia Willow", "Fred Lambert", "Jerry Willow"]);
+    }
+  });
+
   test("GEDCOM gives back the same people and couples, and a sheet for the first person", () => {
     const text = exportGedcom(tree);
     expect(text.startsWith("0 HEAD\n")).toBe(true);
@@ -188,6 +204,9 @@ describe("JSON files", () => {
     const damaged = JSON.parse(exportJson(tree, group));
     damaged.unions[0].childIds.push("someone-else");
     expect(parseJson(JSON.stringify(damaged))).toBe("This file is damaged: it refers to people it doesn't contain.");
+    const badSheet = JSON.parse(exportJson(tree, group));
+    badSheet.sheets[0].hideChildrenOf = "no-such-couple";
+    expect(parseJson(JSON.stringify(badSheet))).toBe("This file is damaged: it refers to couples it doesn't contain.");
   });
 
   test("photos are kept only when the file goes back into its own group", () => {

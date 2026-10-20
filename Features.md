@@ -76,7 +76,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 
 ### Data model
 
-- Each person is stored exactly once. Sheets are views, not copies: a sheet = a root person + their ancestors and descendants + any people explicitly added to it. A child added once shows up on every sheet that reaches them (Father's, Mother's, in-law) - nothing to sync.
+- Each person is stored exactly once. Sheets are views, not copies: a sheet = a root person + their ancestors and descendants + any people explicitly added to it. A child added once shows up on every sheet that reaches them (Father's, in-law) - nothing to sync. The exception is a mother's sheet, which leaves out her children with the father: they're on his.
 - Collections (every content record carries groupId):
 
   ```
@@ -86,14 +86,14 @@ This is a Family Tree Web Application that can be accessed via Web.
   accessRequests { _id, groupId, userId, email, message?, status: pending | approved | denied, decidedBy?, createdAt }
   persons        { _id, groupId, name, gender, birthYear, deathYear?, photoId (Cloudinary public ID) }
   unions         { _id, groupId, partnerIds: [a, b], status: married | divorced, childIds: [] }
-  sheets         { _id, groupId, title, rootPersonId, pinned, extraPersonIds: [] }
+  sheets         { _id, groupId, title, rootPersonId, pinned, extraPersonIds: [], hideChildrenOf?, deletedAt? }
   chatUsage      { _id, userId, day, count }   (per-user daily AI message cap)
   ```
 
 - Union = a couple (the heart icon). Children hang below it. Divorced = broken heart. Mirrors GEDCOM family records, so GEDCOM import/export maps cleanly.
 - "A married into B" -> new person + union + new sheet rooted at the new person.
 - "Show X in sheet Z" -> add X to that sheet's extraPersonIds.
-- Father's and Mother's sheets are pinned tabs.
+- Father's and Mother's sheets are pinned tabs. The Mother's sheet shows her side of the family, without the couple's children (for groups created after step 11's owner requests).
 - No deathYear = living, shown as "1985". Otherwise "1945 - 2022".
 
 ### Sharing & permissions
@@ -130,10 +130,13 @@ This is a Family Tree Web Application that can be accessed via Web.
 
 - Click a person to open their panel: details, and for Maintain and up Edit, Add parents, Add partner, Add child, Show on another sheet, Delete (with a 10-second Undo). Click a heart for married/divorced.
 - "Create their own sheet" is checked by default when adding a partner (people who marry in get a sheet).
+- Adding parents offers "Create their own sheet" for the mother, unchecked by default: a tab for her side of the family (her parents, brothers and sisters), without her children with the father, who are on his side. The father isn't offered one. (Owner requests after step 11.)
+- Renaming a person renames their sheet when it still has its given title, "<Name>'s family"; a title of your own stays.
 - A person who is a sheet's root can't be deleted.
 - Deleted people count as absent: after deleting someone's parents, new parents can be added; Undo still restores them.
-- Tabs: "+ New sheet", rename, pin and move left/right (buttons, not drag-and-drop). Pinned tabs come first.
-- Deleting a sheet and hiding an extra person from a sheet are left for later.
+- Tabs: "+ New sheet", rename, pin, move left/right and delete (buttons, not drag-and-drop). Pinned tabs come first.
+- Deleting a sheet keeps everyone on it. Pinned sheets (the father's and mother's) can't be deleted until unpinned, nor can the last sheet. A partner's sheet is deleted first, then the partner can be.
+- Hiding an extra person from a sheet is left for later.
 
 ### Day and night themes (between steps 8 and 9)
 

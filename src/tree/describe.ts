@@ -49,7 +49,11 @@ export function describeOperations(ops: Operation[], tree: GroupTree): string[] 
       case "addToSheet":
         return `Show ${who(op.personId)} on the sheet "${sheets.get(op.sheetId) ?? "?"}"`;
       case "updateSheet":
-        return `Change the sheet "${sheets.get(op.sheetId) ?? "?"}"`;
+        return op.set.title !== undefined && op.set.pinned === undefined
+          ? `Rename the sheet "${sheets.get(op.sheetId) ?? "?"}" to "${op.set.title}"`
+          : `Change the sheet "${sheets.get(op.sheetId) ?? "?"}"`;
+      case "deleteSheet":
+        return `Delete the sheet "${sheets.get(op.sheetId) ?? "?"}"`;
       case "setPhoto":
         return `${op.photoId ? "Change" : "Remove"} the photo of ${who(op.personId)}`;
       case "deletePerson":

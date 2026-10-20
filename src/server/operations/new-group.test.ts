@@ -30,6 +30,9 @@ describe("newGroupOperations (F2)", () => {
     ]);
     expect(result.idMap[FATHER_SHEET]).toBe(result.sheets.inserted[0]._id.toHexString());
     expect(result.idMap[MOTHER_SHEET]).toBe(result.sheets.inserted[1]._id.toHexString());
+    // The mother's sheet leaves out the couple's children: they're on the father's (owner request).
+    expect(result.sheets.inserted[0]).not.toHaveProperty("hideChildrenOf");
+    expect(result.sheets.inserted[1].hideChildrenOf).toEqual(union._id);
   });
 
   test("without the user, just the couple", () => {

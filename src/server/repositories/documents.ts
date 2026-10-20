@@ -105,6 +105,10 @@ export interface SheetDoc extends Audit {
   pinned: boolean;
   order: number;
   extraPersonIds: ObjectId[];
+  /** A couple of the root's whose children the sheet leaves out (Sheet.hideChildrenOf). */
+  hideChildrenOf?: ObjectId;
+  /** Deleted sheets are kept, like people; nobody sees them. */
+  deletedAt?: Date;
 }
 
 export function collections(db: Db) {

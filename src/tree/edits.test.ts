@@ -9,6 +9,7 @@ import {
   addPartnerOps,
   coupleStatusOps,
   deletePersonOps,
+  deleteSheetOps,
   editPersonOps,
   moveSheetOps,
   relationsOf,
@@ -81,6 +82,77 @@ describe("edits against the sample family", () => {
     expect(buildSheetView(t2, rohansSheet).persons.map((p) => p.name)).toEqual(expect.arrayContaining(["Sunita Mehta", "Vikram Mehta"]));
 
     expect(() => addParentsOps(t2, rohan, [{ name: "X", gender: "male" }])).toThrow(/already have two parents/);
+  });
+
+  test("add parents: the mother can get her own sheet, with her side of the family only: not the father's, and not her children (owner request)", () => {
+    const rohanState = applyPlan(start, addPartnerOps(idOf(tree, "Amelia Young"), { name: "Rohan Mehta", gender: "male" }, { status: "married", ownSheet: true }));
+    const rohanTree = toGroupTree(rohanState);
+    const rohan = idOf(rohanTree, "Rohan Mehta");
+
+    const ops = addParentsOps(rohanTree, rohan, [
+      { name: "Vikram Mehta", gender: "male" },
+      { name: "Sunita Mehta", gender: "female", ownSheet: true },
+    ]);
+    expect(ops.filter((o) => o.op === "createSheet")).toEqual([
+      { op: "createSheet", tempId: "new:sheet-2", title: "Sunita Mehta's family", rootPersonId: "new:parent-2", hideChildrenOf: "new:parents" },
+    ]);
+    let state = applyPlan(rohanState, ops);
+    let t = toGroupTree(state);
+    const sunita = t.sheets.find((s) => s.title === "Sunita Mehta's family")!;
+    expect(sunita.rootPersonId).toBe(idOf(t, "Sunita Mehta"));
+    expect(sunita.hideChildrenOf).toBe(relationsOf(t, rohan).parentsCouple!.id);
+    expect(t.sheets).toHaveLength(4); // the sample's two, Rohan's, and Sunita's; none for the father
+    expect(buildSheetView(t, sunita).persons.map((p) => p.name).sort()).toEqual(["Sunita Mehta", "Vikram Mehta"]);
+
+    // Both sides get parents, and Sunita a brother: her sheet shows her side; Rohan's, both.
+    state = applyPlan(state, addParentsOps(t, idOf(t, "Sunita Mehta"), [{ name: "Mohan Rao", gender: "male" }, { name: "Lata Rao", gender: "female" }]));
+    t = toGroupTree(state);
+    state = applyPlan(state, addChildOps(t, idOf(t, "Mohan Rao"), relationsOf(t, idOf(t, "Sunita Mehta")).parentsCouple!.id, { name: "Anil Rao", gender: "male" }));
+    t = toGroupTree(state);
+    state = applyPlan(state, addParentsOps(t, idOf(t, "Vikram Mehta"), [{ name: "Raj Mehta", gender: "male" }, { name: "Kamala Mehta", gender: "female" }]));
+    t = toGroupTree(state);
+    expect(buildSheetView(t, sunita).persons.map((p) => p.name).sort()).toEqual(["Anil Rao", "Lata Rao", "Mohan Rao", "Sunita Mehta", "Vikram Mehta"]);
+    const rohanSheet = t.sheets.find((s) => s.title === "Rohan Mehta's family")!;
+    expect(buildSheetView(t, rohanSheet).persons.map((p) => p.name).sort()).toEqual(
+      ["Amelia Young", "Anil Rao", "Kamala Mehta", "Lata Rao", "Mohan Rao", "Raj Mehta", "Rohan Mehta", "Sunita Mehta", "Vikram Mehta"],
+    );
+    expect(t.sheets).toHaveLength(4);
+  });
+
+  test("add the other parent: a mother can get her own sheet too, without the couple's children", () => {
+    const rohanState = applyPlan(start, addPartnerOps(idOf(tree, "Amelia Young"), { name: "Rohan Mehta", gender: "male" }, { status: "married", ownSheet: false }));
+    const rohan = idOf(toGroupTree(rohanState), "Rohan Mehta");
+    const one = applyPlan(rohanState, addParentsOps(toGroupTree(rohanState), rohan, [{ name: "Vikram Mehta", gender: "male" }]));
+    const couple = relationsOf(toGroupTree(one), rohan).parentsCouple!.id;
+    const other = addParentsOps(toGroupTree(one), rohan, [{ name: "Sunita Mehta", gender: "female", ownSheet: true }]);
+    expect(other.map((o) => o.op)).toEqual(["createPerson", "addPartner", "createSheet"]);
+    expect(other[2]).toMatchObject({ hideChildrenOf: couple });
+    const t = toGroupTree(applyPlan(one, other));
+    const sunita = t.sheets.find((s) => s.title === "Sunita Mehta's family")!;
+    expect(sunita.rootPersonId).toBe(idOf(t, "Sunita Mehta"));
+    expect(buildSheetView(t, sunita).persons.map((p) => p.name).sort()).toEqual(["Sunita Mehta", "Vikram Mehta"]);
+  });
+
+  test("a new name renames the person's sheet when it has its given title, and keeps a title of your own (owner request)", () => {
+    const jerry = tree.persons.find((p) => p.name === "Jerry Willow")!;
+    const ops = editPersonOps(jerry, { name: "Jerry Willow-Cruz", gender: jerry.gender, birthYear: jerry.birthYear }, tree.sheets);
+    expect(ops.map((o) => o.op)).toEqual(["updatePerson", "updateSheet"]);
+    const renamed = apply(ops);
+    expect(renamed.sheets.map((s) => s.title)).toEqual(["Cruz family", "Jerry Willow-Cruz's family"]);
+
+    const own = apply(updateSheetOps(tree.sheets[1].id, { title: "The Willows" }));
+    expect(editPersonOps(jerry, { name: "Jerry Willow-Cruz", gender: jerry.gender, birthYear: jerry.birthYear }, own.sheets).map((o) => o.op)).toEqual(["updatePerson"]);
+    expect(editPersonOps(jerry, { name: jerry.name, gender: jerry.gender, birthYear: 1950 }, tree.sheets).map((o) => o.op)).toEqual(["updatePerson"]);
+  });
+
+  test("delete a sheet: it's gone from the tabs, its people stay, and then its root can be deleted (owner request)", () => {
+    const jerrySheet = tree.sheets.find((s) => s.title === "Jerry Willow's family")!;
+    const unpinned = applyPlan(start, updateSheetOps(jerrySheet.id, { pinned: false }));
+    const gone = applyPlan(unpinned, deleteSheetOps(jerrySheet.id));
+    const t = toGroupTree(gone);
+    expect(t.sheets.map((s) => s.title)).toEqual(["Cruz family"]);
+    expect(t.persons).toHaveLength(tree.persons.length);
+    expect(toGroupTree(applyPlan(gone, deletePersonOps(idOf(t, "Jerry Willow")))).persons).toHaveLength(tree.persons.length - 1);
   });
 
   test("edit details: only what changed, and an empty year is cleared", () => {

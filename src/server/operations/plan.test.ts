@@ -235,6 +235,32 @@ describe("planOperations: editing by hand (step 6)", () => {
   test("a sheet's root person can't be deleted", () => {
     expectRejected(sample, [{ op: "deletePerson", personId: idOf("Alexander Cruz") }], /Alexander Cruz is the root of the sheet Cruz family/);
   });
+
+  test("deleting a sheet: never a pinned one or the last one; then it's gone, and its root can be deleted (owner request)", () => {
+    const cruz = sample.sheets[0]._id.toHexString(); // pinned
+    const withJerry = after(sample, plan(sample, [{ op: "createSheet", title: "Jerry Willow's family", rootPersonId: idOf("Jerry Willow") }]));
+    const jerry = withJerry.sheets.find((s) => s.title === "Jerry Willow's family")!._id.toHexString();
+    expectRejected(withJerry, [{ op: "deletePerson", personId: idOf("Jerry Willow") }], /root of the sheet Jerry Willow's family/);
+    expectRejected(withJerry, [{ op: "deleteSheet", sheetId: cruz }], /Cruz family is pinned: unpin it first/);
+
+    const p = plan(withJerry, [{ op: "deleteSheet", sheetId: jerry }]);
+    expect(p.sheets.updated[0]).toMatchObject({ title: "Jerry Willow's family", deletedAt: now });
+    const gone = after(withJerry, p);
+    expect(plan(gone, [{ op: "deletePerson", personId: idOf("Jerry Willow") }]).persons.updated[0].deletedAt).toEqual(now);
+    expectRejected(gone, [{ op: "updateSheet", sheetId: jerry, set: { title: "Back" } }], /sheet .* not found/);
+    expectRejected(gone, [{ op: "deleteSheet", sheetId: jerry }], /sheet .* not found/);
+    expect(plan(gone, [{ op: "reorderSheets", sheetIds: [cruz] }]).sheets.updated).toEqual([]); // the deleted one isn't listed
+    expectRejected(gone, [{ op: "updateSheet", sheetId: cruz, set: { pinned: false } }, { op: "deleteSheet", sheetId: cruz }], /a group needs at least one sheet/);
+  });
+
+  test("a sheet can leave out the children of one of its root's couples, and only its root's", () => {
+    const couple = (a: string, b: string) => sample.unions.find((u) => [a, b].every((n) => u.partnerIds.some((p) => p.toHexString() === idOf(n))))!._id.toHexString();
+    const jerrySide = { op: "createSheet", title: "Jerry Willow's family", rootPersonId: idOf("Jerry Willow"), hideChildrenOf: couple("Alexander Cruz", "Jerry Willow") } as const;
+    expect(plan(sample, [jerrySide]).sheets.inserted[0].hideChildrenOf?.toHexString()).toBe(jerrySide.hideChildrenOf);
+    expect(plan(sample, [{ ...jerrySide, hideChildrenOf: undefined }]).sheets.inserted[0]).not.toHaveProperty("hideChildrenOf");
+    expectRejected(sample, [{ ...jerrySide, hideChildrenOf: couple("Jake Cruz", "Taylor Humes") }], /Jerry Willow isn't in the couple whose children the sheet leaves out/);
+    expectRejected(sample, [{ ...jerrySide, hideChildrenOf: new ObjectId().toHexString() }], /couple .* not found/);
+  });
 });
 
 describe("planOperations: deleted parents count as absent (found in the owner's check)", () => {

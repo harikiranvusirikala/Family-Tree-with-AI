@@ -23,6 +23,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 10 | Import and export (F9, F10) | Done 2026-10-19. See the step 10 notes |
 | 11 | Nightly backup and hardening (F12) | Done 2026-10-19. Backup user, GitHub secrets and Dependabot alerts set up by the owner. Checked by the owner 2026-10-20 (merged to `main`): the backup workflow run by hand (green after the health-check fix), a restore check of its file, and the production smoke test, all passed. See the step 11 notes |
 | – | Hide photos (owner request, after step 11) | Done 2026-10-20. See its section after step 11 |
+| – | Sheet changes: the mother's own sheet, renaming follows, delete a sheet (owner requests, after step 11) | Done 2026-10-20. See their section after step 11 |
 | – | Final check on the live site | Not done yet. See its section at the end |
 
 ## How we work
@@ -726,6 +727,47 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 - **Tests:**
   - Unit: `PersonPhoto` shows initials while photos are hidden, and the photo again when they aren't.
   - E2E: with a photo on Jake, the eye button hides it on his card, in his panel and on another sheet, with no `<img>` left on the canvas. A picture is saved meanwhile, as `test-results/screenshots/sheet-picture-no-photos.png`, and pressing it again brings the photo back. Viewers get the button too.
+
+## After step 11: sheet changes (owner requests)
+- **Why:**
+  - Adding parents gave the mother no tab of her own, unlike a partner who marries in, so her side of the family only showed on sheets that also hold the father's.
+  - Her children don't need to be on her tab: they're on the father's side.
+  - A renamed person's sheet kept the old name in its title.
+  - Sheets couldn't be deleted, so neither could anyone who had one, such as a partner who married in.
+- **Build:**
+  - **The mother's own sheet:**
+    - Add parents has "Create their own sheet" under the mother's fields. Checked, the same save also creates "<Mother>'s family", rooted at her, with `hideChildrenOf` set to the parents' couple.
+    - The sheet shows her parents, her brothers and sisters and their families, her partner, and any children from another couple of hers. It doesn't show this couple's children (the person whose parents were added, and their brothers and sisters) or anyone below them, nor the father's parents and siblings.
+    - It starts unchecked, as an option; Add partner's stays checked. Checked with no mother's name, the form asks for her name or to uncheck it.
+    - "Add the other parent" offers the same box when that parent is a woman (it hides when the form's gender is Male).
+    - A new group's pinned "<Mother>'s family" works the same way (`newGroupOperations`). Groups created before keep theirs as it was.
+  - **A sheet that leaves out one couple's children** (§6), a new optional field:
+    - `createSheet`'s `hideChildrenOf` (`SheetDoc`, `Sheet`) must be a couple its root is in (planner).
+    - `buildSheetView` doesn't walk into that couple's children.
+    - It survives JSON export and import (the file's couple id becomes the new couple's). GEDCOM has no sheets.
+  - **Renaming follows:** a new name in Edit details also renames the person's sheets still titled "<old name>'s family" (`renameSheetsOps`); a title of your own stays. The assistant's `update_person` does the same, and its proposal card says so ("Rename the sheet …").
+  - **Delete sheet:**
+    - In the tab's ⋯ menu: a confirmation saying everyone on it stays. A UI-only `deleteSheet` operation, a soft delete (`deletedAt`, like people and groups).
+    - Pinned sheets (the father's and mother's start pinned) can't be deleted until unpinned, and a group's last sheet can't be deleted. The menu explains which, and the planner refuses the same.
+    - Deleted sheets are absent everywhere: `toGroupTree`, `firstSheetId` (the group link), the planner's checks. A deleted sheet's root can then be deleted.
+    - Deleting the open sheet shows the first remaining one (the page already did this for a sheet that's gone).
+  - Pinning is the guard because older groups have nothing else marking which two sheets are the father's and mother's.
+- **Decisions (owner, 2026-10-20):**
+  1. The mother's "Create their own sheet" starts unchecked, also now that sheets can be deleted.
+  2. A new group's Mother's sheet leaves out the couple's children too, like the mother's sheets made when adding parents.
+- **Tests:**
+  - Unit:
+    - The mother's sheet in the batch, rooted at her and hiding the parents' couple. Once both sides have parents and she has a brother, it shows her side only; the person's own sheet shows both sides. The other-parent path does the same, and the father never gets a sheet.
+    - `buildSheetView`: Jerry's side without his children; Steve's sheet hiding one couple still shows the children of his other couple, and an extra.
+    - Planner:
+      - `hideChildrenOf` stored, and refused for a couple the root isn't in, or an unknown one;
+      - `deleteSheet` refused when pinned or last; after it, the sheet is not found, isn't counted by `reorderSheets`, and its root can be deleted.
+    - A rename follows the given title and leaves a custom one; the assistant's rename proposal lists the sheet too.
+    - JSON keeps a sheet that hides a couple, from the whole group and from that sheet alone; a file pointing at a missing couple is refused.
+  - Database: `hideChildrenOf` saved and loaded; a deleted sheet stays in the collection with `deletedAt`, leaves the tabs, and the group link opens the next sheet.
+  - E2E:
+    - Mother's sheet: the box starts unchecked; checked with no mother, the form asks for her name. With Grace Lee as Taylor Humes's mother, "Grace Lee's family" appears (not one for the father) with only Grace and Frank Humes. "Add the other parent" shows the box for a mother and hides it for a father. A new group's Mother's tab shows the couple without the user, its child.
+    - Rename and delete: renaming Jerry Willow renames his tab. His pinned sheet can't be deleted until unpinned. Then it's deleted: the page goes to the Cruz family sheet with nobody missing, and Jerry can be deleted.
 
 ## Final check on the live site
 1. Sign in with Google.

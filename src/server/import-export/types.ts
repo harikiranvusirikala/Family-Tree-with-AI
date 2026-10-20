@@ -21,6 +21,8 @@ export interface ImportSheet {
   rootPersonId: string;
   extraPersonIds: string[];
   pinned: boolean;
+  /** The file's id of a couple whose children the sheet leaves out (Sheet.hideChildrenOf). */
+  hideChildrenOf?: string;
 }
 
 export interface ImportData {
