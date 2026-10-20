@@ -4,7 +4,7 @@ A web app where a family builds its tree together. People are added by hand or b
 
 **Live:** https://family-tree-with-ai.vercel.app
 
-- **Requirements and decisions:** [Features.txt](Features.txt)
+- **Requirements and decisions:** [Features.md](Features.md)
 - **Design (code layout, data model, permissions, flows):** [ARCHITECTURE.md](ARCHITECTURE.md)
 - **Build plan and progress:** [BUILD_PLAN.md](BUILD_PLAN.md)
 

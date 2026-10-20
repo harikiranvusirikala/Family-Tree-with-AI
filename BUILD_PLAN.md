@@ -1,6 +1,6 @@
 # Build Plan
 
-**Design:** [ARCHITECTURE.md](ARCHITECTURE.md) · **Requirements and decisions:** [Features.txt](Features.txt) · **Started:** 2026-10-18
+**Design:** [ARCHITECTURE.md](ARCHITECTURE.md) · **Requirements and decisions:** [Features.md](Features.md) · **Started:** 2026-10-18
 
 The app is built in small steps. Each step ends with its tests passing, a check by the owner, and a deploy. ARCHITECTURE.md is the blueprint: section numbers (§) and flow numbers (F) below refer to it.
 
@@ -30,7 +30,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 - **Pushing:** the Claude Code sandbox blocks github.com, so the owner pushes the branch (`git push -u origin step-N-<name>`). CI runs, Vercel builds a preview against `familytree_preview`, the owner checks it and merges to `main`, which deploys the live site. Each new step starts by checking that local `main` has the merge.
 - **Databases:** one free Atlas cluster. `familytree_dev` for local development, `familytree_preview` for Vercel previews, `familytree` for the live site (§12). Tests use throwaway `familytree_test_<time>_<label>` databases that remove themselves.
 - **Test data:** `test/fixtures/cruz-young.ts` holds the 36 people from the sample tree image (names, genders and years only). It covers a same-sex couple, a divorce and remarriage, and in-law parents. Only this invented data is used until permissions exist (step 5). `npm run seed` loads it into `familytree_dev`.
-- **Design changes:** when a step settles a design question, ARCHITECTURE.md (the relevant section and §15) and Features.txt are updated in that step's commit, and the Progress table here gets a note.
+- **Design changes:** when a step settles a design question, ARCHITECTURE.md (the relevant section and §15) and Features.md are updated in that step's commit, and the Progress table here gets a note.
 - **Sandbox (owner's machine):**
   - Commands that open local ports or reach MongoDB fail in the sandbox, so the owner allowlists them as `exact_match` (in the Claude Code sandbox dashboard → Tools): `npm run build`, `npm run test:e2e`, `npm run test:db`, `npm run db:ping`, `npm run db:setup`, `npm run seed`. They're run exactly as written. Anything else that needs ports or the database runs in the owner's terminal.
   - Allowing a domain doesn't help MongoDB: the driver uses its own protocol, not the web proxy.

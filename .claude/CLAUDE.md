@@ -10,7 +10,7 @@ Three docs drive all work. Read the relevant parts before changing anything:
 
 - **[BUILD_PLAN.md](BUILD_PLAN.md)**: the build plan and its Progress table. All steps 1–11 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`; Google sign-in; groups, roles and sheet pages; editing by hand; photos; members, invites and access requests; AI chat; import and export; nightly backup and hardening), plus owner requests between steps. What remains is the final check on the live site. Each built step has notes recording deviations and bugs found; read them before touching that area. New work follows the owner-request routine below.
 - **[ARCHITECTURE.md](ARCHITECTURE.md)**: the blueprint (code layout §4, data model §5, sheet rules §6, layout §7, permissions §8, flows F1–F12, AI chat §10, environments §12, env vars §13, open questions §15). Folder names, collections and function names come from here.
-- **[Features.txt](Features.txt)**: the owner's requirements plus the agreed DECISIONS section.
+- **[Features.md](Features.md)**: the owner's requirements, then the agreed Decisions, under the same headings.
 
 ## Working agreement with the owner
 
@@ -18,7 +18,7 @@ Three docs drive all work. Read the relevant parts before changing anything:
 - Build one BUILD_PLAN step at a time. At the end of a step, stop: show the test results and a short "try this" list, and wait for the owner's OK. A bug the owner finds gets a test that reproduces it, checked to fail without the fix.
 - After the OK: commit to a `step-N-<name>` branch. The sandbox blocks github.com, so the owner pushes it (CI runs and Vercel builds a preview) and merges to `main` after checking the preview. `main` deploys production. Before starting the next step, check that local `main` has the merge: `git fetch` is blocked too, but the owner's pulls update local `main` and `origin/main` (fast-forward with `git merge --ff-only origin/main` if only the latter moved).
 - Changes the owner asks for outside the plan (the night theme, the tree font) follow the same routine on their own branch (`night-theme`), with a short BUILD_PLAN section after the step they follow and a Progress row marked `–`.
-- When a step settles a design question, update ARCHITECTURE.md (the relevant section and §15), Features.txt DECISIONS, this file, and the BUILD_PLAN Progress table in the same commit. BUILD_PLAN step sections describe the step; status lives only in the Progress table.
+- When a step settles a design question, update ARCHITECTURE.md (the relevant section and §15), Features.md Decisions, this file, and the BUILD_PLAN Progress table in the same commit. BUILD_PLAN step sections describe the step; status lives only in the Progress table.
 - When a step adds indexes, the owner runs `MONGODB_DB=familytree_preview npm run db:setup` and `MONGODB_DB=familytree npm run db:setup` in their terminal before merging.
 - The AI chat model is `claude-haiku-5-5`, chosen by the owner to keep costs near zero. Don't switch models without asking.
 
