@@ -14,7 +14,7 @@ A web app where a family builds its tree together. People are added by hand or b
 
 ## Contents
 
-- [Features](#features)
+- [Features](#features), and [coming next: ★ Everyone](#coming-next--everyone)
 - [Tech stack](#tech-stack)
 - [Architecture](#architecture)
 - [Limits and capabilities](#limits-and-capabilities)
@@ -60,6 +60,23 @@ A web app where a family builds its tree together. People are added by hand or b
 - **Hardened:** security headers and a Content Security Policy on every page, and a smoke test of the live site after every deployment.
 
 The owner's full requirements and every agreed decision are in [docs/FEATURES.md](docs/FEATURES.md).
+
+### Coming next: ★ Everyone
+
+![★ Everyone, a planned first tab: the whole family as a Tree, a Network, a Wheel around one person, and a List](docs/screenshots/everyone-views.png)
+
+A built-in first tab on every group's sheets page that shows every person and how they're related, in four views:
+
+| View | What it shows | Best on |
+|---|---|---|
+| ⋔ **Tree** | The whole family drawn like a sheet, laid out automatically; export and print it like any sheet | Computers and tablets, where it's the first view |
+| ◎ **Network** | Everyone and every relation on one canvas: hearts join couples, arrows run from parents to children, bigger circles have more relations | Computers and tablets |
+| ◉ **Wheel** | One person in the middle and everyone else in rings by how close they are, each labelled (mother, uncle's wife, cousin's child) | Every screen |
+| ☰ **List** | A searchable list with each person's parents, partners, children and the sheets that show them | Every screen; a phone's first view |
+
+- ★ Everyone comes first in the tab row (first in the sheet picker on phones), but a group still opens on its first pinned sheet, or its first sheet when none is pinned.
+- Tapping anyone, in any view, opens the same person panel as on a sheet (editing for Maintain and up), with shortcuts to the other views. The person you picked stays picked when you switch, and each view has its own link to share.
+- It's designed but not built yet: the picture is a mockup drawn from the sample family. The agreed details are in [docs/FEATURES.md](docs/FEATURES.md#everyone-agreed-2026-10-20-not-built-yet).
 
 ## Tech stack
 
@@ -136,6 +153,7 @@ The full design (code layout, data model, sheet rules, permissions table, flows 
 | A group | Loaded whole into the browser: comfortable up to a few thousand people |
 
 **Not built (yet)**
+- **★ Everyone**, with its Tree, Network, Wheel and List views: designed ([above](#coming-next--everyone)), to be built one view at a time.
 - Hiding one extra person from a sheet; copying photos when importing into a different group.
 - Email notifications for invites and requests (they show in the app, plus a link to share).
 - A cap on groups per account: anyone with a Google account can sign up and create groups (an accepted risk; see [Security](#security)).

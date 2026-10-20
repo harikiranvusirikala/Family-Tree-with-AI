@@ -45,6 +45,10 @@ This is a Family Tree Web Application that can be accessed via Web.
 
 - Import/export existing or new sheet
 
+### Everyone
+
+- A place where all persons and all their relations are displayed, like a network graph of everyone. (Added 2026-10-20.)
+
 ## Decisions (agreed 2026-10-18, and at each build step since)
 
 ### Tech stack & deployment
@@ -195,6 +199,17 @@ This is a Family Tree Web Application that can be accessed via Web.
   - Possible duplicates (same name and birth year) start as "Use existing"; "Keep both" adds them as someone new.
   - Photos come in only when a JSON file goes back into the group it came from.
   - The picture always uses the day colours on white.
+
+### Everyone (agreed 2026-10-20, not built yet)
+
+- Four views of everyone in the group, chosen from the mockups: **Tree** (one big tree drawn like a sheet), **Network** (everyone and every relation on one canvas), **Wheel** (relatives in rings around one person, each labelled with the relation) and **List** (a searchable directory with each person's relations and sheets). The households graph with a relationship finder was not chosen.
+- They live in a built-in **★ Everyone** tab, the first in the sheet row (first in the phone's sheet picker, above the pinned sheets), with a switcher for the four views. It always holds everyone and can't be renamed or deleted.
+- **A group still opens on its first pinned sheet**, or its first sheet when none is pinned; never on ★ Everyone.
+- The first view is Tree on computers and tablets and List on phones; after that, the last one used on that device.
+- Tapping anyone opens the same person panel as on a sheet, editing included for Maintain and up, with shortcuts: Relatives wheel, Find in list, Show on a sheet, Show in network. The selected person stays selected across views, "Find someone" works in each, and each view and person has a shareable link (the usual access rules apply).
+- Viewers get all four views. Network and Wheel can be saved as pictures, like a sheet.
+- The wheel starts on the selected person (or the first pinned sheet's root). A "This is me" link between a member and a person, for "Centre on me", could come later.
+- Built one view at a time, in an order the owner will choose; the first one brings the tab and the switcher.
 
 ### Backups and hardening (step 11)
 
