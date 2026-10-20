@@ -21,7 +21,7 @@ const tree: GroupTree = {
 };
 const sheets = [tree.sheets[2], tree.sheets[1], tree.sheets[0]]; // tab order: pinned first
 
-function tabs(canEdit: boolean) {
+function tabs(canEdit: boolean, everyone = false) {
   const onOpen = vi.fn();
   render(
     <SheetTabs
@@ -34,6 +34,7 @@ function tabs(canEdit: boolean) {
       onOpen={onOpen}
       beforeMenu={<button type="button">Hide photos</button>}
       menuItems={<button type="button" role="menuitem">Picture (PNG)</button>}
+      everyone={everyone}
     />,
   );
   return onOpen;
@@ -84,5 +85,27 @@ describe("the sheet row on phones and tablets (owner request)", () => {
     fireEvent.click(within(openMenu()).getByRole("menuitem", { name: "Rename" }));
     expect(screen.queryByRole("menu", { name: "Sheet menu" })).toBeNull();
     expect(screen.getByRole("form", { name: "Rename sheet" })).toBeDefined();
+  });
+});
+
+describe("★ Everyone in the sheet row (owner request)", () => {
+  test("first in the tabs and in the phone's picker, before the pinned sheets", () => {
+    const onOpen = tabs(true);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["★ Everyone", "Cruz family", "Jerry Willow's family", "Emma Young's family"]);
+    const picker = screen.getByRole("combobox", { name: "Sheet" }) as HTMLSelectElement;
+    expect(picker.options[0].textContent).toBe("★ Everyone");
+    fireEvent.click(screen.getByRole("tab", { name: "★ Everyone" }));
+    expect(onOpen).toHaveBeenLastCalledWith("everyone");
+    fireEvent.change(picker, { target: { value: "everyone" } });
+    expect(onOpen).toHaveBeenLastCalledWith("everyone");
+  });
+
+  test("while it's open: selected, no sheet options, but + New sheet and the tools", () => {
+    tabs(true, true);
+    expect(screen.getByRole("tab", { name: "★ Everyone" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: "Cruz family" }).getAttribute("aria-selected")).toBe("false");
+    expect((screen.getByRole("combobox", { name: "Sheet" }) as HTMLSelectElement).value).toBe("everyone");
+    expect(screen.queryByRole("button", { name: "Sheet options" })).toBeNull();
+    expect(items(openMenu())).toEqual(["+ New sheet", "Picture (PNG)"]);
   });
 });

@@ -47,3 +47,13 @@ export function revealViewport(card: Rect, viewport: Viewport, screen: Size, cov
     zoom,
   };
 }
+
+/**
+ * Find someone (★ Everyone): the viewport that centres a card, at least zoomed in far enough to read
+ * names, in the part of the tree a phone's panel leaves visible (`covered`: as for revealViewport).
+ */
+export function focusViewport(card: Rect, viewport: Viewport, screen: Size, covered = 0): Viewport {
+  const zoom = Math.max(viewport.zoom, READABLE_ZOOM);
+  const visible = screen.height * (1 - covered);
+  return { x: screen.width / 2 - (card.x + card.width / 2) * zoom, y: visible / 2 - (card.y + card.height / 2) * zoom, zoom };
+}

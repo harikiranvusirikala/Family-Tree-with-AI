@@ -17,12 +17,12 @@ import {
 import "@xyflow/react/dist/style.css";
 import { CARD_HEIGHT, CARD_WIDTH, HEART_GAP, ROW_GAP, layoutEngine } from "@/tree/layout";
 import type { SheetView } from "@/tree/types";
-import { isPhone, isTabletOrPhone } from "../screen";
+import { isPhone, isTabletOrPhone, PHONE_PANEL_SHARE } from "../screen";
 import { useTheme } from "../theme";
 import { CanvasActionsContext, type CanvasActions } from "./canvas-actions";
 import { PersonNode, type PersonNodeType } from "./PersonNode";
 import { GENDER_COLORS } from "./PersonPhoto";
-import { readableViewport, revealViewport } from "./framing";
+import { focusViewport, readableViewport, revealViewport } from "./framing";
 import { sheetPicture } from "./sheet-picture";
 
 /** Set by the canvas: captures the whole sheet as a PNG data URL (Export, picture). */
@@ -46,7 +46,10 @@ type FlowNode = PersonNodeType | UnionNodeType;
 // clickable). Giving it a click handler keeps them on, so the cards' own buttons get the clicks.
 const keepNodesClickable = () => {};
 
-function Canvas({ view, sheetId, captureRef }: { view: SheetView; sheetId?: string; captureRef?: RefObject<CapturePicture | null> }) {
+/** A request to centre someone's card (Find someone): a new object each time, so the same person can be found twice. */
+export type CanvasFocus = { personId: string };
+
+function Canvas({ view, sheetId, focus, captureRef }: { view: SheetView; sheetId?: string; focus?: CanvasFocus | null; captureRef?: RefObject<CapturePicture | null> }) {
   const { onPerson, onCouple, selectedId } = useContext(CanvasActionsContext);
   const theme = useTheme() ?? "light";
   const [nodes, setNodes] = useState<FlowNode[]>([]);
@@ -134,6 +137,16 @@ function Canvas({ view, sheetId, captureRef }: { view: SheetView; sheetId?: stri
     if (next) void setViewport(next, { duration: 250 });
   }, [selectedId, getNode, getViewport, setViewport]);
 
+  // Find someone (★ Everyone): centre the chosen card, readable, above a phone's panel. After the
+  // effect above, so it wins when both run for the same choice.
+  useEffect(() => {
+    if (!focus || !flow.current) return;
+    const node = getNode(focus.personId);
+    if (!node) return;
+    const card = { ...node.position, width: node.width ?? 0, height: node.height ?? 0 };
+    void setViewport(focusViewport(card, getViewport(), flow.current.getBoundingClientRect(), isPhone() ? PHONE_PANEL_SHARE : 0), { duration: 300 });
+  }, [focus, getNode, getViewport, setViewport]);
+
   return (
     <ReactFlow
       ref={flow}
@@ -164,23 +177,25 @@ function Canvas({ view, sheetId, captureRef }: { view: SheetView; sheetId?: stri
 
 /**
  * Pan/zoom canvas for one sheet. Layout runs in the browser (ARCHITECTURE.md §7). `sheetId` tells a new
- * sheet from a change to the same one, which phones frame differently.
+ * sheet from a change to the same one, which phones frame differently; `focus` centres someone's card.
  */
 export function FamilyCanvas({
   view,
   sheetId,
+  focus,
   actions,
   captureRef,
 }: {
   view: SheetView;
   sheetId?: string;
+  focus?: CanvasFocus | null;
   actions?: CanvasActions;
   captureRef?: RefObject<CapturePicture | null>;
 }) {
   return (
     <ReactFlowProvider>
       <CanvasActionsContext value={actions ?? {}}>
-        <Canvas view={view} sheetId={sheetId} captureRef={captureRef} />
+        <Canvas view={view} sheetId={sheetId} focus={focus} captureRef={captureRef} />
       </CanvasActionsContext>
     </ReactFlowProvider>
   );

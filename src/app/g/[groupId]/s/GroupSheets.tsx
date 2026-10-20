@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { ExportItems, ExportMenu } from "@/components/import-export/ExportMenu";
 import { ImportPanel } from "@/components/import-export/ImportPanel";
-import { FamilyCanvas, type CapturePicture } from "@/components/tree/FamilyCanvas";
+import { FamilyCanvas, type CanvasFocus, type CapturePicture } from "@/components/tree/FamilyCanvas";
+import { FindSomeone } from "@/components/tree/FindSomeone";
 import { downloadPicture, printPicture } from "@/components/tree/sheet-picture";
 import { fileName } from "@/server/import-export/types";
 import { CouplePanel } from "@/components/tree/edit/CouplePanel";
@@ -16,6 +17,7 @@ import { HidePhotosButton } from "@/components/tree/HidePhotosButton";
 import { CloudNameContext, PhotosHiddenContext } from "@/components/tree/photo";
 import type { Operation } from "@/server/operations/schema";
 import { deletePersonOps, restorePersonOps, tabOrder } from "@/tree/edits";
+import { EVERYONE, everyoneView } from "@/tree/everyone";
 import { buildSheetView } from "@/tree/sheet-view";
 import type { GroupTree, Person } from "@/tree/types";
 import { applyChangesAction, signPhotoUploadAction } from "../actions";
@@ -46,9 +48,13 @@ export function GroupSheets({
 }) {
   const pathname = usePathname();
   const sheets = useMemo(() => tabOrder(tree.sheets), [tree.sheets]);
-  const found = sheets.find((s) => pathname.endsWith(`/s/${s.id}`));
+  // ★ Everyone (an owner request after the final check): every person, at /s/everyone. `current` is
+  // then the first sheet, which the tabs need but don't offer options for.
+  const everyone = pathname.endsWith(`/s/${EVERYONE}`);
+  const found = everyone ? undefined : sheets.find((s) => pathname.endsWith(`/s/${s.id}`));
   const current = found ?? sheets[0];
-  const view = useMemo(() => buildSheetView(tree, current), [tree, current]);
+  const view = useMemo(() => (everyone ? everyoneView(tree) : buildSheetView(tree, current)), [everyone, tree, current]);
+  const couples = view.unions.filter((u) => u.partnerIds.length === 2).length;
 
   const [selection, setSelection] = useState<Selection>(null);
   const [deleted, setDeleted] = useState<Person | null>(null); // for Undo
@@ -60,6 +66,7 @@ export function GroupSheets({
   // The eye button: kept while switching sheets, back to showing photos on the next visit.
   const [photosHidden, setPhotosHidden] = useState(false);
   const capture = useRef<CapturePicture | null>(null);
+  const [focus, setFocus] = useState<CanvasFocus | null>(null); // Find someone
 
   /** Export, picture (F9): the whole sheet, then a download or the print dialog. */
   async function picture(then: (dataUrl: string) => void) {
@@ -79,8 +86,8 @@ export function GroupSheets({
   // A mistyped or removed sheet in the URL: show the first one, and say so in the address bar. Not
   // while saving: a new sheet's URL is set just before the data with that sheet arrives.
   useEffect(() => {
-    if (!found && !pending) window.history.replaceState(null, "", `/g/${groupId}/s/${current.id}`);
-  }, [found, pending, current.id, groupId]);
+    if (!found && !everyone && !pending) window.history.replaceState(null, "", `/g/${groupId}/s/${current.id}`);
+  }, [found, everyone, pending, current.id, groupId]);
 
   const openSheet = (sheetId: string) => window.history.pushState(null, "", `/g/${groupId}/s/${sheetId}`);
 
@@ -119,10 +126,10 @@ export function GroupSheets({
   const couple = selection?.kind === "couple" ? tree.unions.find((u) => u.id === selection.id) : undefined;
   const exportProps = {
     groupId,
-    sheetId: current.id,
+    sheetId: everyone ? undefined : current.id,
     canExportData: canEdit,
-    onPicture: () => picture((url) => downloadPicture(url, fileName(current.title))),
-    onPrint: () => picture((url) => printPicture(url, current.title)),
+    onPicture: () => picture((url) => downloadPicture(url, fileName(everyone ? "Everyone" : current.title))),
+    onPrint: () => picture((url) => printPicture(url, everyone ? "Everyone" : current.title)),
   };
   const panelProps = {
     tree,
@@ -144,6 +151,7 @@ export function GroupSheets({
           pending={pending}
           run={run}
           onOpen={openSheet}
+          everyone={everyone}
           // Below 1024 px the eye stays in the row, just before the sheet menu (the owner's choice), the
           // other tools are items in that menu, and Ask AI is a round button.
           beforeMenu={cloudName && <HidePhotosButton plain hidden={photosHidden} onToggle={() => setPhotosHidden(!photosHidden)} />}
@@ -190,11 +198,28 @@ export function GroupSheets({
             {error}
           </p>
         )}
+        {everyone && (
+          <div className="flex items-center gap-3 border-b border-zinc-200 px-3 py-2 md:px-4 dark:border-zinc-800">
+            <p className="hidden shrink-0 text-sm text-zinc-500 sm:block dark:text-zinc-400">
+              {view.persons.length} {view.persons.length === 1 ? "person" : "people"} · {couples} {couples === 1 ? "couple" : "couples"}
+            </p>
+            <div className="w-full sm:ml-auto sm:w-72">
+              <FindSomeone
+                persons={view.persons}
+                onChoose={(id) => {
+                  setSelection({ kind: "person", id });
+                  setFocus({ personId: id });
+                }}
+              />
+            </div>
+          </div>
+        )}
         <div className="relative flex min-h-0 flex-1">
-          <div role="tabpanel" aria-label={current.title} className="relative min-w-0 flex-1">
+          <div role="tabpanel" aria-label={everyone ? "Everyone" : current.title} className="relative min-w-0 flex-1">
             <FamilyCanvas
               view={view}
-              sheetId={current.id}
+              sheetId={everyone ? EVERYONE : current.id}
+              focus={focus}
               captureRef={capture}
               actions={{
                 onPerson: (id) => setSelection({ kind: "person", id }),
@@ -224,7 +249,7 @@ export function GroupSheets({
               person={person}
               onDelete={deletePerson}
               signPhotoUpload={cloudName ? () => signPhotoUploadAction(groupId) : undefined}
-              currentSheetId={current.id}
+              currentSheetId={everyone ? EVERYONE : current.id}
               onOpenSheet={openSheet}
               {...panelProps}
             />

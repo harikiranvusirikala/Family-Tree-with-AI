@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 /**
  * F9: Export, at the end of the sheet tabs. Everyone can save the sheet as a picture or print it
  * (and so save a PDF); Maintain and up also download the data, of this sheet or the whole group.
+ * Without `sheetId` (★ Everyone) there's no "this sheet" data: the whole group's is the same.
  */
 export function ExportMenu({
   groupId,
@@ -15,7 +16,7 @@ export function ExportMenu({
   onPrint,
 }: {
   groupId: string;
-  sheetId: string;
+  sheetId?: string;
   canExportData: boolean;
   busy: boolean;
   onPicture: () => void;
@@ -68,7 +69,8 @@ export function ExportMenu({
 
 /**
  * The Export menu's items, also in the sheet menu below 1024 px (phones and tablets). `headings`:
- * "This sheet" and "The whole group" above their items; `onDone` runs after any item is chosen.
+ * "This sheet" (or "Everyone", without `sheetId`) and "The whole group" above their items; `onDone`
+ * runs after any item is chosen.
  */
 export function ExportItems({
   groupId,
@@ -81,7 +83,7 @@ export function ExportItems({
   headings = true,
 }: {
   groupId: string;
-  sheetId: string;
+  sheetId?: string;
   canExportData: boolean;
   onPicture: () => void;
   onPrint: () => void;
@@ -92,7 +94,7 @@ export function ExportItems({
   const data = (format: "json" | "gedcom", sheet: boolean) => `/api/groups/${groupId}/export?format=${format}${sheet ? `&sheet=${sheetId}` : ""}`;
   return (
     <>
-      {headings && <p className="px-3 pt-1 text-xs text-zinc-500 dark:text-zinc-400">This sheet</p>}
+      {headings && <p className="px-3 pt-1 text-xs text-zinc-500 dark:text-zinc-400">{sheetId ? "This sheet" : "Everyone"}</p>}
       <button type="button" role="menuitem" className={itemClass} onClick={() => (onDone(), onPicture())}>
         Picture (PNG)
       </button>
@@ -101,12 +103,16 @@ export function ExportItems({
       </button>
       {canExportData && (
         <>
-          <a role="menuitem" className={itemClass} href={data("gedcom", true)} download onClick={onDone}>
-            Data: this sheet (GEDCOM)
-          </a>
-          <a role="menuitem" className={itemClass} href={data("json", true)} download onClick={onDone}>
-            Data: this sheet (JSON)
-          </a>
+          {sheetId && (
+            <>
+              <a role="menuitem" className={itemClass} href={data("gedcom", true)} download onClick={onDone}>
+                Data: this sheet (GEDCOM)
+              </a>
+              <a role="menuitem" className={itemClass} href={data("json", true)} download onClick={onDone}>
+                Data: this sheet (JSON)
+              </a>
+            </>
+          )}
           {headings && <p className="px-3 pt-2 text-xs text-zinc-500 dark:text-zinc-400">The whole group</p>}
           <a role="menuitem" className={itemClass} href={data("gedcom", false)} download onClick={onDone}>
             Data: whole group (GEDCOM)

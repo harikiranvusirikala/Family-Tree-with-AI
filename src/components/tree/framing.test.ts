@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, test } from "vitest";
 import { CARD_HEIGHT, CARD_WIDTH } from "@/tree/layout";
-import { READABLE_ZOOM, readableViewport, revealViewport } from "./framing";
+import { READABLE_ZOOM, focusViewport, readableViewport, revealViewport } from "./framing";
 
 const phone = { width: 390, height: 700 };
 /** Where a point of the tree lands on the screen. */
@@ -53,5 +53,24 @@ describe("keeping the selected card above the phone's panel", () => {
   test("on a tablet the panel covers nothing, so a low card is left where it is", () => {
     expect(revealViewport(card, { x: -250, y: 200, zoom: 0.75 }, phone, 0)).toBeNull(); // on screen at 50, 425
     expect(revealViewport(card, { x: -250, y: 200, zoom: 0.75 }, phone)).not.toBeNull();
+  });
+});
+
+describe("Find someone: centring their card (owner request)", () => {
+  const card = { x: 900, y: 600, width: CARD_WIDTH, height: CARD_HEIGHT };
+
+  test("zoomed in to a readable size when the whole tree was showing, and centred", () => {
+    const view = focusViewport(card, { x: 0, y: 0, zoom: 0.3 }, { width: 1100, height: 700 });
+    expect(view.zoom).toBe(READABLE_ZOOM);
+    const centre = onScreen(view, card.x + card.width / 2, card.y + card.height / 2);
+    expect(centre).toEqual({ x: 550, y: 350 });
+  });
+
+  test("keeps a closer zoom, and on a phone centres in the part above the panel", () => {
+    const view = focusViewport(card, { x: 0, y: 0, zoom: 1.2 }, phone, 0.55);
+    expect(view.zoom).toBe(1.2);
+    const centre = onScreen(view, card.x + card.width / 2, card.y + card.height / 2);
+    expect(centre.x).toBeCloseTo(phone.width / 2);
+    expect(centre.y).toBeCloseTo((phone.height * 0.45) / 2);
   });
 });

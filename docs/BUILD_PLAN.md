@@ -29,6 +29,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Phones and tablets (owner request, after the final check) | Done 2026-10-20 (merged to `main`); the eye button back in the sheet row after the owner's check. See its section at the end |
 | – | A sheet of their own, later (owner request, after the final check) | Done 2026-10-20. See its section at the end |
 | – | The sheet tab row (owner requests, after the final check) | Done 2026-10-20. See its section at the end |
+| – | ★ Everyone, part 1: the tab and the Tree view (owner request) | Done 2026-10-21 (e2e run in the owner's terminal: 66 passed). See its section at the end |
 
 ## How we work
 
@@ -873,3 +874,43 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - **No scrollbar:** the row scrolls sideways without one (a `scrollbar-none` utility in `globals.css`). A mouse wheel over the row scrolls it sideways (trackpads already do), and the open sheet's tab is scrolled into view, when the page opens and when "Go to" opens a far tab.
   - **⋯ first, on computers:** the sheet options button comes at the start of the row, before the pinned tabs, and stays put while the tabs scroll. Phones and tablets keep their ⋯ menu at the end.
 - **Tests (e2e, a group with nine long-titled sheets):** every tab ends before "+ New sheet", and the last one, scrolled into view, isn't covered and opens; ⋯ comes before the first tab and is still showing after scrolling; the row overflows with no scrollbar; a mouse wheel scrolls it; opening the last sheet brings its tab into view. Each check failed before its change.
+
+## After the final check: ★ Everyone, part 1: the tab and the Tree view (owner request)
+- **Why:** one place that shows everyone in the group and all their relations (FEATURES.md, Everyone). Four views are agreed, built one at a time in the owner's order: **Tree**, List, Network, Wheel. This part brings the tab and the first view.
+- **Build:**
+  - **The tab:** "★ Everyone" comes first in the sheet row, before the pinned sheets; on phones it's the first choice in the sheet picker, above "Pinned".
+    - It isn't a stored sheet: nothing is saved for it, and it can't be renamed, pinned, moved or deleted.
+    - Its address is `/g/<group>/s/everyone` (a sheet's id is 24 hexadecimal characters, so it can't clash). Back, Forward and reloading work as for any tab, and its link can be shared under the usual access rules.
+  - **Opening a group** still lands on its first pinned sheet, or its first sheet when none is pinned (`firstSheetId`, unchanged). An unknown sheet in the address still shows the first sheet, never ★ Everyone.
+  - **The Tree view:** every person in the group and every couple, laid out by the same engine as a sheet.
+    - `everyoneView(tree)`, pure, in `src/tree/` beside `buildSheetView`, with the same rules for what's drawn: couples whose partners are all shown, children who are shown. Removed people are already left out of the loaded group.
+    - People on no sheet, and families not yet joined to the rest, appear as their own small trees beside the main one (ELK lays out unconnected families separately).
+    - Cards, hearts, photos, the eye, night colours, zoom and pictures work as on a sheet. On phones and tablets the readable first view is around the first pinned sheet's root.
+  - **The bar above the tree** (only on ★ Everyone): the count ("36 people · 12 couples") and **Find someone**: type part of a name (case and accents ignored, like the import's duplicate check), pick from the matches, and that person is selected, their panel opens, and the tree moves to their card. The view switcher (Tree · List · Network · Wheel) appears in this bar with part 2, when there's a second view.
+  - **The person panel** is the usual one, editing included for Maintain and up; a change shows at once. On ★ Everyone, someone with no sheet of their own also gets **Go to <sheet title>** for the first sheet, in tab order, that shows them; it opens with them still selected. (The design called it "Show on a sheet", but the panel already has "Show on another sheet", the edit that adds someone to a sheet, so it uses "Go to", like the jump to a person's own sheets.)
+  - **The sheet row on ★ Everyone:** with nothing to rename, pin, move or delete, the computer's ⋯ is hidden, and the phone and tablet ⋯ menu shows only the tools. "+ New sheet", the eye, Export, Import… and Ask AI stay.
+  - **Export:** the picture and print show the whole tree, named "Everyone". "Data: this sheet" is left out; the whole group's GEDCOM and JSON are the same data.
+  - No database, server or permission changes: everything is drawn from the group the page has already loaded. Viewers get the tab too.
+- **Tests:**
+  - Unit:
+    - `everyoneView`: the sample's 36 people and 12 couples; a person on no sheet and a separate couple are included; a couple with a removed partner isn't drawn as a couple.
+    - Layout: a group with two unconnected families lays out with no overlapping cards.
+    - `SheetTabs`: ★ Everyone first in the tabs and in the picker, selected at its address, with no sheet options on it.
+    - The panel on ★ Everyone: Go to the first sheet in tab order that shows the person, not repeating their own sheets.
+    - Find someone: matching ignores case and accents; Up, Down, Enter and Escape; choosing someone calls back with them.
+  - E2E:
+    - Desktop: the group opens on Cruz family, not ★ Everyone. ★ Everyone is the first tab; it shows 36 people at its own address, and still after a reload; it has no ⋯.
+    - Find someone "amelia" selects Amelia Young and brings her card into view. From Taylor Humes's panel, Go to Cruz family opens it with her selected, and Back returns to ★ Everyone.
+    - Someone added on no sheet (through the database fixture) shows on ★ Everyone only.
+    - The picture is named "Everyone", and there's no "Data: this sheet". A Viewer gets the tab.
+    - Phone: the picker's first choice is ★ Everyone; it opens the tree with names readable.
+    - Screenshots: `everyone-tree.png` and `phone-everyone.png`.
+- **Decisions (owner, 2026-10-20),** each the proposal:
+  1. Find someone comes now, in part 1.
+  2. The view switcher stays hidden until part 2 brings a second view.
+  3. People on no sheet aren't marked in the tree; the List's "On no sheet" filter (part 2) finds them.
+- **Notes (2026-10-21):**
+  - The panel's jump on ★ Everyone is "Go to <sheet>", not "Show on a sheet": the panel already has "Show on another sheet", the edit that adds someone to a sheet. It isn't offered when that first sheet is one of the person's own (their "Go to" is there already).
+  - The sample family has 12 couples, not the 11 the mockups said; the count and the tests say 12.
+  - The e2e runs happened in the owner's terminal. After this session restarted, its runs of `npm run test:e2e` and `npm run db:ping` were sandboxed again (no MongoDB, no ports). Retries started while the owner's run was going cleared `test-results/` (Playwright does at start), so three of the owner's tests failed on missing trace files: never start an e2e run while the owner may be running one.
+  - The first run also caught five older tests that listed the tabs or the picker's choices exactly; they now expect ★ Everyone first.

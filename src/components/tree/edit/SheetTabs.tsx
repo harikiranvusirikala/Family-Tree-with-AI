@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { Operation } from "@/server/operations/schema";
 import { deleteSheetOps, moveSheetOps, newSheetOps, updateSheetOps } from "@/tree/edits";
+import { EVERYONE } from "@/tree/everyone";
 import type { GroupTree, NamedSheet } from "@/tree/types";
 import { nameWithYears } from "./PersonPanel";
 
@@ -11,6 +12,8 @@ const small = "rounded px-2 py-1 text-sm hover:bg-zinc-100 disabled:opacity-50 p
 /** An item in the sheet menu (below 1024 px), and a heading over a group of them. */
 export const sheetMenuItem = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-zinc-100 disabled:opacity-50 pointer-coarse:min-h-11 dark:hover:bg-zinc-800";
 export const sheetMenuHeading = "px-2 pt-2 text-xs text-zinc-500 dark:text-zinc-400";
+const tabClass =
+  "flex shrink-0 items-center gap-1 whitespace-nowrap rounded-t-md border border-b-0 border-transparent px-3 py-1.5 text-sm text-zinc-600 pointer-coarse:py-3 hover:text-zinc-900 aria-selected:border-zinc-200 aria-selected:bg-white aria-selected:font-medium aria-selected:text-zinc-900 dark:aria-selected:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 dark:aria-selected:bg-zinc-900 dark:aria-selected:text-zinc-100";
 
 /**
  * The sheet tabs (F5), plus for Maintain and up: "+ New sheet", and the current tab's menu to rename,
@@ -20,6 +23,10 @@ export const sheetMenuHeading = "px-2 pt-2 text-xs text-zinc-500 dark:text-zinc-
  * Below 1024 px (an owner request after the final check) the row keeps only the sheets, `beforeMenu`
  * (the eye that hides photos) and one menu (⋯, "Sheet menu"), which holds the sheet's options and
  * `menuItems` (the other trailing tools as menu items). Phones get a sheet picker instead of tabs.
+ *
+ * ★ Everyone (an owner request after the final check) comes first, before the pinned sheets; `onOpen`
+ * gets EVERYONE for it. While it's open (`everyone`) there's no sheet to rename, pin, move or delete, so
+ * those options are left out; `current` is then just the first sheet.
  */
 export function SheetTabs({
   tree,
@@ -32,6 +39,7 @@ export function SheetTabs({
   trailing,
   beforeMenu,
   menuItems,
+  everyone = false,
 }: {
   tree: GroupTree;
   sheets: NamedSheet[]; // in tab order
@@ -43,6 +51,7 @@ export function SheetTabs({
   trailing?: ReactNode;
   beforeMenu?: ReactNode;
   menuItems?: ReactNode;
+  everyone?: boolean;
 }) {
   const [tool, setTool] = useState<"menu" | "more" | "rename" | "new" | "delete" | null>(null);
   const bar = useRef<HTMLDivElement>(null);
@@ -66,6 +75,7 @@ export function SheetTabs({
     close();
     if (ops) void run(ops);
   };
+  const options = canEdit && !everyone; // the open sheet's own: rename, pin, move, delete
   const left = moveSheetOps(sheets, current.id, -1);
   const right = moveSheetOps(sheets, current.id, 1);
   /** Why this sheet can't be deleted, if it can't. */
@@ -126,7 +136,7 @@ export function SheetTabs({
     const [r, t] = [row.getBoundingClientRect(), tab.getBoundingClientRect()];
     if (t.left < r.left) row.scrollLeft -= r.left - t.left + 16;
     else if (t.right > r.right) row.scrollLeft += t.right - r.right + 16;
-  }, [current.id]);
+  }, [current.id, everyone]);
 
   async function rename(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -151,7 +161,7 @@ export function SheetTabs({
       <div className="flex items-center gap-1 pr-2 md:items-end lg:gap-2 lg:pr-4">
         {/* Computers: the sheet's options (⋯) come first, before the pinned tabs, and stay put while the
             tabs scroll (the owner's choice). */}
-        {canEdit && (
+        {options && (
           <div className="mb-1 hidden shrink-0 pl-4 lg:block">
             <button type="button" aria-label="Sheet options" aria-haspopup="menu" aria-expanded={tool === "menu"} onClick={() => (tool === "menu" ? close() : setTool("menu"))} className={small}>
               ⋯
@@ -164,18 +174,14 @@ export function SheetTabs({
             by the owner with seven sheets). */}
         <div
           ref={tabRow}
-          className={`hidden min-w-0 flex-1 items-end gap-1 overflow-x-auto scrollbar-none pl-4 pt-2 md:flex ${canEdit ? "lg:pl-0" : ""}`}
+          className={`hidden min-w-0 flex-1 items-end gap-1 overflow-x-auto scrollbar-none pl-4 pt-2 md:flex ${options ? "lg:pl-0" : ""}`}
         >
           <div role="tablist" aria-label="Sheets" className="flex shrink-0 gap-1">
+            <button type="button" role="tab" aria-selected={everyone} onClick={() => onOpen(EVERYONE)} className={tabClass}>
+              ★ Everyone
+            </button>
             {sheets.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                role="tab"
-                aria-selected={s.id === current.id}
-                onClick={() => onOpen(s.id)}
-                className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-t-md border border-b-0 border-transparent px-3 py-1.5 text-sm text-zinc-600 pointer-coarse:py-3 hover:text-zinc-900 aria-selected:border-zinc-200 aria-selected:bg-white aria-selected:font-medium aria-selected:text-zinc-900 dark:aria-selected:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 dark:aria-selected:bg-zinc-900 dark:aria-selected:text-zinc-100"
-              >
+              <button key={s.id} type="button" role="tab" aria-selected={!everyone && s.id === current.id} onClick={() => onOpen(s.id)} className={tabClass}>
                 {s.pinned && (
                   <svg aria-hidden width="12" height="12" viewBox="0 0 24 24" className="fill-zinc-400">
                     <path d="M16 3l5 5-3 1-4 4 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 4-4z" />
@@ -193,7 +199,7 @@ export function SheetTabs({
             </div>
           )}
         </div>
-        <SheetPicker sheets={sheets} current={current} onOpen={onOpen} />
+        <SheetPicker sheets={sheets} current={everyone ? EVERYONE : current.id} onOpen={onOpen} />
         {beforeMenu && <div className="flex shrink-0 md:mb-1 lg:hidden">{beforeMenu}</div>}
         <button
           type="button"
@@ -218,7 +224,7 @@ export function SheetTabs({
           }}
           className="absolute inset-x-0 top-full z-30 flex max-h-[70dvh] flex-col gap-0.5 overflow-y-auto border-b border-zinc-200 bg-white p-2 text-sm text-zinc-900 shadow-lg md:left-auto md:w-80 md:rounded-bl-lg md:border-l lg:hidden dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
         >
-          {canEdit && (
+          {options && (
             <>
               <p className={sheetMenuHeading}>{current.title}</p>
               <div className="flex flex-wrap gap-1">
@@ -241,16 +247,18 @@ export function SheetTabs({
                   Delete sheet
                 </button>
               </div>
-              <button type="button" role="menuitem" onClick={openNew} className={sheetMenuItem}>
-                + New sheet
-              </button>
             </>
+          )}
+          {canEdit && (
+            <button type="button" role="menuitem" onClick={openNew} className={sheetMenuItem}>
+              + New sheet
+            </button>
           )}
           {menuItems}
         </div>
       )}
 
-      {tool === "menu" && (
+      {tool === "menu" && options && (
         <div role="menu" aria-label="Sheet options" className="flex flex-wrap gap-1 px-4 py-2 text-sm">
           <span className="self-center pr-2 text-zinc-500 dark:text-zinc-400">{current.title}:</span>
           <button type="button" role="menuitem" onClick={() => setTool("rename")} className={small}>
@@ -271,7 +279,7 @@ export function SheetTabs({
         </div>
       )}
 
-      {tool === "delete" && (
+      {tool === "delete" && options && (
         // Pinned sheets (the father's and mother's) and the last sheet can't go; the server says the same.
         <form aria-label="Delete sheet" onSubmit={deleteSheet} className="flex flex-wrap items-center gap-2 px-4 py-2 text-sm">
           {refusal ? (
@@ -290,7 +298,7 @@ export function SheetTabs({
         </form>
       )}
 
-      {tool === "rename" && (
+      {tool === "rename" && options && (
         <form aria-label="Rename sheet" onSubmit={rename} className="flex flex-wrap items-end gap-2 px-4 py-2">
           <label className="flex min-w-64 flex-col gap-1 text-sm font-medium">
             Sheet title
@@ -358,9 +366,10 @@ export function SheetTabs({
 
 /**
  * Phones: the sheets as a picker (decided by the owner) instead of tabs, which would show about two at
- * a time. The device's own list opens, so every title can be read in full; pinned sheets come first.
+ * a time. The device's own list opens, so every title can be read in full; ★ Everyone first, then the
+ * pinned sheets. `current`: the open sheet's id, or EVERYONE.
  */
-function SheetPicker({ sheets, current, onOpen }: { sheets: NamedSheet[]; current: NamedSheet; onOpen: (sheetId: string) => void }) {
+function SheetPicker({ sheets, current, onOpen }: { sheets: NamedSheet[]; current: string; onOpen: (sheetId: string) => void }) {
   const option = (s: NamedSheet) => (
     <option key={s.id} value={s.id}>
       {s.title}
@@ -372,10 +381,11 @@ function SheetPicker({ sheets, current, onOpen }: { sheets: NamedSheet[]; curren
     <div className="relative min-w-0 flex-1 py-1.5 pl-3 md:hidden">
       <select
         aria-label="Sheet"
-        value={current.id}
+        value={current}
         onChange={(event) => onOpen(event.target.value)}
         className="h-10 w-full appearance-none truncate rounded-lg border border-zinc-300 bg-white pl-3 pr-9 text-sm font-medium pointer-coarse:h-11 dark:border-zinc-700 dark:bg-zinc-900"
       >
+        <option value={EVERYONE}>★ Everyone</option>
         {pinned.length && others.length ? (
           <>
             <optgroup label="Pinned">{pinned.map(option)}</optgroup>

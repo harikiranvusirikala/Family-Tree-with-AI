@@ -29,7 +29,7 @@ test("a new user starts empty, creates a group and lands on the father's sheet w
   await expect(textbox(page, "Your name")).toHaveValue(user.name);
 
   const { groupId, sheetId } = await createGroup(page, "Sharma family", "Ravi Sharma", "Anita Sharma", "Female");
-  await expect(page.getByRole("tab")).toHaveText(["Ravi Sharma's family", "Anita Sharma's family"]);
+  await expect(page.getByRole("tab")).toHaveText(["★ Everyone", "Ravi Sharma's family", "Anita Sharma's family"]);
   await expect(page.getByRole("tab", { name: "Ravi Sharma's family" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("person-card")).toHaveCount(3);
 

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { beforeAll, describe, expect, test } from "vitest";
+import { everyoneView } from "../everyone";
 import { buildSheetView } from "../sheet-view";
 import { computeGenerations } from "../generations";
 import type { FamilyData, SheetView } from "../types";
@@ -53,6 +54,26 @@ describe(`layout engine: ${engine.name}`, () => {
 
   test("no cards overlap", () => {
     expect(overlaps(result)).toEqual([]);
+  });
+
+  test("★ Everyone: unconnected families and someone on their own are laid out side by side (owner request)", async () => {
+    // The sample plus a couple with a child, joined to nobody, and one person on their own.
+    const view = everyoneView({
+      persons: [
+        ...cruzYoung.persons,
+        { id: "ravi-rao", name: "Ravi Rao", gender: "male" },
+        { id: "priya-rao", name: "Priya Rao", gender: "female" },
+        { id: "anu-rao", name: "Anu Rao", gender: "female" },
+        { id: "zoe-avila", name: "Zoë Ávila", gender: "female" },
+      ],
+      unions: [...cruzYoung.unions, { id: "u-rao", partnerIds: ["ravi-rao", "priya-rao"], status: "married", childIds: ["anu-rao"] }],
+      sheets: [],
+    });
+    const r = await engine.layout(view);
+    expect(r.persons).toHaveLength(40);
+    expect(overlaps(r)).toEqual([]);
+    expectPartnersBesideUnion(r, view, "u-rao");
+    expect(at(r, "anu-rao").y).toBeGreaterThan(at(r, "ravi-rao").y);
   });
 
   test("each generation sits in one row, older generations above", () => {

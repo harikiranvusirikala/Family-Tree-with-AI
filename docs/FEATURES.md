@@ -200,7 +200,7 @@ This is a Family Tree Web Application that can be accessed via Web.
   - Photos come in only when a JSON file goes back into the group it came from.
   - The picture always uses the day colours on white.
 
-### Everyone (agreed 2026-10-20, not built yet)
+### Everyone (agreed 2026-10-20; part 1, the tab and the Tree view, built)
 
 - Four views of everyone in the group, chosen from the mockups: **Tree** (one big tree drawn like a sheet), **Network** (everyone and every relation on one canvas), **Wheel** (relatives in rings around one person, each labelled with the relation) and **List** (a searchable directory with each person's relations and sheets). The households graph with a relationship finder was not chosen.
 - They live in a built-in **★ Everyone** tab, the first in the sheet row (first in the phone's sheet picker, above the pinned sheets), with a switcher for the four views. It always holds everyone and can't be renamed or deleted.
@@ -209,7 +209,8 @@ This is a Family Tree Web Application that can be accessed via Web.
 - Tapping anyone opens the same person panel as on a sheet, editing included for Maintain and up, with shortcuts: Relatives wheel, Find in list, Show on a sheet, Show in network. The selected person stays selected across views, "Find someone" works in each, and each view and person has a shareable link (the usual access rules apply).
 - Viewers get all four views. Network and Wheel can be saved as pictures, like a sheet.
 - The wheel starts on the selected person (or the first pinned sheet's root). A "This is me" link between a member and a person, for "Centre on me", could come later.
-- Built one view at a time, in an order the owner will choose; the first one brings the tab and the switcher.
+- Built one view at a time in the owner's order: Tree, List, Network, Wheel. Part 1 brings the tab, the Tree view and Find someone; the view switcher appears with part 2, when there's a second view. People on no sheet aren't marked in the tree; the List's "On no sheet" filter finds them.
+- On ★ Everyone, someone with no sheet of their own gets "Go to <sheet>" in their panel for the first sheet that shows them. (Named like the jump to a person's own sheets; "Show on another sheet" is already the edit that adds someone to a sheet.)
 
 ### Backups and hardening (step 11)
 

@@ -112,3 +112,20 @@ describe("creating someone's own sheet later (owner request)", () => {
     await vi.waitFor(() => expect(run).toHaveBeenCalledWith([{ op: "createSheet", tempId: "new:sheet", title: "The Lamberts", rootPersonId: "fred" }]));
   });
 });
+
+describe("on ★ Everyone: going to a sheet that shows them (owner request)", () => {
+  test("someone without a sheet of their own gets the first sheet, in tab order, that shows them", () => {
+    const { onOpenSheet } = panel("cynthia", "everyone");
+    expect(goTo()).toEqual(["Go to Jerry Willow's family"]); // Cruz family, first, doesn't show her
+    fireEvent.click(screen.getByRole("button", { name: "Go to Jerry Willow's family" }));
+    expect(onOpenSheet).toHaveBeenCalledWith("jerry-tab");
+  });
+
+  test("their own sheets aren't repeated, and on a sheet there's nothing extra", () => {
+    panel("jerry", "everyone");
+    expect(goTo()).toEqual(["Go to Jerry Willow's family", "Go to The Willows"]);
+    cleanup();
+    panel("cynthia", "cruz-tab");
+    expect(goTo()).toEqual([]);
+  });
+});

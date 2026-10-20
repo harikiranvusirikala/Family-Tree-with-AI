@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import type { Operation } from "@/server/operations/schema";
 import { addChildOps, addParentsOps, addPartnerOps, editPersonOps, newSheetOps, relationsOf, showOnSheetOps, tabOrder, type NewParent } from "@/tree/edits";
+import { EVERYONE } from "@/tree/everyone";
 import { buildSheetView } from "@/tree/sheet-view";
 import type { Gender, GroupTree, Person } from "@/tree/types";
 import { formatYears } from "@/tree/years";
@@ -57,7 +58,8 @@ const MOTHER_SHEET_HINT = "a tab for her side of the family: her parents, brothe
 /**
  * F6: one person's details and, for Maintain and up, what can be done with them. `signPhotoUpload` is
  * given when they may change photos and photos are set up (F8). Everyone can go to the person's own
- * sheets (an owner request after step 11): `onOpenSheet` opens one, as its tab would.
+ * sheets (an owner request after step 11): `onOpenSheet` opens one, as its tab would. On ★ Everyone
+ * (`currentSheetId` EVERYONE) it also offers a sheet that shows them.
  */
 export function PersonPanel({
   person,
@@ -99,6 +101,14 @@ export function PersonPanel({
   const otherSheets = tree.sheets.filter((s) => !buildSheetView(tree, s).persons.some((p) => p.id === person.id));
   // Sheets rooted at them (someone who married in, a mother's own), apart from the one open.
   const ownSheets = tabOrder(tree.sheets).filter((s) => s.rootPersonId === person.id && s.id !== currentSheetId);
+  // On ★ Everyone: the first sheet, in tab order, that shows them (unless it's one of their own, above).
+  const showOn =
+    currentSheetId === EVERYONE ? tabOrder(tree.sheets).find((s) => buildSheetView(tree, s).persons.some((p) => p.id === person.id)) : undefined;
+  const jumps = [
+    ...ownSheets.map((s) => ({ id: s.id, label: `Go to ${s.title}` })),
+    // "Go to" too: "Show on another sheet", below, is the edit that adds someone to a sheet.
+    ...(showOn && !ownSheets.includes(showOn) ? [{ id: showOn.id, label: `Go to ${showOn.title}` }] : []),
+  ];
   // Create their own sheet (an owner request after the final check): for someone without one. A woman's
   // starts by leaving out her children with her (first) partner, like a mother's sheet from Add
   // parents; a man's shows all his children, like a partner who married in.
@@ -148,16 +158,16 @@ export function PersonPanel({
               </dd>
             </div>
           </dl>
-          {ownSheets.length > 0 && (
+          {jumps.length > 0 && (
             <div className="flex flex-col items-start gap-2">
-              {ownSheets.map((s) => (
+              {jumps.map((jump) => (
                 <button
-                  key={s.id}
+                  key={jump.id}
                   type="button"
-                  onClick={() => onOpenSheet(s.id)}
+                  onClick={() => onOpenSheet(jump.id)}
                   className="rounded-full border border-zinc-300 px-3 py-1 text-left text-sm font-medium hover:bg-zinc-100 pointer-coarse:min-h-11 dark:border-zinc-700 dark:hover:bg-zinc-800"
                 >
-                  Go to {s.title}
+                  {jump.label}
                 </button>
               ))}
             </div>

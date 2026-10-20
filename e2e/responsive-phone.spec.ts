@@ -94,7 +94,7 @@ test("a sheet opens zoomed in at its root, and the picker switches sheets", asyn
   const { cruzSheet, jerrySheet } = await openSampleGroup(page, signIn, sampleGroup);
   await expect(page.getByRole("tab")).toHaveCount(0);
   await expect(picker(page)).toHaveValue(cruzSheet);
-  await expect(picker(page).locator("option")).toHaveText(["Cruz family", "Jerry Willow's family"]);
+  await expect(picker(page).locator("option")).toHaveText(["★ Everyone", "Cruz family", "Jerry Willow's family"]);
 
   // The root, Alexander Cruz: centred across, on screen, and large enough to read (cards are 150 px).
   const viewport = page.viewportSize()!;
@@ -261,4 +261,15 @@ test("night colours on a phone", async ({ page, signIn, sampleGroup }) => {
   await card(page, "Jerry Willow").tap();
   await expect(personPanel(page).getByRole("heading", { name: "Jerry Willow" })).toBeVisible();
   await shot(page, "night-phone-tree");
+});
+
+test("★ Everyone is the first choice in the sheet picker, and opens readable (owner request)", async ({ page, signIn, sampleGroup }) => {
+  const { groupId } = await openSampleGroup(page, signIn, sampleGroup);
+  await expect(picker(page).locator("option").first()).toHaveText("★ Everyone");
+  await picker(page).selectOption({ label: "★ Everyone" });
+  await expect(page).toHaveURL(new RegExp(`/g/${groupId}/s/everyone$`));
+  await expect(cards(page)).toHaveCount(36);
+  await expect(page.getByRole("combobox", { name: "Find someone" })).toBeVisible();
+  await expect.poll(async () => (await box(cardBox(page, "Alexander Cruz"))).width).toBeGreaterThan(105);
+  await shot(page, "phone-everyone");
 });

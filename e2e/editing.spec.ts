@@ -278,7 +278,7 @@ test("new sheet, pin and move a tab; the order is still there after a reload", a
   await create.getByRole("button", { name: "Create sheet" }).click();
 
   const tabs = page.getByRole("tab");
-  await expect(tabs).toHaveText(["Cruz family", "Jerry Willow's family", "Emma Young's family"]);
+  await expect(tabs).toHaveText(["★ Everyone", "Cruz family", "Jerry Willow's family", "Emma Young's family"]);
   await expect(page.getByRole("tab", { name: "Emma Young's family" })).toHaveAttribute("aria-selected", "true");
 
   // Unpinned tabs stay after the pinned ones, so it can't move left until it's pinned.
@@ -289,10 +289,10 @@ test("new sheet, pin and move a tab; the order is still there after a reload", a
   await page.getByRole("button", { name: "Sheet options" }).click();
   await expect(page.getByRole("menuitem", { name: "Move left" })).toBeEnabled(); // once the pin is saved
   await page.getByRole("menuitem", { name: "Move left" }).click();
-  await expect(tabs).toHaveText(["Cruz family", "Emma Young's family", "Jerry Willow's family"]);
+  await expect(tabs).toHaveText(["★ Everyone", "Cruz family", "Emma Young's family", "Jerry Willow's family"]);
 
   await page.reload();
-  await expect(tabs).toHaveText(["Cruz family", "Emma Young's family", "Jerry Willow's family"]);
+  await expect(tabs).toHaveText(["★ Everyone", "Cruz family", "Emma Young's family", "Jerry Willow's family"]);
 });
 
 test("with many sheets, + New sheet never covers the last tabs (found by the owner)", async ({ page, signIn, sampleGroup, database }) => {
@@ -302,7 +302,7 @@ test("with many sheets, + New sheet never covers the last tabs (found by the own
 
   await page.goto(`/g/${groupId}/s/${cruzSheet}`);
   const tabs = page.getByRole("tab");
-  await expect(tabs).toHaveCount(9);
+  await expect(tabs).toHaveCount(10); // ★ Everyone and nine sheets
   // On a computer the sheet options (⋯) come first, before the pinned tabs (the owner's choice).
   const options = (await page.getByRole("button", { name: "Sheet options" }).boundingBox())!;
   expect(options.x + options.width).toBeLessThanOrEqual((await tabs.first().boundingBox())!.x);
@@ -325,7 +325,7 @@ test("the sheet tabs scroll without a scrollbar: a mouse wheel scrolls them, and
   const sheets = await addManySheets(database, groupId, owner.id);
   await page.goto(`/g/${groupId}/s/${cruzSheet}`);
   const tabs = page.getByRole("tab");
-  await expect(tabs).toHaveCount(9);
+  await expect(tabs).toHaveCount(10); // ★ Everyone and nine sheets
 
   // Wider than the row, and no scrollbar under the names.
   const row = page.getByRole("tablist").locator("..");
