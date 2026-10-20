@@ -487,8 +487,8 @@ sequenceDiagram
     B->>CL: Upload the file directly
     CL-->>B: Public ID
     B->>App: applyChangesAction([setPhoto(personId, publicId)])
-    App->>DB: requireRole(maintain); the planner checks the ID is inside groups/{groupId}/; save photoId
-    App-->>B: Saved; the sheets show the new photo
+    App->>DB: requireRole(maintain), then the planner checks the ID is inside groups/{groupId}/ and saves photoId
+    App-->>B: Saved: the sheets show the new photo
     App->>CL: After the response: delete the replaced photo (if nobody else uses it)
     B->>CL: Display through a face-cropped URL (c_thumb, g_face)
 ```
