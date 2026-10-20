@@ -108,10 +108,10 @@ src/
   components/
     AppHeader.tsx, NoAccess.tsx          the signed-in header; the "no access" page, with Request access (F4)
     ThemeToggle.tsx, theme.ts            Day / Night / Follow device switch, useTheme(); theme-script.ts runs in <head> before the first paint
-    initials.ts, use-hydrated.ts         shared helpers
+    initials.ts, use-hydrated.ts         shared helpers; screen.ts (phone and tablet sizes, for the few things CSS can't do)
     auth/                                SignInButton, UserMenu, Better Auth's browser client, safeReturnTo
-    tree/                                FamilyCanvas, PersonNode, UnionNode (heart), PersonPhoto, photoUrl; HidePhotosButton (the eye: initials only)
-      edit/                              PersonPanel, CouplePanel, SheetTabs, person form (F6); PhotoControls, upload (F8)
+    tree/                                FamilyCanvas, PersonNode, UnionNode (heart), PersonPhoto, photoUrl; HidePhotosButton (the eye: initials only); framing.ts (phones' and tablets' views)
+      edit/                              PersonPanel, CouplePanel, SheetTabs (with the phone's sheet picker and the sheet menu), person form (F6); PhotoControls, upload (F8); panel.ts (panel layouts)
       sheet-picture.ts                   the whole sheet as a PNG (html-to-image), download or print (F9)
     chat/                                ChatWidget (the conversation, kept in the browser), ProposalCard, the event-stream reader
     import-export/                       ExportMenu, ImportPanel (the preview)
@@ -223,6 +223,11 @@ Card design, from Features.md and the sample:
 - A sheet picture (PNG/PDF) is captured from the canvas in the browser.
 - Hide photos (added after step 11): the eye button at the end of the sheet tabs makes every card, the person panel and so the picture show initials instead of photos, for sharing without faces. A view setting only: nothing is saved, it's for everyone, and it lasts until the next visit.
 - Day and night themes (added between steps 8 and 9): the whole app, the canvas included, follows the device's setting unless the user picks Day or Night with the switch in the header (Follow device goes back). At night the canvas uses React Flow's dark colours, names turn light, and the blue and pink rings stay.
+- Phones and tablets (added after the final check; Tailwind's breakpoints: phones below 768 px, tablets below 1024 px):
+  - The sheet row keeps only the sheets and one menu (⋯, "Sheet menu"): the sheet's own options for Maintain and up, Hide photos, Export and Import…. Ask AI is a round button over the tree. Phones switch sheets with a picker (the device's own list) instead of tabs.
+  - A sheet opens zoomed in at its root, names readable (75 %), unless the whole sheet fits at that zoom; after a change to the same sheet the view stays put. The minimap is hidden.
+  - On phones the person and couple panels open over the bottom half of the tree (a form takes all of it), and the selected card is moved above them; chat and Import cover the tree. Tablets keep the panels beside the tree, keeping the selected card within it.
+  - On phones the header's links (Members, Settings) and the day/night switch move into the user menu. Touch screens get buttons at least 44 px tall and 16 px text in fields (iPhones zoom into smaller text).
 - For Maintain and up, each card and heart is also a button that opens its panel (F6). The click handlers and the selection reach the cards through a React context, so selecting someone doesn't lay the sheet out again. Without them (the dev pages, and Viewers' edit controls) the canvas is read-only.
 
 ## 8. Permissions
@@ -397,7 +402,7 @@ sequenceDiagram
 ```
 
 - The whole group's data is loaded once (fine up to a few thousand people), so switching sheet tabs is instant. A tab changes the URL with `history.pushState`, which Next.js's router follows, and the server isn't asked again.
-- Tabs: pinned sheets first (Father's, then Mother's), then the rest in their saved order.
+- Tabs: pinned sheets first (Father's, then Mother's), then the rest in their saved order. Phones show the same order in a sheet picker (§7, phones and tablets).
 - The sheets are drawn by the layout `g/[groupId]/s/layout.tsx`, not the `[sheetId]` page, so they stay mounted while tabs change `[sheetId]`. Otherwise the next save's refresh would render a new page and close any open panel. An unknown sheet id shows the first sheet and corrects the address bar.
 
 ### F6. Edit the tree by hand

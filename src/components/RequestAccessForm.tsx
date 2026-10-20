@@ -25,7 +25,7 @@ export function RequestAccessForm({ action }: { action: Action }) {
       </label>
       {state.error && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{state.error}</p>}
       <div className="text-center">
-        <button type="submit" disabled={pending} className="rounded-full bg-zinc-900 px-5 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900">
+        <button type="submit" disabled={pending} className="rounded-full bg-zinc-900 px-5 py-2 pointer-coarse:min-h-11 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900">
           {pending ? "Sending…" : "Request access"}
         </button>
       </div>

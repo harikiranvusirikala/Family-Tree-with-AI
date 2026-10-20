@@ -26,6 +26,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Sheet changes: the mother's own sheet, renaming follows, delete a sheet (owner requests, after step 11) | Done 2026-10-20. See their section after step 11 |
 | – | Go to a person's sheet (owner request, after step 11) | Done 2026-10-20. See its section after step 11 |
 | – | Final check on the live site | Done 2026-10-20 by the owner. See its section at the end |
+| – | Phones and tablets (owner request, after the final check) | Done 2026-10-20. See its section at the end |
 
 ## How we work
 
@@ -789,3 +790,59 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 5. Invite a second Google account as View.
 6. From a third account, open a tree link → request access → approve it as Maintain.
 7. Export GEDCOM, re-import it into a new group, and confirm the nightly backup ran.
+
+## After the final check: phones and tablets (owner request)
+- **Why:** the app should look good on every device, mainly phone browsers. Checked on 2026-10-20 in Chrome's iPhone 13 (390 × 844) and iPad (810 × 1080) emulation:
+  - **The sheet row:** Export, Import… and Ask AI take the whole tab row on a phone. Only "Cruz fa" of the first tab shows; the other tabs, ⋯ and "+ New sheet" are pushed out of sight.
+  - **The header:** the day/night switch covers Members and Settings, and the group's name is gone (on the members and settings pages it's cut to "C.").
+  - **The tree:** the whole sheet is fitted to the screen, so names can't be read, and the minimap covers a third of it, also on a tablet.
+  - **The panels:** the person, couple, chat and import panels keep their desktop width (320–384 px), which leaves the tree a sliver or nothing on a phone.
+  - **Menus:** the Export menu opens partly off the left edge of the screen.
+  - **Height:** the sheets page is `h-screen` (100vh), which on phones reaches under the browser's address bar, so the bottom of the page can be hidden.
+  - The other pages (sign-in, dashboard, members, settings, no access, invite) already fit; they need the header fix and touch-sized buttons.
+- **Sizes:** phone below 768 px wide (Tailwind's `md`), tablet 768–1023 px, desktop 1024 px and up (`lg`). A phone turned sideways (844 × 390) gets the tablet layout. Desktop stays exactly as it is.
+- **Build:**
+  - **Header on phones:** "Family Tree", the group's name (cut short with … when long) and the avatar. Members (with its requests badge), Settings, the day/night choice and Sign out move into the avatar's menu, and the avatar shows the badge too. Tablets keep today's header, without the user's name next to the avatar.
+  - **Switching sheets (decision 1):** phones get a sheet picker: a full-width box with the open sheet's title and ▾. It opens the device's own list (a `<select>`) of every sheet in tab order, pinned ones first under "Pinned", and opens the one tapped. Tablets keep the tabs, which scroll sideways.
+  - **The sheet's tools (decision 2):** below 1024 px, Hide photos, Export (picture, print, GEDCOM, JSON) and Import… move into one menu (⋯) at the end of the sheet row, together with the sheet's own options for Maintain and up (New sheet, Rename, Pin, Move, Delete). Ask AI becomes a round button at the bottom right of the tree. The sheet row is then just the picker (or tabs) and that menu.
+  - **Panels on phones (decision 3):** the person and couple panels open as a sheet over the bottom half of the screen, full width and scrolling inside, with the tree above it; the canvas moves the selected card into the part still visible. Its forms (Edit details, Add parents…) use the full height. Chat and Import open full screen with Close. Tablets keep side panels.
+  - **The tree on phones and tablets (decision 4, extended to tablets; see the notes):** a sheet opens zoomed in far enough to read names (75 %), at its root person (top centre), unless the whole sheet fits at that zoom; the ⛶ button still shows the whole tree. After a change to the same sheet the view stays where it was. A selected card is moved into view: above a phone's panel, or within a tablet's tree, which the panel beside it makes narrower. Pinch to zoom and drag to move already work (React Flow handles touch). The minimap is hidden below 1024 px, and the zoom buttons are bigger on touch screens.
+  - **Phone browsers and touch:**
+    - `h-dvh` instead of `h-screen`, so the sheets page fits between the browser's bars.
+    - Text fields use 16 px text on phones: iPhones zoom into any field with smaller text when it's tapped.
+    - Buttons and links at least 44 px tall on touch screens (Tailwind's `pointer-coarse:`), as Apple and Google recommend.
+    - Menus stay on screen: no wider than the screen, aligned to its edge.
+    - The Undo bar and error messages stay visible above a bottom panel.
+  - **The other pages:** no sideways scrolling at 360 px (the smallest common Android width); rows such as the invite form wrap.
+  - Everything new gets `dark:` twins, checked with night screenshots at phone size.
+  - Desktop keeps its layout and tests unchanged. The picture and print still work from the menu; how a phone saves them (Files, Photos, Downloads) is part of the owner's check.
+- **Tests:**
+  - **Playwright projects:** two more, in Chrome's device emulation (touch, mobile viewport): `phone` (iPhone 13, 390 × 844) runs `e2e/responsive-phone.spec.ts`, and `tablet` (iPad, 810 × 1080) runs `e2e/responsive-tablet.spec.ts`. Every existing test stays on desktop Chrome, which shows desktop is unchanged. Safari's engine (WebKit) can't be downloaded here, so the owner's check on a real phone covers it.
+  - **Phone (E2E):**
+    - No page scrolls sideways: sign-in, dashboard, sheets, members, settings, no access, invite, at 390 px and 360 px.
+    - The avatar menu has Members, Settings, the theme choice and Sign out.
+    - The picker lists both sample sheets and opens Jerry Willow's family.
+    - The ⋯ menu hides photos, saves a picture and opens Import… full screen, and a tap on the tree closes it; a Viewer's menu has no edit items.
+    - Tapping Olivia Cruz, low on the screen, opens the bottom panel and moves her card above it; so does choosing her father Jerry Willow in the panel, whose card was then above the screen. Add child takes the full height and saves, and "Go to Jerry Willow's family" works.
+    - Ask AI opens the chat full screen, and Close returns to the tree.
+    - The first view shows the root's name at a readable size.
+    - The main buttons are at least 44 px tall, and a text field has 16 px text.
+  - **Tablet (E2E):** the header with its links and theme switch, tabs, the ⋯ menu on screen, the readable first view, and the side panel with Jerry's card kept in the narrower tree; no sideways scrolling.
+  - **Unit:** the picker (order, pinned group, choosing a sheet) and the ⋯ menu (the sheet's options for Maintain and up, then the tools; an item closes it) in `SheetTabs.test.tsx`; the first view and bringing a card into view in `framing.test.ts`.
+  - **Screenshots:** `phone-tree.png`, `phone-panel.png`, `phone-menu.png`, `phone-chat.png`, `night-phone-tree.png` and `tablet-tree.png`.
+- **Owner checks:** on the branch's Vercel preview, on your own phone (and a tablet if you have one): sign in, open a tree, switch sheets, pinch and drag, tap people, add someone, ask the AI, save a picture, and turn the phone sideways.
+- **Decisions (owner, 2026-10-20),** each the proposal over the alternatives shown:
+  1. Phones switch sheets with a sheet picker, not tabs scrolling sideways.
+  2. Below 1024 px the tools go into one ⋯ menu, with a round Ask AI button over the tree; not a bar at the bottom or a second row under the tabs.
+  3. On a phone the person panel opens over the bottom half with the tree above, not full screen.
+  4. On a phone a sheet opens zoomed in at its root with names readable, not the whole tree fitted.
+- **Notes (2026-10-20):**
+  - **Tablets get decision 4's first view too.** It was decided for phones, but the owner's message while planning said tablets had no easy view either: fitting the sample's Cruz family sheet into an iPad's 810 px left 5 px names, and opening a panel hid the tree's right side. Below 1024 px a sheet now opens at the readable zoom, and a selected card is kept in view. Easy to undo if the owner prefers the whole tree on tablets.
+  - The first e2e run showed phones still opening with the whole tree (cards 26 px wide). React Flow's `fitView` prop fits once the cards are measured, after the canvas's own framing, and undid it. The canvas frames every sheet itself, so the prop is gone.
+  - After a change to the same sheet, phones and tablets keep the view where it was: going back to the root after every save would lose the person being edited. Computers still fit the whole sheet after each change, as before.
+  - The picker is the device's own `<select>` list (an iPhone's wheel, Android's list): every title in full, and nothing to position.
+  - The sheet menu closes on `pointerdown` outside it: after a touch on the canvas, React Flow stops the mouse events browsers make up, so a `mousedown` listener (as in the Export menu) never heard the tap.
+  - The 16 px rule for text fields is plain CSS outside Tailwind's layers, so it wins over the `text-sm` on each field.
+  - Safe-area padding wasn't needed: without `viewport-fit=cover` the browsers keep the page clear of the notch and the home bar themselves, and `h-dvh` keeps it between the browser's bars.
+  - The user's name beside the initials is hidden below 1024 px but kept for screen readers (`sr-only`), so the menu button still has the name (and the sign-out test still finds it).
+  - Every existing (desktop) e2e test passes unchanged, and desktop screenshots look the same.

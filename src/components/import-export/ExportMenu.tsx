@@ -37,9 +37,6 @@ export function ExportMenu({
     };
   }, [open]);
 
-  const item = "block w-full rounded-md px-3 py-1.5 text-left text-sm hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800";
-  const data = (format: "json" | "gedcom", sheet: boolean) => `/api/groups/${groupId}/export?format=${format}${sheet ? `&sheet=${sheetId}` : ""}`;
-
   return (
     <div ref={menu} className="relative">
       <button
@@ -54,32 +51,71 @@ export function ExportMenu({
       </button>
       {open && (
         <div role="menu" aria-label="Export" className="absolute right-0 z-30 mt-1 w-64 rounded-lg border border-zinc-200 bg-white p-1 text-zinc-900 shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
-          <p className="px-3 pt-1 text-xs text-zinc-500 dark:text-zinc-400">This sheet</p>
-          <button type="button" role="menuitem" className={item} onClick={() => (setOpen(false), onPicture())}>
-            Picture (PNG)
-          </button>
-          <button type="button" role="menuitem" className={item} onClick={() => (setOpen(false), onPrint())}>
-            Print or save as PDF
-          </button>
-          {canExportData && (
-            <>
-              <a role="menuitem" className={item} href={data("gedcom", true)} download onClick={() => setOpen(false)}>
-                Data: this sheet (GEDCOM)
-              </a>
-              <a role="menuitem" className={item} href={data("json", true)} download onClick={() => setOpen(false)}>
-                Data: this sheet (JSON)
-              </a>
-              <p className="px-3 pt-2 text-xs text-zinc-500 dark:text-zinc-400">The whole group</p>
-              <a role="menuitem" className={item} href={data("gedcom", false)} download onClick={() => setOpen(false)}>
-                Data: whole group (GEDCOM)
-              </a>
-              <a role="menuitem" className={item} href={data("json", false)} download onClick={() => setOpen(false)}>
-                Data: whole group (JSON)
-              </a>
-            </>
-          )}
+          <ExportItems
+            groupId={groupId}
+            sheetId={sheetId}
+            canExportData={canExportData}
+            onPicture={onPicture}
+            onPrint={onPrint}
+            onDone={() => setOpen(false)}
+            itemClass="block w-full rounded-md px-3 py-1.5 text-left text-sm hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800"
+          />
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * The Export menu's items, also in the sheet menu below 1024 px (phones and tablets). `headings`:
+ * "This sheet" and "The whole group" above their items; `onDone` runs after any item is chosen.
+ */
+export function ExportItems({
+  groupId,
+  sheetId,
+  canExportData,
+  onPicture,
+  onPrint,
+  onDone = () => {},
+  itemClass,
+  headings = true,
+}: {
+  groupId: string;
+  sheetId: string;
+  canExportData: boolean;
+  onPicture: () => void;
+  onPrint: () => void;
+  onDone?: () => void;
+  itemClass: string;
+  headings?: boolean;
+}) {
+  const data = (format: "json" | "gedcom", sheet: boolean) => `/api/groups/${groupId}/export?format=${format}${sheet ? `&sheet=${sheetId}` : ""}`;
+  return (
+    <>
+      {headings && <p className="px-3 pt-1 text-xs text-zinc-500 dark:text-zinc-400">This sheet</p>}
+      <button type="button" role="menuitem" className={itemClass} onClick={() => (onDone(), onPicture())}>
+        Picture (PNG)
+      </button>
+      <button type="button" role="menuitem" className={itemClass} onClick={() => (onDone(), onPrint())}>
+        Print or save as PDF
+      </button>
+      {canExportData && (
+        <>
+          <a role="menuitem" className={itemClass} href={data("gedcom", true)} download onClick={onDone}>
+            Data: this sheet (GEDCOM)
+          </a>
+          <a role="menuitem" className={itemClass} href={data("json", true)} download onClick={onDone}>
+            Data: this sheet (JSON)
+          </a>
+          {headings && <p className="px-3 pt-2 text-xs text-zinc-500 dark:text-zinc-400">The whole group</p>}
+          <a role="menuitem" className={itemClass} href={data("gedcom", false)} download onClick={onDone}>
+            Data: whole group (GEDCOM)
+          </a>
+          <a role="menuitem" className={itemClass} href={data("json", false)} download onClick={onDone}>
+            Data: whole group (JSON)
+          </a>
+        </>
+      )}
+    </>
   );
 }

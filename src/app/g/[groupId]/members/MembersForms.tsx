@@ -10,8 +10,8 @@ type FormAction = (previous: MemberFormState, formData: FormData) => Promise<Mem
 type ButtonAction = () => Promise<MemberFormState>;
 
 const input = "rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900";
-const button = "rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900";
-const quiet = "rounded-full px-3 py-1.5 text-sm hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-zinc-800";
+const button = "rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 pointer-coarse:min-h-11 dark:bg-white dark:text-zinc-900";
+const quiet = "rounded-full px-3 py-1.5 text-sm hover:bg-zinc-100 disabled:opacity-60 pointer-coarse:min-h-11 dark:hover:bg-zinc-800";
 
 function RoleSelect({ label, defaultValue = "view" }: { label: string; defaultValue?: GrantableRole }) {
   return (
@@ -138,7 +138,7 @@ export function MemberRow({
             {confirming ? (
               <form action={removeAction} className="flex items-center gap-2 text-sm">
                 <span>Remove {member.name}?</span>
-                <button type="submit" disabled={removing} className="rounded-full bg-red-700 px-3 py-1.5 font-medium text-white disabled:opacity-60">
+                <button type="submit" disabled={removing} className="rounded-full bg-red-700 px-3 py-1.5 font-medium text-white disabled:opacity-60 pointer-coarse:min-h-11">
                   Remove
                 </button>
                 <button type="button" onClick={() => setConfirming(false)} className={quiet}>

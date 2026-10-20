@@ -9,8 +9,8 @@ import type { Gender, GroupTree } from "@/tree/types";
 import { formatYears } from "@/tree/years";
 
 const input = "rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900";
-const button = "rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900";
-const quiet = "rounded-full px-3 py-1.5 text-sm hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-zinc-800";
+const button = "rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 pointer-coarse:min-h-11 dark:bg-white dark:text-zinc-900";
+const quiet = "rounded-full px-3 py-1.5 text-sm hover:bg-zinc-100 disabled:opacity-60 pointer-coarse:min-h-11 dark:hover:bg-zinc-800";
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const withYears = (p: { name: string; birthYear?: number; deathYear?: number }) => {
   const years = formatYears(p.birthYear, p.deathYear);
@@ -92,7 +92,7 @@ export function ImportPanel({
     <section aria-label="Import a family file" className="flex flex-col gap-4 text-sm">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">Import a family file</h2>
-        <button type="button" onClick={onClose} className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800">
+        <button type="button" onClick={onClose} className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 pointer-coarse:min-h-11 dark:text-zinc-400 dark:hover:bg-zinc-800">
           Close
         </button>
       </div>

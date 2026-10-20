@@ -59,10 +59,10 @@ export function PhotoControls({
       <div role="group" aria-label="Remove photo" className="flex flex-col gap-2 rounded-md bg-red-50 p-3 text-sm dark:bg-red-950/50">
         <p>Remove {person.name}&apos;s photo? It will be deleted, so this can&apos;t be undone.</p>
         <div className="flex gap-2">
-          <button type="button" onClick={remove} disabled={busy} className="rounded-md bg-red-700 px-3 py-1 font-medium text-white disabled:opacity-50">
+          <button type="button" onClick={remove} disabled={busy} className="rounded-md bg-red-700 px-3 py-1 font-medium text-white disabled:opacity-50 pointer-coarse:min-h-11">
             Remove
           </button>
-          <button type="button" onClick={() => setConfirming(false)} disabled={busy} className="rounded-md px-3 py-1 hover:bg-red-100 dark:hover:bg-red-900/50">
+          <button type="button" onClick={() => setConfirming(false)} disabled={busy} className="rounded-md px-3 py-1 hover:bg-red-100 pointer-coarse:min-h-11 dark:hover:bg-red-900/50">
             Cancel
           </button>
         </div>
@@ -73,11 +73,11 @@ export function PhotoControls({
   return (
     <div className="flex flex-wrap items-center gap-1 text-sm">
       <input ref={input} type="file" accept={PHOTO_ACCEPT} onChange={chosen} hidden />
-      <button type="button" onClick={() => input.current?.click()} disabled={busy} className="rounded px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+      <button type="button" onClick={() => input.current?.click()} disabled={busy} className="rounded px-2 py-1 hover:bg-zinc-100 pointer-coarse:min-h-11 dark:hover:bg-zinc-800">
         {person.photoId ? "Change photo" : "Add photo"}
       </button>
       {person.photoId && (
-        <button type="button" onClick={() => setConfirming(true)} disabled={busy} className="rounded px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+        <button type="button" onClick={() => setConfirming(true)} disabled={busy} className="rounded px-2 py-1 hover:bg-zinc-100 pointer-coarse:min-h-11 dark:hover:bg-zinc-800">
           Remove photo
         </button>
       )}

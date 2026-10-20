@@ -23,6 +23,9 @@ const cloudinary = { CLOUDINARY_API_KEY: "123456789012345", CLOUDINARY_API_SECRE
 // ANTHROPIC_* variables a Claude Code session sets (its gateway) are cleared for the app.
 process.env.E2E_MODEL_URL ??= `http://localhost:${MODEL_STUB_PORT}`;
 const chatKey = { CHAT_API_KEY: "e2e-placeholder-key" };
+// Locally, use the installed Google Chrome (Playwright's own browser download is blocked on some
+// networks). CI installs Playwright's Chromium.
+const channel = isCI ? undefined : "chrome";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -41,15 +44,11 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    {
-      name: "chromium",
-      use: {
-        ...devices["Desktop Chrome"],
-        // Locally, use the installed Google Chrome (Playwright's own browser download
-        // is blocked on some networks). CI installs Playwright's Chromium.
-        channel: isCI ? undefined : "chrome",
-      },
-    },
+    { name: "chromium", testIgnore: /responsive-/, use: { ...devices["Desktop Chrome"], channel } },
+    // Phones and tablets (an owner request after the final check), in Chrome's device emulation: their
+    // screen size, touch and a mobile viewport. Safari's own engine can't be downloaded here.
+    { name: "phone", testMatch: /responsive-phone\.spec\.ts/, use: { ...devices["iPhone 13"], defaultBrowserType: "chromium", channel } },
+    { name: "tablet", testMatch: /responsive-tablet\.spec\.ts/, use: { ...devices["iPad (gen 7)"], defaultBrowserType: "chromium", channel } },
   ],
   webServer: [
     {

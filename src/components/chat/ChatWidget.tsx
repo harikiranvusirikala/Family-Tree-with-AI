@@ -5,6 +5,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { ProposalNote } from "@/server/ai/prompt";
 import type { Operation } from "@/server/operations/schema";
 import type { GroupTree } from "@/tree/types";
+import { widePanel } from "../tree/edit/panel";
 import { chatEvents } from "./chat-stream";
 import { ProposalCard } from "./ProposalCard";
 
@@ -121,14 +122,14 @@ export function ChatWidget({
   };
 
   return (
-    <aside aria-label="Family assistant" className="flex w-96 shrink-0 flex-col border-l border-zinc-200 bg-white text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
+    <aside aria-label="Family assistant" className={`${widePanel} flex flex-col`}>
       <div className="flex items-center justify-between gap-2 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
         <h2 className="font-semibold">Ask about your family</h2>
         <div className="flex gap-1 text-sm">
-          <button type="button" onClick={newChat} disabled={busy} className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-800">
+          <button type="button" onClick={newChat} disabled={busy} className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 disabled:opacity-50 pointer-coarse:min-h-11 dark:text-zinc-400 dark:hover:bg-zinc-800">
             New chat
           </button>
-          <button type="button" onClick={onClose} className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800">
+          <button type="button" onClick={onClose} className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 pointer-coarse:min-h-11 dark:text-zinc-400 dark:hover:bg-zinc-800">
             Close
           </button>
         </div>
@@ -179,7 +180,7 @@ export function ChatWidget({
           placeholder="Ask about your family…"
           className="min-w-0 flex-1 resize-none rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         />
-        <button type="submit" disabled={busy || !draft.trim()} className="rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-zinc-900">
+        <button type="submit" disabled={busy || !draft.trim()} className="rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50 pointer-coarse:min-h-11 dark:bg-white dark:text-zinc-900">
           Send
         </button>
       </form>

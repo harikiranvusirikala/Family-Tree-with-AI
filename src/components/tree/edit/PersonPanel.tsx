@@ -7,6 +7,7 @@ import { buildSheetView } from "@/tree/sheet-view";
 import type { Gender, GroupTree, Person } from "@/tree/types";
 import { formatYears } from "@/tree/years";
 import { PersonPhoto } from "../PersonPhoto";
+import { detailsPanel } from "./panel";
 import { PersonFields, readPerson, SubmitRow } from "./person-form";
 import { PhotoControls, type SignPhotoUpload } from "./PhotoControls";
 
@@ -100,7 +101,7 @@ export function PersonPanel({
   const ownSheets = tabOrder(tree.sheets).filter((s) => s.rootPersonId === person.id && s.id !== currentSheetId);
 
   return (
-    <aside aria-label="Person details" className="flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-zinc-200 bg-white p-4 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
+    <aside aria-label="Person details" className={detailsPanel(mode !== "details")}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-3">
           <PersonPhoto person={person} size={72} />
@@ -109,7 +110,7 @@ export function PersonPanel({
             {years && <p className="text-sm text-zinc-500 dark:text-zinc-400">{years}</p>}
           </div>
         </div>
-        <button type="button" onClick={onClose} className="rounded px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800">
+        <button type="button" onClick={onClose} className="rounded px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100 pointer-coarse:min-h-11 dark:text-zinc-400 dark:hover:bg-zinc-800">
           Close
         </button>
       </div>
@@ -148,7 +149,7 @@ export function PersonPanel({
                   key={s.id}
                   type="button"
                   onClick={() => onOpenSheet(s.id)}
-                  className="rounded-full border border-zinc-300 px-3 py-1 text-left text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                  className="rounded-full border border-zinc-300 px-3 py-1 text-left text-sm font-medium hover:bg-zinc-100 pointer-coarse:min-h-11 dark:border-zinc-700 dark:hover:bg-zinc-800"
                 >
                   Go to {s.title}
                 </button>
@@ -167,12 +168,12 @@ export function PersonPanel({
                 ] as const
               ).map(([m, label, shown]) =>
                 shown ? (
-                  <button key={m} type="button" onClick={() => setMode(m)} disabled={pending} className="rounded px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                  <button key={m} type="button" onClick={() => setMode(m)} disabled={pending} className="rounded px-2 py-1 hover:bg-zinc-100 pointer-coarse:min-h-11 dark:hover:bg-zinc-800">
                     {label}
                   </button>
                 ) : null,
               )}
-              <button type="button" onClick={() => onDelete(person)} disabled={pending} className="rounded px-2 py-1 text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50">
+              <button type="button" onClick={() => onDelete(person)} disabled={pending} className="rounded px-2 py-1 text-red-700 hover:bg-red-50 pointer-coarse:min-h-11 dark:text-red-400 dark:hover:bg-red-950/50">
                 Delete
               </button>
             </div>

@@ -31,10 +31,10 @@ export function ProposalCard({
       </ul>
       <p className="text-xs text-zinc-600 dark:text-zinc-400">Nothing is saved until you confirm.</p>
       <div className="flex gap-2">
-        <button type="button" onClick={onConfirm} disabled={busy} className="rounded-full bg-zinc-900 px-4 py-1.5 font-medium text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900">
+        <button type="button" onClick={onConfirm} disabled={busy} className="rounded-full bg-zinc-900 px-4 py-1.5 font-medium text-white disabled:opacity-60 pointer-coarse:min-h-11 dark:bg-white dark:text-zinc-900">
           Confirm
         </button>
-        <button type="button" onClick={onDiscard} disabled={busy} className="rounded-full px-4 py-1.5 hover:bg-amber-100 disabled:opacity-60 dark:hover:bg-amber-900/50">
+        <button type="button" onClick={onDiscard} disabled={busy} className="rounded-full px-4 py-1.5 hover:bg-amber-100 disabled:opacity-60 pointer-coarse:min-h-11 dark:hover:bg-amber-900/50">
           Discard
         </button>
       </div>

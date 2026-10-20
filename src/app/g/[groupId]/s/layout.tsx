@@ -1,6 +1,5 @@
 import { Suspense } from "react";
-import Link from "next/link";
-import { AppHeader } from "@/components/AppHeader";
+import { AppHeader, type HeaderLink } from "@/components/AppHeader";
 import { NoAccess } from "@/components/NoAccess";
 import { chatConfig } from "@/server/ai/config";
 import { cloudinaryConfig } from "@/server/cloudinary";
@@ -44,24 +43,18 @@ async function GroupSheetsLoader({ params }: Pick<LayoutProps<"/g/[groupId]/s">,
     manages ? pendingRequestCounts(db, [groupId]).then((counts) => counts.get(groupId) ?? 0) : 0,
   ]);
 
+  const links: HeaderLink[] = [
+    ...(manages
+      ? [{ href: `/g/${groupId}/members`, label: "Members", ariaLabel: waiting ? `Members, ${waiting} access ${waiting === 1 ? "request" : "requests"}` : undefined, badge: waiting }]
+      : []),
+    { href: `/g/${groupId}/settings`, label: "Settings" }, // everyone: the Owner's settings, or Leave this group
+  ];
+
+  // h-dvh: on phones, the height between the browser's bars (100vh reaches under them).
   return (
-    <div className="flex h-screen flex-col">
-      <AppHeader user={user}>
+    <div className="flex h-dvh flex-col">
+      <AppHeader user={user} links={links}>
         <span className="truncate font-medium">{access.group.name}</span>
-        {manages && (
-          <Link
-            href={`/g/${groupId}/members`}
-            aria-label={waiting ? `Members, ${waiting} access ${waiting === 1 ? "request" : "requests"}` : "Members"}
-            className="shrink-0 text-sm text-zinc-600 underline dark:text-zinc-400"
-          >
-            Members
-            {waiting > 0 && <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900 no-underline dark:bg-amber-900/60 dark:text-amber-100">{waiting}</span>}
-          </Link>
-        )}
-        {/* Everyone: the Owner's settings, or Leave this group. */}
-        <Link href={`/g/${groupId}/settings`} className="shrink-0 text-sm text-zinc-600 underline dark:text-zinc-400">
-          Settings
-        </Link>
       </AppHeader>
       {tree.sheets.length ? (
         <GroupSheets groupId={groupId} tree={tree} canEdit={can(access.role, "edit")} cloudName={cloudinaryConfig()?.cloudName} chat={!!chatConfig()} />

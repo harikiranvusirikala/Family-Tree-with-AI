@@ -10,7 +10,7 @@ export function ImportNewGroup() {
   if (!open) {
     return (
       <div>
-        <button type="button" onClick={() => setOpen(true)} className="rounded-full border border-zinc-300 px-5 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800">
+        <button type="button" onClick={() => setOpen(true)} className="rounded-full border border-zinc-300 px-5 py-2 pointer-coarse:min-h-11 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800">
           Import a family file…
         </button>
       </div>

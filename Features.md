@@ -139,6 +139,14 @@ This is a Family Tree Web Application that can be accessed via Web.
 - Deleting a sheet keeps everyone on it. Pinned sheets (the father's and mother's) can't be deleted until unpinned, nor can the last sheet. A partner's sheet is deleted first, then the partner can be.
 - Hiding an extra person from a sheet is left for later.
 
+### Phones and tablets (after the final check)
+
+- The app works on phones and tablets as well as computers, mainly in phone browsers. Computers keep their layout.
+- Phones switch sheets with a sheet picker: the open sheet's title, opening a list of every sheet.
+- Below 1024 px (phones and tablets) the sheet's tools (Hide photos, Export, Import… and the sheet's own options) are in one ⋯ menu, and Ask AI is a round button over the tree.
+- On a phone, tapping a person opens their details over the bottom half of the screen, with the tree and their card above. Tablets keep the details beside the tree.
+- A sheet opens zoomed in at its root, names readable, on phones (the owner's choice) and tablets; ⛶ shows the whole tree.
+
 ### Day and night themes (between steps 8 and 9)
 
 - Three choices in the top bar, before the profile, and on the sign-in page: Day, Night, Follow device.

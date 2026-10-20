@@ -3,14 +3,15 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { ChatWidget } from "@/components/chat/ChatWidget";
-import { ExportMenu } from "@/components/import-export/ExportMenu";
+import { ExportItems, ExportMenu } from "@/components/import-export/ExportMenu";
 import { ImportPanel } from "@/components/import-export/ImportPanel";
 import { FamilyCanvas, type CapturePicture } from "@/components/tree/FamilyCanvas";
 import { downloadPicture, printPicture } from "@/components/tree/sheet-picture";
 import { fileName } from "@/server/import-export/types";
 import { CouplePanel } from "@/components/tree/edit/CouplePanel";
 import { PersonPanel } from "@/components/tree/edit/PersonPanel";
-import { SheetTabs } from "@/components/tree/edit/SheetTabs";
+import { widePanel } from "@/components/tree/edit/panel";
+import { SheetTabs, sheetMenuHeading, sheetMenuItem } from "@/components/tree/edit/SheetTabs";
 import { HidePhotosButton } from "@/components/tree/HidePhotosButton";
 import { CloudNameContext, PhotosHiddenContext } from "@/components/tree/photo";
 import type { Operation } from "@/server/operations/schema";
@@ -48,7 +49,6 @@ export function GroupSheets({
   const found = sheets.find((s) => pathname.endsWith(`/s/${s.id}`));
   const current = found ?? sheets[0];
   const view = useMemo(() => buildSheetView(tree, current), [tree, current]);
-
 
   const [selection, setSelection] = useState<Selection>(null);
   const [deleted, setDeleted] = useState<Person | null>(null); // for Undo
@@ -117,6 +117,13 @@ export function GroupSheets({
 
   const person = selection?.kind === "person" ? tree.persons.find((p) => p.id === selection.id) : undefined;
   const couple = selection?.kind === "couple" ? tree.unions.find((u) => u.id === selection.id) : undefined;
+  const exportProps = {
+    groupId,
+    sheetId: current.id,
+    canExportData: canEdit,
+    onPicture: () => picture((url) => downloadPicture(url, fileName(current.title))),
+    onPrint: () => picture((url) => printPicture(url, current.title)),
+  };
   const panelProps = {
     tree,
     canEdit,
@@ -137,17 +144,28 @@ export function GroupSheets({
           pending={pending}
           run={run}
           onOpen={openSheet}
+          // Below 1024 px the tools below are items in the sheet menu, and Ask AI a round button.
+          menuItems={
+            <>
+              {cloudName && (
+                <button type="button" role="menuitemcheckbox" aria-checked={photosHidden} onClick={() => setPhotosHidden(!photosHidden)} className={sheetMenuItem}>
+                  Hide photos
+                  {photosHidden && <span aria-hidden>✓</span>}
+                </button>
+              )}
+              <p className={sheetMenuHeading}>Export</p>
+              <ExportItems {...exportProps} itemClass={sheetMenuItem} headings={false} />
+              {canEdit && (
+                <button type="button" role="menuitem" onClick={() => setImportOpen(true)} className={sheetMenuItem}>
+                  Import…
+                </button>
+              )}
+            </>
+          }
           trailing={
             <div className="flex items-center gap-2">
               {cloudName && <HidePhotosButton hidden={photosHidden} onToggle={() => setPhotosHidden(!photosHidden)} />}
-              <ExportMenu
-                groupId={groupId}
-                sheetId={current.id}
-                canExportData={canEdit}
-                busy={picturing}
-                onPicture={() => picture((url) => downloadPicture(url, fileName(current.title)))}
-                onPrint={() => picture((url) => printPicture(url, current.title))}
-              />
+              <ExportMenu {...exportProps} busy={picturing} />
               {canEdit && (
                 <button
                   type="button"
@@ -177,9 +195,10 @@ export function GroupSheets({
           </p>
         )}
         <div className="relative flex min-h-0 flex-1">
-          <div role="tabpanel" aria-label={current.title} className="min-w-0 flex-1">
+          <div role="tabpanel" aria-label={current.title} className="relative min-w-0 flex-1">
             <FamilyCanvas
               view={view}
+              sheetId={current.id}
               captureRef={capture}
               actions={{
                 onPerson: (id) => setSelection({ kind: "person", id }),
@@ -187,6 +206,21 @@ export function GroupSheets({
                 selectedId: selection?.id,
               }}
             />
+            {chat && (
+              // Below 1024 px; above React Flow's credit in the corner.
+              <button
+                type="button"
+                aria-label="Ask AI"
+                aria-expanded={chatOpen}
+                onClick={() => setChatOpen(!chatOpen)}
+                className="absolute bottom-9 right-3 z-10 flex h-14 w-14 flex-col items-center justify-center rounded-full bg-zinc-900 text-xs font-semibold text-white shadow-lg lg:hidden dark:bg-white dark:text-zinc-900"
+              >
+                <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                  <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
+                </svg>
+                AI
+              </button>
+            )}
           </div>
           {person && (
             <PersonPanel
@@ -201,7 +235,7 @@ export function GroupSheets({
           )}
           {couple && <CouplePanel key={couple.id} union={couple} {...panelProps} />}
           {importOpen && (
-            <aside aria-label="Import" className="w-96 shrink-0 overflow-y-auto border-l border-zinc-200 bg-white p-4 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
+            <aside aria-label="Import" className={`${widePanel} overflow-y-auto p-4`}>
               <ImportPanel
                 tree={tree}
                 targetGroupId={groupId}

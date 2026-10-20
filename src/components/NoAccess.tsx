@@ -18,7 +18,7 @@ export async function NoAccess({ groupId, user }: { groupId: string; user: { id:
       {state.inviteToken ? (
         <>
           <p className="max-w-md text-zinc-600 dark:text-zinc-400">You&apos;ve been invited to this family tree.</p>
-          <Link href={`/invite/${state.inviteToken}`} className="rounded-full bg-zinc-900 px-5 py-2 text-sm font-medium text-white dark:bg-white dark:text-zinc-900">
+          <Link href={`/invite/${state.inviteToken}`} className="inline-flex items-center rounded-full bg-zinc-900 px-5 py-2 pointer-coarse:min-h-11 text-sm font-medium text-white dark:bg-white dark:text-zinc-900">
             See the invite
           </Link>
         </>
