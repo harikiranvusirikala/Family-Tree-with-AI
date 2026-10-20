@@ -66,7 +66,7 @@ export default defineConfig({
         BETTER_AUTH_SECRET: process.env.E2E_AUTH_SECRET,
         // Placeholders: the tests stop at the redirect to Google and never contact it.
         GOOGLE_CLIENT_ID: "e2e-placeholder.apps.googleusercontent.com",
-        GOOGLE_CLIENT_SECRET: "e2e-placeholder",
+        GOOGLE_CLIENT_SECRET: "e2e-google-placeholder-secret", // e2e/security.spec.ts checks no secret reaches the browser
         // Uploads and deletes go to the stand-in; tests answer photo URLs (res.cloudinary.com/e2e-cloud) themselves.
         CLOUDINARY_CLOUD_NAME: "e2e-cloud",
         ...cloudinary,

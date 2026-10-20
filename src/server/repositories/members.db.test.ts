@@ -7,7 +7,7 @@ import { createTestDatabase } from "@test/db";
 import { accessState, decideRequest, MAX_PENDING_REQUESTS, myRequests, pendingRequestCounts, requestAccess } from "./access-requests";
 import { collections, ensureIndexes } from "./documents";
 import { createGroup, deleteGroup, listGroupsForUser, roleInGroup } from "./groups";
-import { acceptInvite, createInvite, declineInvite, inviteForToken, invitesForUser, listInvites, revokeInvite } from "./invites";
+import { acceptInvite, createInvite, declineInvite, INVALID_INVITE, inviteForToken, invitesForUser, listInvites, revokeInvite } from "./invites";
 import { changeRole, leaveGroup, listMembers, removeMember, transferOwnership } from "./members";
 
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
@@ -93,6 +93,21 @@ describe("invites (F3)", () => {
     await deleteGroup(database.db, groupId, owner.id);
     await expect(acceptInvite(database, third.token, invited)).rejects.toThrow("isn't valid any more");
     expect(await roleOf(groupId, invited)).toBeNull();
+  });
+
+  test("a crafted token, such as a query object sent to the server action, matches no invite (step 11's review)", async () => {
+    const { groupId, owner } = await group();
+    const invited = await newUser("Invited Person");
+    const other = await newUser("Other Person");
+    await createInvite(database.db, groupId, owner.id, { email: invited.email, role: "view" });
+    // Server actions accept whatever the caller sends, so a token can arrive as { $regex: "^a" }:
+    // that would find others' invites (and their masked emails) one character at a time.
+    for (const crafted of [{ $regex: "." }, { $ne: "" }] as unknown as string[]) {
+      await expect(acceptInvite(database, crafted, other)).rejects.toThrow(INVALID_INVITE);
+      expect(await inviteForToken(database.db, crafted)).toBeNull();
+      await declineInvite(database.db, crafted, invited);
+    }
+    expect(await invitesForUser(database.db, invited)).toHaveLength(1); // still pending
   });
 
   test("inviting again refreshes the pending invite and keeps its link; inviting a member is refused", async () => {

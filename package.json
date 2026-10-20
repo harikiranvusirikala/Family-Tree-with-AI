@@ -18,7 +18,10 @@
     "test:db": "vitest run --config vitest.db.config.mts",
     "db:setup": "node --import tsx --env-file-if-exists=.env.local scripts/db-setup.mts",
     "seed": "node --import tsx --env-file-if-exists=.env.local scripts/seed.mts",
-    "test:ai-live": "node --import tsx --env-file-if-exists=.env.local scripts/ai-live.mts"
+    "test:ai-live": "node --import tsx --env-file-if-exists=.env.local scripts/ai-live.mts",
+    "test:smoke": "playwright test --config playwright.smoke.config.ts",
+    "backup": "node --import tsx --env-file-if-exists=.env.local scripts/backup.mts",
+    "restore": "node --import tsx --env-file-if-exists=.env.local scripts/restore.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

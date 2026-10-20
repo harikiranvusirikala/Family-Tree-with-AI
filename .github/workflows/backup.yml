@@ -1,0 +1,62 @@
+name: Nightly backup
+
+# F12: an encrypted backup of the production database, kept 90 days as this run's artifact.
+# Restore one with `npm run restore` (README → Backups).
+on:
+  schedule:
+    - cron: "17 21 * * *" # 02:47 India time; GitHub delays runs at the top of the hour
+  workflow_dispatch:
+
+concurrency:
+  group: backup
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      # A MongoDB inside the runner for the trial restore, so every backup is proven to restore
+      # without this workflow having write access to Atlas.
+      mongo:
+        image: mongo:8
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Back up familytree
+        run: npm run backup -- --out backups
+        env:
+          # Repo Settings → Secrets → Actions: the read-only Atlas user, and the key (also kept in the owner's password manager).
+          MONGODB_BACKUP_URI: ${{ secrets.MONGODB_BACKUP_URI }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+
+      - name: Trial restore
+        run: npm run restore -- backups/*.ftbackup --check
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+
+      - name: Name the artifact by date
+        run: echo "BACKUP_DAY=$(date -u +%F)" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: backup-${{ env.BACKUP_DAY }}
+          path: backups/
+          retention-days: 90
+          if-no-files-found: error
+          compression-level: 0 # already compressed and encrypted

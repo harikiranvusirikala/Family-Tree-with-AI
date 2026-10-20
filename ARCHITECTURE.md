@@ -1,6 +1,6 @@
 # Family Tree with AI — Architecture
 
-**Status:** steps 1–10 of 11 built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests, AI chat, import and export); backups to come ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.txt](Features.txt) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-18
+**Status:** all 11 steps built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests, AI chat, import and export, nightly backups and hardening); the final check on the live site remains ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.txt](Features.txt) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-19
 
 A web app where a family builds its tree together. People are added by hand or by chatting with an AI assistant, laid out automatically in the style of [samples/Sample Family Tree.png](samples/Sample%20Family%20Tree.png), and shared privately with relatives through their Google accounts.
 
@@ -44,13 +44,13 @@ A web app where a family builds its tree together. People are added by hand or b
 | AI chat | Claude API via `@anthropic-ai/sdk`, model `claude-haiku-5-5`, tool calling, streaming |
 | Hosting and CI | Vercel Hobby, GitHub Actions |
 | Tests | Vitest (unit, and database tests against Atlas), Playwright (end-to-end, against a production build) |
-| Backups | GitHub Actions (scheduled) |
+| Backups | GitHub Actions (scheduled): a Node script with the MongoDB driver (Extended JSON, AES-256-GCM), trial-restored every night |
 
 The reasons behind each choice are recorded in [Features.txt](Features.txt) under DECISIONS.
 
 ## 4. Code layout
 
-Built so far (steps 1–10). Items marked *(step N)* are still to come.
+As built (steps 1–11).
 
 ```
 src/
@@ -85,6 +85,8 @@ src/
     cloudinary.ts                        signs uploads and deletes photos (no Cloudinary SDK)
     photos.ts                            signPhotoUpload: Maintain and up, into the group's folder
     members-rules.ts                     normalizeEmail, maskEmail, who may change whom (pure)
+    security-headers.ts                  the Content Security Policy and the other headers, set in next.config.ts (pure)
+    backup/                              the nightly backup (F12): archive.ts (collections ↔ Extended JSON lines; restore), crypt.ts (AES-256-GCM)
     repositories/                        data access; every function takes groupId
       documents.ts                       document types, collections, ensureIndexes
       family.ts                          loadGroupTree, toGroupTree (documents → tree types)
@@ -113,9 +115,11 @@ src/
       sheet-picture.ts                   the whole sheet as a PNG (html-to-image), download or print (F9)
     chat/                                ChatWidget (the conversation, kept in the browser), ProposalCard, the event-stream reader
     import-export/                       ExportMenu, ImportPanel (the preview)
-test/                                    fixtures (the sample family), database helpers, planning.ts, seed
-e2e/                                     Playwright specs and fixtures (signIn, sampleGroup, addMember); stand-ins for Cloudinary and the model
-scripts/                                 db:ping, db:setup, seed, test:ai-live
+test/                                    fixtures (the sample family), database helpers, planning.ts, seed; server-checks.test.ts (every action and route checks the caller)
+e2e/                                     Playwright specs and fixtures (signIn, sampleGroup, addMember, policyViolations); stand-ins for Cloudinary and the model
+smoke/                                   the production smoke test, signed out only (playwright.smoke.config.ts)
+scripts/                                 db:ping, db:setup, seed, test:ai-live, backup, restore
+.github/workflows/                       ci.yml (every push), backup.yml (nightly), smoke.yml (after each production deployment)
 ```
 
 ## 5. Data model
@@ -547,14 +551,17 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    Cron["GitHub Actions<br/>daily schedule"] --> Dump["mongodump<br/>read-only DB user"]
-    Dump --> Enc["Encrypt<br/>key in GitHub Secrets"]
-    Enc --> Art["Workflow artifact<br/>kept 90 days"]
-    Art -.->|restore| Dec["Download and decrypt"]
-    Dec -.-> Restore["mongorestore"]
+    Cron["GitHub Actions<br/>daily 21:17 UTC"] --> Dump["npm run backup<br/>read-only DB user"]
+    Dump --> Enc["gzip + AES-256-GCM<br/>key in GitHub Secrets"]
+    Enc --> Check["Trial restore<br/>into a MongoDB in the runner"]
+    Check --> Art["Workflow artifact<br/>kept 90 days"]
+    Art -.->|restore| Restore["npm run restore<br/>decrypt, insert, check counts"]
 ```
 
-- The backup is encrypted so it stays private even if the repository is ever made public.
+- `npm run backup` (step 11) reads every collection of `familytree` except `sessions` and `verifications` (sign-in leftovers that expire anyway) with a read-only database user, and writes one file: a header with each collection's count and indexes, then one line per document in canonical Extended JSON, so ids, dates and number types come back exactly. Decided in step 11 instead of `mongodump`: no extra tools on GitHub or the owner's Mac, and `npm run test:db` tests the same code.
+- Each run restores its own file into a MongoDB started inside the runner before keeping it, so every backup is known to restore, without the workflow having write access to Atlas.
+- `npm run restore -- <file> <database>` refuses a database that already has records unless given `--replace`; `--check` restores into a throwaway database, compares the counts, and empties it. It asks for the key rather than taking it on the command line.
+- The backup is encrypted (AES-256-GCM, which also refuses a damaged or altered file) so it stays private even if the repository is ever made public. The key is a GitHub secret and is also kept in the owner's password manager: without it no backup can be read.
 - Photos are not in this backup; they live in Cloudinary.
 
 ## 10. AI chat design
@@ -626,8 +633,22 @@ Model and prompt (built in step 9):
 - **Secrets:** only in Vercel environment variables and GitHub Secrets, never committed. `.env.local` is git-ignored. Keep local settings there only: Next.js also loads a `.env` file as a fallback.
 - **Database network access:** Vercel and GitHub Actions use changing IP addresses, so Atlas must allow connections from anywhere (`0.0.0.0/0`). This is offset by a separate database user per purpose (the app gets read/write on its own database, the backup gets read-only) and long random passwords.
 - **Preview deployments** use their own database, so testing can't damage real data.
-- **Backups** are encrypted.
+- **Backups** are encrypted (F12), made with a read-only user, and leave out sessions.
 - **AI chat:** tools filtered by role, confirmation by a person before any change, and a daily cap.
+- **Security headers** (step 11, `src/server/security-headers.ts`) on every response:
+  - **Content Security Policy:** scripts, styles, fonts and connections only from the site itself; images also from `res.cloudinary.com` and `data:`/`blob:`; connections also to `api.cloudinary.com` (uploads) and `res.cloudinary.com` (the picture export); no plugins, no framing by other sites, base URLs and forms only to the site.
+  - **Inline scripts are allowed:** Next.js writes each page's data into inline scripts, and nonces would need every page drawn per request, which partial prerendering (`cacheComponents`) doesn't allow (decided in step 11). React escapes everything people type, and the app has no raw HTML apart from the fixed theme script.
+  - **The others:** HSTS (two years), `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` (invite links never leave as referrers), a `Permissions-Policy` without camera, microphone or location, `Cross-Origin-Opener-Policy: same-origin`, and no `X-Powered-By`.
+  - **Tests:** every e2e test fails if the browser reports a policy violation, and the production smoke test checks the headers on the live site after each deployment.
+- **Inputs from the browser** are treated as anything at all: a server action can be called directly with any arguments. Ids go through `toObjectId` and invite tokens through a format check before any query, so an object like `{ $ne: "" }` never reaches MongoDB (the invite token was found unchecked in step 11's review). Everything else is checked by zod, with lengths bounded.
+- **Every server action and route handler checks the caller,** and a unit test (`test/server-checks.test.ts`) fails if a new one doesn't call `requireUser`, `requireRole` or `getUser`.
+- **Google's tokens** are stored encrypted with `BETTER_AUTH_SECRET` (Better Auth's `encryptOAuthTokens`); the app never uses them.
+- **Dependencies:** GitHub's Dependabot alerts email the owner about known vulnerabilities. In step 11, `npm audit` found none in what the site ships; a high-severity advisory in `braces`, used only by ESLint's Next.js config, is accepted (it's never shipped, and the only fix npm offers would downgrade ESLint's Next.js config to version 14).
+- **Accepted risks** (step 11's review):
+  - Anyone with a Google account can sign in and create groups, and import up to 2,000 people at a time, so a stranger could fill the free cluster's 512 MB; each account also gets 50 chat messages a day. The Anthropic Console's monthly spend limit caps the chat's cost. See §15.
+  - Server actions have no rate limit of their own. Trusted members (Maintain and up) could upload many photos.
+  - The chat's conversation comes back from the browser, so a person can alter their own history (up to 400,000 characters per request). It only affects their own chat: proposals still need their Confirm and the server's checks.
+  - Better Auth's sign-in rate limit keeps its counts in memory, so on Vercel each server instance counts separately.
 
 ## 12. Environments
 
@@ -664,11 +685,13 @@ Model and prompt (built in step 9):
 | `CHAT_API_KEY` | App | The Anthropic API key for the chat (not `ANTHROPIC_API_KEY`, see §10). Without it, there is no "Ask AI" |
 | `CHAT_MODEL` | App | `claude-haiku-5-5` |
 | `CHAT_DAILY_LIMIT` | App | Messages per user per day, for example 50 |
-| `MONGODB_BACKUP_URI` | GitHub Actions | Read-only database user |
-| `BACKUP_ENCRYPTION_KEY` | GitHub Actions | Stored in GitHub Secrets |
+| `MONGODB_BACKUP_URI` | GitHub Actions (`backup.yml`) | A database user with only `read` on `familytree`; the app's cluster address with its own user and password |
+| `BACKUP_ENCRYPTION_KEY` | GitHub Actions; `npm run restore` | 32 random bytes in base64 (`openssl rand -base64 32`). A GitHub secret, also kept in the owner's password manager. `npm run restore` asks for it when it isn't set |
+| `BACKUP_DB` | `npm run backup` | The database to back up; `familytree` unless set |
 | `ENABLE_DEV_PAGES` | Tests only | `1` includes the `/dev/*` pages in a production build (set by `playwright.config.ts`); never on Vercel |
 | `E2E_MONGODB_DB`, `E2E_BASE_URL`, `E2E_AUTH_SECRET` | Tests only | Set by `playwright.config.ts` for each run and shared by the web server and the test workers |
 | `CHAT_API_URL`, `E2E_MODEL_URL` | Tests only | The e2e stand-in for the Messages API (`e2e/model-stub.mts`); the app defaults to `https://api.anthropic.com` |
+| `SMOKE_URL` | Tests only | The site the smoke test checks; production unless set |
 | `CLOUDINARY_API_URL`, `E2E_CLOUDINARY_URL` | Tests only | The e2e stand-in for Cloudinary's API (`e2e/cloudinary-stub.mts`); the app defaults to `https://api.cloudinary.com` |
 
 ## 14. Limits and when to upgrade
@@ -691,3 +714,4 @@ Model and prompt (built in step 9):
 5. **Deleting a sheet, and hiding an extra person from a sheet:** left out of step 6 to keep it small. When they're added, each needs a UI-only operation; deleting a sheet must never delete people ([§6](#6-sheets-views-not-copies)).
 6. **Photos uploaded but never saved:** if the tab closes mid-way, or the save is refused, the uploaded photo stays in Cloudinary unused. Rare, so left out of step 7. A sweep could later delete photos in a group's folder that no person uses.
 7. **Copying photos on import:** photos come in only when a JSON file goes back into its own group. Copying them into another group's Cloudinary folder could come later.
+8. **Open sign-up** (from step 11's review): anyone with a Google account can sign in, create groups and import into them, so a stranger could fill the free cluster or use their 50 chat messages a day. If that ever happens, options are a cap on groups (or people) per account, or sign-up by invite only.

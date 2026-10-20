@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Three docs drive all work. Read the relevant parts before changing anything:
 
-- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the 12-step build plan and its Progress table. Steps 1–10 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`; Google sign-in; groups, roles and sheet pages; editing by hand; photos; members, invites and access requests; AI chat; import and export). Still planned: backups and hardening (11). Each built step has notes recording deviations and bugs found; read them before touching that area.
+- **[BUILD_PLAN.md](BUILD_PLAN.md)**: the build plan and its Progress table. All steps 1–11 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`; Google sign-in; groups, roles and sheet pages; editing by hand; photos; members, invites and access requests; AI chat; import and export; nightly backup and hardening), plus owner requests between steps. What remains is the final check on the live site. Each built step has notes recording deviations and bugs found; read them before touching that area. New work follows the owner-request routine below.
 - **[ARCHITECTURE.md](ARCHITECTURE.md)**: the blueprint (code layout §4, data model §5, sheet rules §6, layout §7, permissions §8, flows F1–F12, AI chat §10, environments §12, env vars §13, open questions §15). Folder names, collections and function names come from here.
 - **[Features.txt](Features.txt)**: the owner's requirements plus the agreed DECISIONS section.
 
@@ -40,6 +40,9 @@ npm run db:ping             # check the MONGODB_URI / MONGODB_DB connection
 npm run db:setup            # create indexes (idempotent)
 npm run seed                # sample family into MONGODB_DB, group 000000000000000000000001; view at /dev/tree/db
 npm run test:ai-live        # one real chat conversation (needs CHAT_API_KEY, costs < 1 cent); owner's terminal only
+npm run test:smoke          # Playwright against the live site, signed out only; owner's terminal (the sandbox blocks the site) and smoke.yml
+npm run backup              # encrypted backup of familytree (MONGODB_BACKUP_URI, BACKUP_ENCRYPTION_KEY); run nightly by backup.yml
+npm run restore -- <file> <database> [--replace] | --check   # owner's terminal only
 ```
 
 Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import tsx --env-file-if-exists=.env.local`. Don't use the `tsx` CLI: it opens a local IPC pipe that the sandbox blocks.
@@ -136,6 +139,17 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - Data export is `GET /api/groups/[groupId]/export?format=json|gedcom[&sheet=]` (Maintain and up; one 404 otherwise). The picture is captured in the browser (`sheet-picture.ts`, html-to-image): it removes the `dark` class from `<html>` and React Flow's element while it captures (an overlay hides the change), so new canvas styling must work through `dark:` classes or `useTheme()`, not hard-coded night colours.
 - Round trips are the tests to extend: a new field in persons, couples or sheets must survive JSON export and import (and GEDCOM, where it can).
 
+## Backups and hardening (as built, step 11)
+
+- **Backup** (F12): `src/server/backup/` (no `server-only`; the scripts and tests use it). `archive.ts`: every collection except `NOT_BACKED_UP` (`sessions`, `verifications`), a header line (counts, indexes) then one canonical Extended JSON line per document, gzip; `restoreDatabase` refuses collections that hold records unless `replace`, counts before creating indexes (a TTL index could remove expired records first). `crypt.ts`: AES-256-GCM, `"FTB1" | IV | ciphertext | tag`, key = 32 bytes base64. Scripts: `scripts/backup.mts`, `scripts/restore.mts` (asks for the key without echoing it). `.github/workflows/backup.yml` runs nightly with the GitHub secrets `MONGODB_BACKUP_URI` (read-only user) and `BACKUP_ENCRYPTION_KEY`, trial-restores into a `mongo:8` service container, and uploads `backups/` as a 90-day artifact. A new collection is backed up automatically; a new temporary one with credentials belongs in `NOT_BACKED_UP`.
+- **Security headers:** `securityHeaders(env)` in `src/server/security-headers.ts`, applied to every path by `next.config.ts` (also `poweredByHeader: false`). The CSP is fixed at build time, allows inline scripts (no nonces: they'd need every page drawn per request, which `cacheComponents` doesn't allow), and lists Cloudinary: `res.cloudinary.com` for images and connections, the API (`CLOUDINARY_API_URL`, or the e2e stand-in) for connections. A feature that loads anything from another origin must add it there, with its unit test; `next dev` adds `'unsafe-eval'`.
+- **Every e2e test fails on a CSP violation** (the auto `policyViolations` fixture in `e2e/fixtures.ts` watches `page` and every page given to `signIn`). A test that expects one clears the array (see `e2e/security.spec.ts`).
+- `test/server-checks.test.ts` reads every `"use server"` file and route handler (TypeScript's parser) and fails if an exported function doesn't call `requireUser`, `requireRole` or `getUser`, directly or through a function in the same file. It also forbids inline `"use server"` inside components. Better Auth's route is exempt.
+- **Server action arguments are untrusted values of any shape,** including objects: bound ids too. Turn ids into `ObjectId`s with `toObjectId` (it rejects non-strings) and check any other string that goes into a query (`isInviteToken`) before querying; `{ $ne: "" }` must never reach MongoDB.
+- Better Auth stores Google's tokens encrypted (`account.encryptOAuthTokens`).
+- **Smoke test:** `smoke/production.spec.ts` with `playwright.smoke.config.ts` (no web server, `SMOKE_URL` or production). Signed out only: never sign in or write to production from it. `.github/workflows/smoke.yml` runs it on Vercel's successful `Production` deployment statuses and by hand.
+- Accepted risks and the open sign-up question are in ARCHITECTURE.md §11 and §15.
+
 ## Sign-in (as built, step 4)
 
 - `src/server/auth.ts` is the Better Auth instance (`import "server-only"`). Its settings are in `auth-options.ts`, which has no `server-only` so the e2e fixture can build an identical instance (same cookie names and signatures). Base URL and trusted origins come from the pure `authUrls(env)` in `auth-urls.ts`: exact origins only, never `*.vercel.app`.
@@ -159,7 +173,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
   - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (from step 7): one account for Production and Preview. Uploads are tagged with the database name.
   - `CHAT_API_KEY`, `CHAT_MODEL=claude-haiku-5-5`, `CHAT_DAILY_LIMIT=50` (from step 9), the same in Production and Preview.
   - Vercel's system variables (`VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`) must be exposed; sign-in reads them. `vercel.json` sets no `regions`, so functions run in Vercel's default `iad1`.
-- CI (`.github/workflows/ci.yml`) runs lint, typecheck, `npm test`, `npm run test:db` and e2e, using the `MONGODB_URI` repository secret (a read/write test user).
+- CI (`.github/workflows/ci.yml`) runs lint, typecheck, `npm test`, `npm run test:db` and e2e, using the `MONGODB_URI` repository secret (a read/write test user). GitHub secrets from step 11: `MONGODB_BACKUP_URI` and `BACKUP_ENCRYPTION_KEY` (backup.yml). Dependabot alerts are on (no update pull requests).
 
 ## Testing conventions
 
@@ -180,4 +194,5 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - Playwright scrolls an element into view before clicking or checking it, even one clipped by a scrolling parent, so a menu or popover a person can't see can still pass. For anything that drops down or floats, also check it's the topmost element at its centre (`onScreen` in `e2e/import-export.spec.ts`). The sheet-tab row scrolls sideways: put new menus outside its scrolling part (`trailing` in `SheetTabs`).
 - In e2e tests, locate inputs with `getByRole("textbox", { name })`, not `getByLabel`. Next.js 16 keeps recently visited pages in the DOM, hidden, and `getByLabel` can match their inputs; `getByRole` skips hidden elements. Filter alerts by text: Next.js's route announcer is also `role="alert"`.
 - Locally each save is a transaction plus a re-render against the remote M0 cluster (1–5 s with four workers), so `playwright.config.ts` allows 15 s per assertion and 60 s per test. Wait for the change to appear rather than for a fixed time.
-- `samples/` (reference images) and `exports/` (the owner's exported files) are git-ignored, so tests and CI must not depend on them, and nothing in them is committed.
+- `samples/` (reference images), `exports/` (the owner's exported files) and `backups/` (`npm run backup`'s output) are git-ignored, so tests and CI must not depend on them, and nothing in them is committed.
+- `e2e/security.spec.ts` scans `.next/static` and `.next/server/app` for this run's placeholder secrets (`playwright.config.ts`'s values and `MONGODB_URI`). Give any new secret placeholder a distinctive value and add it there.

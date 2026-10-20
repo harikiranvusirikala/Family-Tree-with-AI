@@ -52,3 +52,6 @@ next-env.d.ts
 # local reference images (not committed)
 /samples
 /exports
+
+# backups made by npm run backup (encrypted, but still not committed)
+/backups

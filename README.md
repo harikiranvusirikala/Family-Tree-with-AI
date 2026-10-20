@@ -12,7 +12,7 @@ Built with Next.js 16 (TypeScript, React 19), Tailwind CSS, React Flow and ELK.j
 
 ## What works so far
 
-Steps 1–10 of 11 are built:
+All 11 steps are built:
 
 - **Sign in with Google.** A link opened while signed out comes back after signing in.
 - **Family groups.** Create one with the father's and mother's names (and yourself as their child). It starts with two pinned sheets, "<Father>'s family" and "<Mother>'s family". The dashboard lists My groups and Shared with me. The Owner can rename or delete a group.
@@ -24,8 +24,8 @@ Steps 1–10 of 11 are built:
 - **Import and export.** Download a sheet or the whole group as GEDCOM (for Ancestry, FamilySearch, MyHeritage and others) or as the app's own JSON, and import either into a group or a new one, with a preview that finds possible duplicates first. Everyone can save a sheet as a picture or print it to PDF.
 - **Day and night themes.** Day, Night or Follow device, from the switch in the top bar.
 - **Roles.** View, Maintain, Admin and Owner, checked on the server for every request. Viewers see the tree without edit controls.
-
-Still to come: nightly backups and a final hardening pass.
+- **Nightly backups.** An encrypted backup of the live database every night, kept 90 days, each one trial-restored before it's kept (below).
+- **Hardening.** Security headers on every page (a Content Security Policy among them), and a smoke test of the live site after every deployment.
 
 ## Getting started
 
@@ -68,6 +68,9 @@ Open the app at `http://localhost:3000`, not `127.0.0.1`: Google and the session
 | `npm run db:ping` | Checks the connection in `.env.local` |
 | `npm run db:setup` | Creates the collections' indexes (safe to repeat) |
 | `npm run seed` | Loads the sample family into `MONGODB_DB`; view it at `/dev/tree/db` |
+| `npm run test:smoke` | Checks the live site as a signed-out visitor: security headers, sign-in, signed-out refusals (`SMOKE_URL` for another site) |
+| `npm run backup` | Writes an encrypted backup of `familytree` to `backups/` (needs `MONGODB_BACKUP_URI` and `BACKUP_ENCRYPTION_KEY`); normally run by the nightly workflow |
+| `npm run restore -- <file> …` | Restores a backup (below) |
 
 The database and end-to-end tests need `MONGODB_URI`. The end-to-end tests use your installed Google Chrome locally and Playwright's own Chromium on CI. Against a remote Atlas cluster, each save takes a few seconds from a laptop, so the tests allow up to 15 seconds per check.
 
@@ -81,9 +84,29 @@ Vercel deploys automatically from GitHub:
 
 [vercel.json](vercel.json) pins the framework to Next.js, so the build doesn't depend on the Framework Preset in the Vercel dashboard. With the wrong preset, Vercel treats the app as a static site and fails with "No Output Directory named "public" found".
 
-GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs lint, type-check, unit tests, database tests and end-to-end tests on every push, using a `MONGODB_URI` repository secret for a separate test user.
+GitHub Actions:
+
+- [ci.yml](.github/workflows/ci.yml) runs lint, type-check, unit tests, database tests and end-to-end tests on every push, using a `MONGODB_URI` repository secret for a separate test user.
+- [backup.yml](.github/workflows/backup.yml) makes the nightly backup (below).
+- [smoke.yml](.github/workflows/smoke.yml) runs `npm run test:smoke` against the live site after each production deployment.
 
 Secrets live only in `.env.local` (git-ignored), Vercel environment variables and GitHub Secrets. Which variables go where is in [BUILD_PLAN.md](BUILD_PLAN.md#environments-and-secrets) and [ARCHITECTURE.md §13](ARCHITECTURE.md#13-configuration).
+
+## Backups
+
+Every night at 02:47 India time (21:17 UTC), [backup.yml](.github/workflows/backup.yml) backs up the production database `familytree`. It uses a read-only database user (the `MONGODB_BACKUP_URI` secret), encrypts the file with `BACKUP_ENCRYPTION_KEY`, restores it into a throwaway MongoDB inside the runner to prove it works, and keeps it 90 days as the run's artifact. Photos aren't included; they live in Cloudinary. Run it any time from Actions → Nightly backup → Run workflow. If a run fails, GitHub emails you.
+
+**Keep the key in your password manager.** Without it no backup can be read.
+
+To restore, download the run's `backup-<date>` artifact, unzip it, then in your terminal (with `MONGODB_URI` in `.env.local`):
+
+```bash
+npm run restore -- familytree-<time>.ftbackup --check              # a trial: restores into a throwaway database, compares counts, empties it
+npm run restore -- familytree-<time>.ftbackup familytree_restored  # into a new database
+npm run restore -- familytree-<time>.ftbackup familytree --replace # over production, replacing what's there
+```
+
+It asks for the key (typing isn't shown), refuses a database that already has records unless given `--replace`, and checks every collection's count against the file. Sessions aren't backed up, so after a restore everyone signs in again.
 
 ## npm registry
 

@@ -47,6 +47,9 @@ export function authOptions(database: Database, env: AuthEnv) {
     },
     // 30 days, extended while in use. Only /api/auth/get-session extends it (see permissions.ts).
     session: { expiresIn: 30 * DAY },
+    // Google's tokens are kept encrypted with the secret, so a copy of the database (or a backup)
+    // doesn't hold them in plain text. The app never uses them (found in step 11's review).
+    account: { encryptOAuthTokens: true },
     // Failures that happen before the sign-in's own errorCallbackURL is known (e.g. an expired sign-in).
     onAPIError: { errorURL: "/" },
     plugins:

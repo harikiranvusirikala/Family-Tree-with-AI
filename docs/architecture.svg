@@ -188,8 +188,8 @@
 
   <rect x="1000" y="730" width="360" height="120" rx="12" fill="#F5F7FA" stroke="#98A2B3" stroke-width="1.5"/>
   <text x="1020" y="760" class="h">GitHub Actions — nightly backup</text>
-  <text x="1020" y="784" class="s">mongodump with a read-only DB user</text>
-  <text x="1020" y="804" class="s">→ encrypt → artifact (kept 90 days)</text>
+  <text x="1020" y="784" class="s">Node script with a read-only DB user</text>
+  <text x="1020" y="804" class="s">→ encrypt → trial restore → artifact (90 days)</text>
   <text x="1020" y="824" class="g">Photos stay in Cloudinary</text>
 
   <!-- Footer -->

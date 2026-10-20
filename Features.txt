@@ -49,7 +49,7 @@ Tech stack & deployment
   - E2E tests sign in through a Playwright fixture (Better Auth's testUtils) that writes sessions into
     the test database. The app itself has no test-login route.
 - Database: MongoDB Atlas M0 (free, 512 MB).
-  - M0 has no automatic backups -> nightly encrypted mongodump via a GitHub Actions job (artifact kept 90 days).
+  - M0 has no automatic backups -> nightly encrypted backup via a GitHub Actions job (artifact kept 90 days).
 - Photos: Cloudinary (free tier). Never store images in MongoDB.
   - Face-aware cropping for round avatars.
   - Upload directly from the browser (avoids Vercel's request size limit).
@@ -175,6 +175,18 @@ Import / export
   - Possible duplicates (same name and birth year) start as "Use existing"; "Keep both" adds them as someone new.
   - Photos come in only when a JSON file goes back into the group it came from.
   - The picture always uses the day colours on white.
+
+Backups and hardening (step 11)
+- Nightly backup at 02:47 India time: a Node script with the MongoDB driver (not mongodump), reading production
+  (familytree) with a read-only database user. Every collection except sessions and verifications (sign-in
+  leftovers; after a restore everyone signs in again). Encrypted with AES-256-GCM; each run is trial-restored
+  inside the runner, then kept 90 days as a GitHub Actions artifact. Photos stay in Cloudinary.
+- The encryption key is a GitHub secret and is also kept in the owner's password manager.
+- One fixed Content Security Policy for the whole site, allowing inline scripts (no nonces, so pages keep
+  their prebuilt shell), plus the usual security headers.
+- A smoke test checks the live site as a signed-out visitor after every production deployment, and by hand.
+- Dependabot alerts on (emails about known vulnerabilities), no automatic update pull requests.
+- Accepted for now: anyone with a Google account can sign in and create groups (ARCHITECTURE.md §15).
 
 First build step
 - Done in step 2 (ELK.js chosen). Was: spike the tree layout using the people from samples/Sample Family Tree.png,

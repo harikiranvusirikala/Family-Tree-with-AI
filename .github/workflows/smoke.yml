@@ -1,0 +1,39 @@
+name: Production smoke test
+
+# Step 11: after each production deployment, check the live site as a signed-out visitor
+# (smoke/production.spec.ts). It never signs in or writes anything. Also runs by hand.
+on:
+  deployment_status:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    # Vercel reports every deployment to GitHub; only production's successful ones are checked.
+    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && startsWith(github.event.deployment.environment, 'Production'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - run: npm run test:smoke
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: smoke-report
+          path: playwright-report/
+          retention-days: 7

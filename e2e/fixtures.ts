@@ -1,4 +1,4 @@
-import { test as base, type Page } from "@playwright/test";
+import { test as base, expect, type Page } from "@playwright/test";
 import { betterAuth } from "better-auth";
 import { testUtils } from "better-auth/plugins";
 import { ObjectId } from "mongodb";
@@ -9,6 +9,7 @@ import { collections } from "@/server/repositories/documents";
 import { createGroup } from "@/server/repositories/groups";
 import type { Role } from "@/server/roles";
 import { cruzYoung, inLawParentIds } from "@test/fixtures/cruz-young";
+import { watchPolicyViolations } from "./policy-violations";
 
 export { expect } from "@playwright/test";
 
@@ -25,6 +26,11 @@ interface Fixtures {
   sampleGroup: (owner: TestUser) => Promise<{ groupId: string; cruzSheet: string; jerrySheet: string }>;
   /** Gives a user a role in a group directly (until step 8 adds invites). */
   addMember: (groupId: string, user: TestUser, role: Role) => Promise<void>;
+  /**
+   * Content Security Policy violations on the test's pages (`page`, and any page given to signIn).
+   * Every test fails if there are any, so the tests check the policy blocks nothing the app uses.
+   */
+  policyViolations: string[];
 }
 
 export type SignIn = Fixtures["signIn"];
@@ -56,6 +62,20 @@ async function createTestAuth(database: Database) {
 }
 
 export const test = base.extend<Fixtures, WorkerFixtures>({
+  policyViolations: [
+    async ({}, provide) => {
+      const violations: string[] = [];
+      await provide(violations);
+      expect(violations, "Content Security Policy violations").toEqual([]);
+    },
+    { auto: true },
+  ],
+
+  page: async ({ page, policyViolations }, provide) => {
+    watchPolicyViolations(page, policyViolations);
+    await provide(page);
+  },
+
   database: [
     async ({}, provide) => {
       const database = await openDatabase(process.env.E2E_MONGODB_DB!);
@@ -94,8 +114,9 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     });
   },
 
-  signIn: async ({ testHelpers }, provide) => {
+  signIn: async ({ testHelpers, policyViolations }, provide) => {
     await provide(async (page, name) => {
+      watchPolicyViolations(page, policyViolations); // also pages a test opens itself
       // A fresh user per call, so parallel tests never share one. Ids are ObjectIds, like real users'.
       const id = new ObjectId().toHexString();
       const email = `${name.toLowerCase().replace(/\W+/g, ".")}.${id.slice(-6)}@example.com`;

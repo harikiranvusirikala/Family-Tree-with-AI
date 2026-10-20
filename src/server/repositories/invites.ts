@@ -33,6 +33,13 @@ export interface InviteForMe {
   email: string; // the address it was sent to
 }
 
+/**
+ * Whether `token` looks like one of ours (32 random bytes, base64url). Checked before any query: a
+ * server action accepts whatever its caller sends, and an object such as { $regex: "^a" } would
+ * otherwise match other people's invites (found in step 11's review).
+ */
+const isInviteToken = (token: unknown): token is string => typeof token === "string" && /^[\w-]{43}$/.test(token);
+
 async function namesOf(db: Db, userIds: string[]) {
   const ids = userIds.flatMap((id) => (ObjectId.isValid(id) ? [new ObjectId(id)] : []));
   const users = await collections(db).users.find({ _id: { $in: ids } }, { projection: { name: 1 } }).toArray();
@@ -100,6 +107,7 @@ export async function revokeInvite(db: Db, groupId: string, actorId: string, inv
 
 /** The invite behind a link, if it still works and its group still exists. */
 export async function inviteForToken(db: Db, token: string, now = new Date()): Promise<InviteForMe | null> {
+  if (!isInviteToken(token)) return null;
   const { invites, groups } = collections(db);
   const invite = await invites.findOne({ token, status: "pending", expiresAt: { $gt: now } });
   const group = invite && (await groups.findOne({ _id: invite.groupId, deletedAt: { $exists: false } }));
@@ -133,6 +141,7 @@ export async function invitesForUser(db: Db, user: { id: string; email: string }
  * the invite marked accepted, and their pending access request to the group approved. The group's id.
  */
 export async function acceptInvite(database: Database, token: string, user: { id: string; email: string }, now = new Date()): Promise<string> {
+  if (!isInviteToken(token)) throw new MemberError(INVALID_INVITE);
   const { invites, groups, memberships, accessRequests } = collections(database.db);
   const uid = toObjectId(user.id);
   const session = database.client.startSession();
@@ -164,6 +173,7 @@ export async function acceptInvite(database: Database, token: string, user: { id
 
 /** The invited person says no. Only their own invite; anything else is ignored. */
 export async function declineInvite(db: Db, token: string, user: { id: string; email: string }, now = new Date()): Promise<void> {
+  if (!isInviteToken(token)) return;
   await collections(db).invites.updateOne(
     { token, status: "pending", emailNormalized: normalizeEmail(user.email) },
     { $set: { status: "declined", decidedBy: user.id, decidedAt: now } },
