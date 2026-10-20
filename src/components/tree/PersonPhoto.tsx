@@ -5,7 +5,7 @@ import type { Person } from "@/tree/types";
 import { initials } from "../initials";
 import { CloudNameContext, PhotosHiddenContext, photoUrl } from "./photo";
 
-// Features.md: light blue border for male, light pink for female. The minimap needs the ring as a colour.
+// FEATURES.md: light blue border for male, light pink for female. The minimap needs the ring as a colour.
 export const GENDER_COLORS = {
   male: { ring: "#93c5fd" },
   female: { ring: "#f9a8d4" },

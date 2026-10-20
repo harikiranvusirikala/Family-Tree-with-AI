@@ -1,6 +1,6 @@
 /**
  * Years shown under a person's name: "1985" if living, "1945 – 2022" if they have died.
- * Living people never show "Present" (Features.md). Unknown years are left out.
+ * Living people never show "Present" (FEATURES.md). Unknown years are left out.
  */
 export function formatYears(birthYear?: number, deathYear?: number): string {
   if (birthYear && deathYear) return `${birthYear} – ${deathYear}`;

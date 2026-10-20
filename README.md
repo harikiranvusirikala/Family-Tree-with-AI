@@ -6,9 +6,9 @@ A web app where a family builds its tree together. People are added by hand or b
 
 ![A family's sheet in the app, by day: the tree laid out automatically, with the sheet tabs, the eye button that hides photos, Export, Import… and Ask AI](docs/screenshots/day-tree.png)
 
-- **Requirements and decisions:** [Features.md](Features.md)
-- **Design (code layout, data model, permissions, flows):** [ARCHITECTURE.md](ARCHITECTURE.md)
-- **Build plan and progress:** [BUILD_PLAN.md](BUILD_PLAN.md)
+- **Requirements and decisions:** [docs/FEATURES.md](docs/FEATURES.md)
+- **Design (code layout, data model, permissions, flows):** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- **Build plan and progress:** [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md)
 
 Built with Next.js 16 (TypeScript, React 19), Tailwind CSS, React Flow and ELK.js, MongoDB Atlas, Better Auth (Google sign-in), Cloudinary and the Claude API, hosted on Vercel.
 
@@ -92,7 +92,7 @@ GitHub Actions:
 - [backup.yml](.github/workflows/backup.yml) makes the nightly backup (below).
 - [smoke.yml](.github/workflows/smoke.yml) runs `npm run test:smoke` against the live site after each production deployment.
 
-Secrets live only in `.env.local` (git-ignored), Vercel environment variables and GitHub Secrets. Which variables go where is in [BUILD_PLAN.md](BUILD_PLAN.md#environments-and-secrets) and [ARCHITECTURE.md §13](ARCHITECTURE.md#13-configuration).
+Secrets live only in `.env.local` (git-ignored), Vercel environment variables and GitHub Secrets. Which variables go where is in [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md#environments-and-secrets) and [docs/ARCHITECTURE.md §13](docs/ARCHITECTURE.md#13-configuration).
 
 ## Backups
 

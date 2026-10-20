@@ -1,6 +1,6 @@
 # Family Tree with AI — Features
 
-**Detailed design, data model and flows:** [ARCHITECTURE.md](ARCHITECTURE.md) (diagram: [docs/architecture.svg](docs/architecture.svg)) · **Step-by-step build plan and progress:** [BUILD_PLAN.md](BUILD_PLAN.md)
+**Detailed design, data model and flows:** [ARCHITECTURE.md](ARCHITECTURE.md) (diagram: [architecture.svg](architecture.svg)) · **Step-by-step build plan and progress:** [BUILD_PLAN.md](BUILD_PLAN.md)
 
 The owner's requirements come first, then the decisions agreed for them, under the same headings in the same order.
 

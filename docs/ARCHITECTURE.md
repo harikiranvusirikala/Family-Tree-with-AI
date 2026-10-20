@@ -1,10 +1,10 @@
 # Family Tree with AI — Architecture
 
-**Status:** all 11 steps built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests, AI chat, import and export, nightly backups and hardening) and checked on the live site ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.md](Features.md) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-20
+**Status:** all 11 steps built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests, AI chat, import and export, nightly backups and hardening) and checked on the live site ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [FEATURES.md](FEATURES.md) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-20
 
-A web app where a family builds its tree together. People are added by hand or by chatting with an AI assistant, laid out automatically in the style of [samples/Sample Family Tree.png](samples/Sample%20Family%20Tree.png), and shared privately with relatives through their Google accounts.
+A web app where a family builds its tree together. People are added by hand or by chatting with an AI assistant, laid out automatically in the style of [samples/Sample Family Tree.png](../samples/Sample%20Family%20Tree.png), and shared privately with relatives through their Google accounts.
 
-![System architecture](docs/architecture.svg)
+![System architecture](architecture.svg)
 
 ---
 
@@ -46,7 +46,7 @@ A web app where a family builds its tree together. People are added by hand or b
 | Tests | Vitest (unit, and database tests against Atlas), Playwright (end-to-end, against a production build) |
 | Backups | GitHub Actions (scheduled): a Node script with the MongoDB driver (Extended JSON, AES-256-GCM), trial-restored every night |
 
-The reasons behind each choice are recorded in [Features.md](Features.md) under Decisions.
+The reasons behind each choice are recorded in [FEATURES.md](FEATURES.md) under Decisions.
 
 ## 4. Code layout
 
@@ -119,6 +119,7 @@ test/                                    fixtures (the sample family), database 
 e2e/                                     Playwright specs and fixtures (signIn, sampleGroup, addMember, policyViolations); stand-ins for Cloudinary and the model
 smoke/                                   the production smoke test, signed out only (playwright.smoke.config.ts)
 scripts/                                 db:ping, db:setup, seed, test:ai-live, backup, restore
+docs/                                    FEATURES.md, ARCHITECTURE.md (this file), BUILD_PLAN.md, the architecture diagram, README screenshots
 .github/workflows/                       ci.yml (every push), backup.yml (nightly), smoke.yml (after each production deployment)
 ```
 
@@ -215,7 +216,7 @@ interface LayoutEngine {
 - **Sibling order:** avoiding crossing lines comes first, as in the sample image. Siblings with no family of their own below them are then re-packed eldest first, left to right. Siblings with families of their own keep the crossing-free position, so they may not be in birth order.
 - Node placement is `NETWORK_SIMPLEX`, which centres parents over their children. `BRANDES_KOEPF` is about 35% faster but hangs each family off one child, so it looks lopsided.
 
-Card design, from Features.md and the sample:
+Card design, from FEATURES.md and the sample:
 - Round photo using a Cloudinary face crop (`c_thumb,g_face`, 168 px for the 84 px circle), or initials when there is no photo or it doesn't load. A plain `<img>`: Cloudinary resizes, and `next/image` would use Vercel's image quota.
 - Border: light blue for male, light pink for female.
 - Name, then years. Living people show `1985`; people who have died show `1945 – 2022`. Unknown years are left out.
