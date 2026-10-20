@@ -19,14 +19,13 @@ jobs:
     timeout-minutes: 15
     services:
       # A MongoDB inside the runner for the trial restore, so every backup is proven to restore
-      # without this workflow having write access to Atlas.
+      # without this workflow having write access to Atlas. No health check: one that ran mongosh
+      # inside the container never reported healthy on GitHub's runner (found in the owner's first
+      # run), and the restore's driver waits up to 30 s for the server anyway.
       mongo:
         image: mongo:8
         ports:
           - 27017:27017
-        options: >-
-          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'"
-          --health-interval 5s --health-timeout 5s --health-retries 12
     steps:
       - uses: actions/checkout@v5
 

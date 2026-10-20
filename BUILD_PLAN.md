@@ -701,6 +701,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - **Deviations:**
     - We send `Strict-Transport-Security` ourselves, and Vercel may add its own, so the smoke test only checks for two years.
     - The smoke workflow matches environments starting with `Production`, as Vercel may name them `Production – <project>`.
+  - **Found in the owner's first run of the backup workflow:** "Failed to initialize container mongo:8". The trial restore's MongoDB container started, but its health check (`mongosh` inside it, 5 s per try) never reported healthy, so GitHub stopped the job. The health check is gone: the restore's driver waits up to 30 s for the server, and by then the container has been up for a minute. A workflow can't run outside GitHub, so the owner's run is the test.
   - **The framing test:**
     - Chrome logs nothing when a page refuses to be framed.
     - It also blocks a public page, including one the test makes up, from framing `localhost` at all (its local network check).
