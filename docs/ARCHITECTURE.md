@@ -1,6 +1,6 @@
 # Family Tree with AI — Architecture
 
-**Status:** all 11 steps built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests, AI chat, import and export, nightly backups and hardening) and checked on the live site ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [FEATURES.md](FEATURES.md) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-20
+**Status:** all 11 steps built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests, AI chat, import and export, nightly backups and hardening) and checked on the live site, then made to work on phones and tablets ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Run your own copy:** [README.md](../README.md#run-your-own-copy) · **Requirements:** [FEATURES.md](FEATURES.md) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-20
 
 A web app where a family builds its tree together. People are added by hand or by chatting with an AI assistant, laid out automatically in the style of [samples/Sample Family Tree.png](../samples/Sample%20Family%20Tree.png), and shared privately with relatives through their Google accounts.
 
@@ -19,6 +19,7 @@ A web app where a family builds its tree together. People are added by hand or b
 | Private by default, shared by invite | Groups with roles (View, Maintain, Admin, Owner). Every request is checked on the server. |
 | Data independent of code | Data in MongoDB Atlas, photos in Cloudinary. JSON/GEDCOM export and a nightly encrypted backup. |
 | Looks like the sample | Round photos, light blue/pink borders, a heart between partners, automatic layout. |
+| Works on phones and tablets | Tailwind breakpoints: on small screens a sheet picker and one menu, panels over the tree, readable first zoom, touch-sized controls ([§7](#7-tree-rendering-and-auto-layout)). |
 
 ## 2. Key design decisions
 
@@ -34,7 +35,7 @@ A web app where a family builds its tree together. People are added by hand or b
 | Layer | Choice |
 |---|---|
 | Language and framework | TypeScript, Next.js 16 (App Router, server components, server actions, Cache Components, Turbopack), React 19 |
-| UI | Tailwind CSS v4 (shadcn/ui not needed so far) |
+| UI | Tailwind CSS v4 (shadcn/ui not needed so far); responsive, from phones to computers |
 | Tree canvas | React Flow (`@xyflow/react`) |
 | Auto-layout | ELK.js (`layered`), behind an adapter ([§7](#7-tree-rendering-and-auto-layout)) |
 | Sign-in | Better Auth 1.7, Google provider only; OAuth proxy plugin for previews |
@@ -398,7 +399,7 @@ sequenceDiagram
     App->>DB: Load the group's persons, unions and sheets (not deleted)
     App-->>B: Page with the group data
     B->>B: buildSheetView, then layout
-    B->>B: React Flow draws cards and hearts, fit to screen
+    B->>B: React Flow draws cards and hearts, fit to screen (zoomed in at the root on phones and tablets)
     B->>CL: Load photos (small, face-cropped)
 ```
 
@@ -668,6 +669,7 @@ Model and prompt (built in step 9):
 | Production | Push to `main` | https://family-tree-with-ai.vercel.app | `familytree` |
 | End-to-end tests | `npm run test:e2e` (locally and on CI) | `http://localhost:3100` (a production build) | `familytree_test_<time>_e2e`, seeded and removed per run |
 
+- A fork gets its own URL, databases and accounts: [README.md → Run your own copy](../README.md#run-your-own-copy) walks through every service and secret.
 - `vercel.json` sets the framework to Next.js, which overrides the Framework Preset in the Vercel dashboard.
 - All three databases live in the one free Atlas cluster and share its 512 MB.
 - From a laptop far from the cluster, each save takes 1–5 seconds (a transaction plus a re-render), so the e2e tests wait up to 15 seconds per check. On Vercel the functions should run near the cluster: `vercel.json` doesn't set `regions`, so they run in Vercel's default `iad1` (Washington); set it if the cluster is elsewhere.
@@ -700,7 +702,7 @@ Model and prompt (built in step 9):
 | `ENABLE_DEV_PAGES` | Tests only | `1` includes the `/dev/*` pages in a production build (set by `playwright.config.ts`); never on Vercel |
 | `E2E_MONGODB_DB`, `E2E_BASE_URL`, `E2E_AUTH_SECRET` | Tests only | Set by `playwright.config.ts` for each run and shared by the web server and the test workers |
 | `CHAT_API_URL`, `E2E_MODEL_URL` | Tests only | The e2e stand-in for the Messages API (`e2e/model-stub.mts`); the app defaults to `https://api.anthropic.com` |
-| `SMOKE_URL` | Tests only | The site the smoke test checks; production unless set |
+| `SMOKE_URL` | Smoke test | The site the smoke test checks; this app's production unless set. `smoke.yml` takes it from the repository variable of the same name (a fork sets its own); `npm run test:smoke` from the environment |
 | `CLOUDINARY_API_URL`, `E2E_CLOUDINARY_URL` | Tests only | The e2e stand-in for Cloudinary's API (`e2e/cloudinary-stub.mts`); the app defaults to `https://api.cloudinary.com` |
 
 ## 14. Limits and when to upgrade
@@ -713,6 +715,20 @@ Model and prompt (built in step 9):
 | Claude API | Paid per use | Many active chat users | Daily cap and spend limit already in place |
 | Data per page | The whole group is loaded at once | Several thousand people in one group | Load each sheet's people from the server |
 | Atlas M0 speed | Shared, throttled cluster | Slow saves from far away; many editors at once | Functions in the cluster's region; a paid tier |
+| GitHub Actions | Free for public repositories; 2,000 minutes a month for private ones on the Free plan | A private fork pushing often (a CI run takes about ten minutes) | Fewer pushes, or a paid plan |
+
+Limits built into the app:
+
+| What | Limit | Where |
+|---|---|---|
+| Names, sheet titles, group names | 120 characters | `operations/schema.ts`, `new-group.ts` |
+| One import | 2,000 people; one batch, 20,000 changes; server action bodies 4 MB | `import-export/types.ts`, `operations/schema.ts`, `next.config.ts` |
+| Photos | JPEG, PNG, WebP or HEIC up to 10 MB, stored at most 1600 px | `upload-photo.ts`, `cloudinary.ts` |
+| AI chat | `CHAT_DAILY_LIMIT` messages per person per day (50); the first 300 people go to the model as its family list; requests up to 400,000 characters | `chat-usage.ts`, `ai/prompt.ts`, `ai/request.ts` |
+| Invites | Last 14 days | `repositories/invites.ts` |
+| Access requests | 20 waiting per person | `repositories/access-requests.ts` |
+| Sessions | 30 days, extended while in use; sign-in attempts 3 per 10 seconds per IP | `auth-options.ts`, Better Auth |
+| Backups | Kept 90 days (GitHub's artifact limit) | `backup.yml` |
 
 ## 15. Open questions
 

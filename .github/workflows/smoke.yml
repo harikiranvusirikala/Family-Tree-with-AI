@@ -2,6 +2,8 @@ name: Production smoke test
 
 # Step 11: after each production deployment, check the live site as a signed-out visitor
 # (smoke/production.spec.ts). It never signs in or writes anything. Also runs by hand.
+# The site is the repository variable SMOKE_URL (Settings → Secrets and variables → Actions →
+# Variables), e.g. https://your-app.vercel.app; without it, playwright.smoke.config.ts's default.
 on:
   deployment_status:
   workflow_dispatch:
@@ -28,7 +30,12 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - run: npm run test:smoke
+      - name: Smoke test
+        run: |
+          echo "Checking ${SMOKE_URL:-the default in playwright.smoke.config.ts}"
+          npm run test:smoke
+        env:
+          SMOKE_URL: ${{ vars.SMOKE_URL }}
 
       - name: Upload Playwright report
         if: failure()

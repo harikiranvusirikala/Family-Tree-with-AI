@@ -67,7 +67,7 @@ This is a Family Tree Web Application that can be accessed via Web.
   - Random file names (or signed URLs) so photos aren't guessable.
 - Tree drawing: React Flow for the canvas (pan/zoom/minimap, custom person cards).
 - Auto layout: ELK.js (layered), chosen in step 2. relatives-tree only draws the root's own relatives, so it dropped in-law parents. Siblings are eldest first where that adds no crossing lines.
-- UI: Tailwind CSS + shadcn/ui.
+- UI: Tailwind CSS (v4). shadcn/ui was planned but never needed. Works on phones, tablets and computers (after the final check).
 - AI chat: Claude API via `@anthropic-ai/sdk` with tool calling, model `claude-haiku-5-5`.
   - Model name kept in an environment variable so it can be switched without code changes.
   - Set a monthly spend limit in the Anthropic Console.
@@ -168,7 +168,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 - Uploads go straight from the browser to Cloudinary, signed by the app for a random name in the group's folder.
 - Stored at most 1600 px on the long side; cards show a face crop. Automatic face crop only, no manual cropping for now.
 - Replacing or removing a photo deletes the old one from Cloudinary (Remove asks first: no Undo). Deleting a person keeps their photo, so Undo brings it back.
-- Hide photos (added after step 11): an eye button at the end of the sheet tabs, before Export, shows initials instead of every photo on the cards, in the person panel, and in a saved or printed picture. It saves nothing and anyone can use it; it lasts until the next visit.
+- Hide photos (added after step 11): an eye button at the end of the sheet tabs, before Export (on phones and tablets, a bigger eye just before ⋯), shows initials instead of every photo on the cards, in the person panel, and in a saved or printed picture. It saves nothing and anyone can use it; it lasts until the next visit.
 
 ### AI chat behaviour
 

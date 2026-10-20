@@ -53,7 +53,7 @@
   <text x="72" y="368" class="g">Father's · Mother's · in-laws</text>
 
   <rect x="58" y="398" width="224" height="56" rx="10" class="card"/>
-  <text x="72" y="420" class="h2">AI chat (bottom right)</text>
+  <text x="72" y="420" class="h2">Ask AI (chat panel)</text>
   <text x="72" y="438" class="g">Proposes changes → you confirm</text>
 
   <rect x="58" y="468" width="224" height="56" rx="10" class="card"/>
@@ -80,15 +80,15 @@
   <text x="434" y="245" class="m">/g/[groupId]/s/[sheetId]</text>
   <text x="434" y="262" class="m">/g/[groupId]/members</text>
   <text x="434" y="279" class="m">/invite/[token]</text>
-  <text x="434" y="296" class="g">+ server actions for edits</text>
+  <text x="434" y="296" class="m">/g/[groupId]/settings</text>
 
   <rect x="668" y="184" width="232" height="128" rx="10" fill="#F9FAFB" stroke="#D0D5DD"/>
   <text x="682" y="206" class="h2">API routes</text>
   <text x="682" y="228" class="m">/api/auth/*</text>
   <text x="682" y="245" class="m">/api/chat</text>
-  <text x="682" y="262" class="m">/api/uploads/sign</text>
-  <text x="682" y="279" class="m">/api/groups/[id]/export</text>
-  <text x="682" y="296" class="m">/api/groups/[id]/import</text>
+  <text x="682" y="262" class="m">/api/groups/[id]/export</text>
+  <text x="682" y="279" class="g">Server actions: edits, imports,</text>
+  <text x="682" y="296" class="g">photo upload signatures</text>
 
   <rect x="420" y="326" width="480" height="310" rx="10" fill="#F8FAFC" stroke="#D0D5DD"/>
   <text x="434" y="350" class="h2">Server core</text>

@@ -49,7 +49,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | Vercel, Production | `MONGODB_URI`, `MONGODB_DB=familytree`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (own value), `BETTER_AUTH_URL=https://family-tree-with-ai.vercel.app`, `OAUTH_PROXY_SECRET` (same value as Preview), `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CHAT_API_KEY`, `CHAT_MODEL=claude-haiku-5-5`, `CHAT_DAILY_LIMIT=50` |
 | Vercel, Preview | `MONGODB_URI`, `MONGODB_DB=familytree_preview`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (a different value), `OAUTH_PROXY_SECRET` (same value as Production), the same three `CLOUDINARY_*` and three `CHAT_*` as Production. No `BETTER_AUTH_URL`: the app uses Vercel's `VERCEL_BRANCH_URL` and `VERCEL_URL` |
 | Vercel, Development | Nothing; local work uses `.env.local` |
-| GitHub Actions secrets | `MONGODB_URI` for a separate read/write test user (CI); `MONGODB_BACKUP_URI` and `BACKUP_ENCRYPTION_KEY` (the nightly backup, from step 11). Repo → Settings → Secrets and variables → Actions |
+| GitHub Actions secrets | `MONGODB_URI` for a separate read/write test user (CI); `MONGODB_BACKUP_URI` and `BACKUP_ENCRYPTION_KEY` (the nightly backup, from step 11). Repo → Settings → Secrets and variables → Actions. Optional repository variable `SMOKE_URL`: the site `smoke.yml` checks (production unless set; a fork sets its own) |
 
 - Step 11 adds `MONGODB_BACKUP_URI` (a read-only user on `familytree`) and `BACKUP_ENCRYPTION_KEY` as GitHub secrets, for `.github/workflows/backup.yml`. The key is also kept in the owner's password manager.
 - Secrets are marked Sensitive in Vercel.
