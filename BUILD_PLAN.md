@@ -21,7 +21,8 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Tree font and Google sign-in button (owner request, between steps 8 and 9) | Done 2026-10-19. See its section after step 8 |
 | 9 | AI chat (F7) | Done 2026-10-19 (merged to `main`). Indexes set up in `familytree_preview` and `familytree`. See the step 9 notes |
 | 10 | Import and export (F9, F10) | Done 2026-10-19. See the step 10 notes |
-| 11 | Nightly backup and hardening (F12) | Done 2026-10-19. Backup user, GitHub secrets and Dependabot alerts set up by the owner. See the step 11 notes |
+| 11 | Nightly backup and hardening (F12) | Done 2026-10-19. Backup user, GitHub secrets and Dependabot alerts set up by the owner. Checked by the owner 2026-10-20 (merged to `main`): the backup workflow run by hand (green after the health-check fix), a restore check of its file, and the production smoke test, all passed. See the step 11 notes |
+| – | Final check on the live site | Not done yet. See its section at the end |
 
 ## How we work
 

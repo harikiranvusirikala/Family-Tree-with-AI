@@ -148,7 +148,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - **Server action arguments are untrusted values of any shape,** including objects: bound ids too. Turn ids into `ObjectId`s with `toObjectId` (it rejects non-strings) and check any other string that goes into a query (`isInviteToken`) before querying; `{ $ne: "" }` must never reach MongoDB.
 - Better Auth stores Google's tokens encrypted (`account.encryptOAuthTokens`).
 - **Smoke test:** `smoke/production.spec.ts` with `playwright.smoke.config.ts` (no web server, `SMOKE_URL` or production). Signed out only: never sign in or write to production from it. `.github/workflows/smoke.yml` runs it on Vercel's successful `Production` deployment statuses and by hand.
-- Accepted risks and the open sign-up question are in ARCHITECTURE.md §11 and §15.
+- Accepted risks are in ARCHITECTURE.md §11, including open sign-up: any Google account can sign in and create groups, kept by the owner's choice (§15).
 
 ## Sign-in (as built, step 4)
 

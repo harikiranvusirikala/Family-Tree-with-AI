@@ -186,7 +186,7 @@ Backups and hardening (step 11)
   their prebuilt shell), plus the usual security headers.
 - A smoke test checks the live site as a signed-out visitor after every production deployment, and by hand.
 - Dependabot alerts on (emails about known vulnerabilities), no automatic update pull requests.
-- Accepted for now: anyone with a Google account can sign in and create groups (ARCHITECTURE.md §15).
+- Sign-up stays open to any Google account, who can then create groups (the owner's choice after step 11's review; ARCHITECTURE.md §11).
 
 First build step
 - Done in step 2 (ELK.js chosen). Was: spike the tree layout using the people from samples/Sample Family Tree.png,
