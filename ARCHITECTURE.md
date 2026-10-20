@@ -1,6 +1,6 @@
 # Family Tree with AI — Architecture
 
-**Status:** all 11 steps built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests, AI chat, import and export, nightly backups and hardening); the final check on the live site remains ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.md](Features.md) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-20
+**Status:** all 11 steps built (sign-in, groups and roles, sheets, editing by hand, photos, members, invites and access requests, AI chat, import and export, nightly backups and hardening) and checked on the live site ([BUILD_PLAN.md](BUILD_PLAN.md)) · **Requirements:** [Features.md](Features.md) · **Build plan:** [BUILD_PLAN.md](BUILD_PLAN.md) · **Last updated:** 2026-10-20
 
 A web app where a family builds its tree together. People are added by hand or by chatting with an AI assistant, laid out automatically in the style of [samples/Sample Family Tree.png](samples/Sample%20Family%20Tree.png), and shared privately with relatives through their Google accounts.
 
@@ -420,7 +420,7 @@ sequenceDiagram
 ```
 
 - The same `applyOperations` handles AI proposals ([F7](#f7-ai-chat-priya-married-into-our-family)) and imports ([F10](#f10-import)).
-- Clicking a card opens the person panel: details for everyone, and for Maintain and up Edit details, Add parents (or "Add the other parent"; with "Create their own sheet" for the mother, unchecked by default: a sheet for her side of the family, without her children with the father), Add partner (with "Create their own sheet", checked by default), Add child, Show on another sheet and Delete. Clicking a heart opens the couple panel: Married or Divorced, and Add child.
+- Clicking a card opens the person panel: details and "Go to <sheet title>" for each sheet rooted at them (apart from the one open) for everyone, and for Maintain and up Edit details, Add parents (or "Add the other parent"; with "Create their own sheet" for the mother, unchecked by default: a sheet for her side of the family, without her children with the father), Add partner (with "Create their own sheet", checked by default), Add child, Show on another sheet and Delete. Clicking a heart opens the couple panel: Married or Divorced, and Add child.
 - The tabs have "+ New sheet" and a menu to rename, pin, move and delete the current tab (buttons, not drag-and-drop). Renaming a person renames their sheets that still have the title they were given, "<Name>'s family"; a title of your own stays.
 - Each form becomes one batch, so it's applied completely or not at all. Form errors show in the panel; the server's reason shows above the canvas.
 - Delete is a soft delete with a 10-second Undo. A sheet's root can't be deleted: delete the sheet first (as for a partner who married in). Deleted people count as absent ([§10](#10-ai-chat-design)), so after deleting someone's parents, new ones can be added.

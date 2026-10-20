@@ -194,6 +194,8 @@ export function GroupSheets({
               person={person}
               onDelete={deletePerson}
               signPhotoUpload={cloudName ? () => signPhotoUploadAction(groupId) : undefined}
+              currentSheetId={current.id}
+              onOpenSheet={openSheet}
               {...panelProps}
             />
           )}

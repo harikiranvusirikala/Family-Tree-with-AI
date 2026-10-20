@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import type { Operation } from "@/server/operations/schema";
-import { addChildOps, addParentsOps, addPartnerOps, editPersonOps, relationsOf, showOnSheetOps, type NewParent } from "@/tree/edits";
+import { addChildOps, addParentsOps, addPartnerOps, editPersonOps, relationsOf, showOnSheetOps, tabOrder, type NewParent } from "@/tree/edits";
 import { buildSheetView } from "@/tree/sheet-view";
 import type { Gender, GroupTree, Person } from "@/tree/types";
 import { formatYears } from "@/tree/years";
@@ -55,14 +55,23 @@ const MOTHER_SHEET_HINT = "a tab for her side of the family: her parents, brothe
 
 /**
  * F6: one person's details and, for Maintain and up, what can be done with them. `signPhotoUpload` is
- * given when they may change photos and photos are set up (F8).
+ * given when they may change photos and photos are set up (F8). Everyone can go to the person's own
+ * sheets (an owner request after step 11): `onOpenSheet` opens one, as its tab would.
  */
 export function PersonPanel({
   person,
   onDelete,
   signPhotoUpload,
+  currentSheetId,
+  onOpenSheet,
   ...props
-}: PanelProps & { person: Person; onDelete: (person: Person) => void; signPhotoUpload?: SignPhotoUpload }) {
+}: PanelProps & {
+  person: Person;
+  onDelete: (person: Person) => void;
+  signPhotoUpload?: SignPhotoUpload;
+  currentSheetId: string;
+  onOpenSheet: (sheetId: string) => void;
+}) {
   const { tree, canEdit, pending, run, onSelect, onClose } = props;
   const [mode, setMode] = useState<Mode>("details");
   const [formError, setFormError] = useState<string | null>(null);
@@ -87,6 +96,8 @@ export function PersonPanel({
   };
 
   const otherSheets = tree.sheets.filter((s) => !buildSheetView(tree, s).persons.some((p) => p.id === person.id));
+  // Sheets rooted at them (someone who married in, a mother's own), apart from the one open.
+  const ownSheets = tabOrder(tree.sheets).filter((s) => s.rootPersonId === person.id && s.id !== currentSheetId);
 
   return (
     <aside aria-label="Person details" className="flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-zinc-200 bg-white p-4 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
@@ -130,6 +141,20 @@ export function PersonPanel({
               </dd>
             </div>
           </dl>
+          {ownSheets.length > 0 && (
+            <div className="flex flex-col items-start gap-2">
+              {ownSheets.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => onOpenSheet(s.id)}
+                  className="rounded-full border border-zinc-300 px-3 py-1 text-left text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                >
+                  Go to {s.title}
+                </button>
+              ))}
+            </div>
+          )}
           {canEdit && (
             <div className="flex flex-col items-start gap-1 text-sm">
               {(

@@ -57,6 +57,29 @@ test("a partner who married in gets their own sheet, rooted at them", async ({ p
   await expect(card(page, "Amelia Young")).toBeVisible();
 });
 
+test("a person's panel goes to their own sheet (owner request)", async ({ page, signIn, sampleGroup }) => {
+  const { cruzSheet, jerrySheet } = await openSampleGroup(page, signIn, sampleGroup);
+  const goTo = personPanel(page).getByRole("button", { name: /^Go to / });
+  await card(page, "Jake Cruz").click();
+  await expect(personPanel(page).getByRole("heading", { name: "Jake Cruz" })).toBeVisible();
+  await expect(goTo).toHaveCount(0); // no sheet of his own
+
+  await card(page, "Jerry Willow").click();
+  await expect(goTo).toHaveText(["Go to Jerry Willow's family"]);
+  await goTo.click();
+  await expect(page).toHaveURL(new RegExp(`/s/${jerrySheet}$`));
+  await expect(page.getByRole("tab", { name: "Jerry Willow's family" })).toHaveAttribute("aria-selected", "true");
+  await expect(cards(page)).toHaveCount(32);
+  // Still open on him, and his sheet is the one shown, so there's nowhere to go.
+  await expect(personPanel(page).getByRole("heading", { name: "Jerry Willow" })).toBeVisible();
+  await expect(goTo).toHaveCount(0);
+
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/s/${cruzSheet}$`));
+  await expect(cards(page)).toHaveCount(36);
+  await expect(goTo).toHaveText(["Go to Jerry Willow's family"]);
+});
+
 test("adding parents, the mother can get her own sheet, showing her side (owner request)", async ({ page, signIn, sampleGroup }) => {
   await openSampleGroup(page, signIn, sampleGroup);
   await card(page, "Taylor Humes").click();
@@ -246,6 +269,12 @@ test("a Viewer sees the tree but no edit controls", async ({ browser, page, sign
     for (const action of ["Edit details", "Add partner", "Add child", "Delete"]) {
       await expect(panel.getByRole("button", { name: action })).toHaveCount(0);
     }
+
+    // Going to someone's sheet isn't an edit.
+    await card(viewerPage, "Jerry Willow").click();
+    await panel.getByRole("button", { name: "Go to Jerry Willow's family" }).click();
+    await expect(viewerPage.getByRole("tab", { name: "Jerry Willow's family" })).toHaveAttribute("aria-selected", "true");
+    await expect(cards(viewerPage)).toHaveCount(32);
   } finally {
     await viewerPage.context().close();
   }

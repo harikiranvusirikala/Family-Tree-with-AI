@@ -132,6 +132,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 - "Create their own sheet" is checked by default when adding a partner (people who marry in get a sheet).
 - Adding parents offers "Create their own sheet" for the mother, unchecked by default: a tab for her side of the family (her parents, brothers and sisters), without her children with the father, who are on his side. The father isn't offered one. (Owner requests after step 11.)
 - Renaming a person renames their sheet when it still has its given title, "<Name>'s family"; a title of your own stays.
+- The person panel has "Go to <sheet title>" for each sheet rooted at that person, apart from the one open, for everyone, Viewers included. (Owner request after step 11.)
 - A person who is a sheet's root can't be deleted.
 - Deleted people count as absent: after deleting someone's parents, new parents can be added; Undo still restores them.
 - Tabs: "+ New sheet", rename, pin, move left/right and delete (buttons, not drag-and-drop). Pinned tabs come first.

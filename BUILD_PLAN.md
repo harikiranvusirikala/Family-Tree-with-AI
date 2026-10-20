@@ -24,7 +24,8 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | 11 | Nightly backup and hardening (F12) | Done 2026-10-19. Backup user, GitHub secrets and Dependabot alerts set up by the owner. Checked by the owner 2026-10-20 (merged to `main`): the backup workflow run by hand (green after the health-check fix), a restore check of its file, and the production smoke test, all passed. See the step 11 notes |
 | – | Hide photos (owner request, after step 11) | Done 2026-10-20. See its section after step 11 |
 | – | Sheet changes: the mother's own sheet, renaming follows, delete a sheet (owner requests, after step 11) | Done 2026-10-20. See their section after step 11 |
-| – | Final check on the live site | Not done yet. See its section at the end |
+| – | Go to a person's sheet (owner request, after step 11) | Done 2026-10-20. See its section after step 11 |
+| – | Final check on the live site | Done 2026-10-20 by the owner. See its section at the end |
 
 ## How we work
 
@@ -768,6 +769,17 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - E2E:
     - Mother's sheet: the box starts unchecked; checked with no mother, the form asks for her name. With Grace Lee as Taylor Humes's mother, "Grace Lee's family" appears (not one for the father) with only Grace and Frank Humes. "Add the other parent" shows the box for a mother and hides it for a father. A new group's Mother's tab shows the couple without the user, its child.
     - Rename and delete: renaming Jerry Willow renames his tab. His pinned sheet can't be deleted until unpinned. Then it's deleted: the page goes to the Cruz family sheet with nobody missing, and Jerry can be deleted.
+
+## After step 11: go to a person's sheet (owner request)
+- **Why:** someone with a sheet of their own (a partner who married in, a mother with her own sheet) is easy to find on the family's sheets, but their own sheet could only be found by its tab.
+- **Build:**
+  - The person panel's details have a "Go to <sheet title>" button for each sheet rooted at that person, in tab order, under Parents, Partners and Children. It opens the sheet as its tab would (`pushState`), so Back returns.
+  - The sheet already open isn't offered, and someone without a sheet gets no button.
+  - Everyone gets it, Viewers included: it only changes the sheet shown.
+  - The panel stays open on the person, who is now the open sheet's root.
+- **Tests:**
+  - Unit (`PersonPanel.test.tsx`): Jerry's two sheets in tab order, and the click opens the right one; not the open sheet; nothing for someone without a sheet; shown to a Viewer.
+  - E2E: Jake Cruz has no button. Jerry Willow's "Go to Jerry Willow's family" opens his sheet (its URL, its tab selected, 32 people) with his panel still open and no button left, and Back returns to the Cruz family sheet. A Viewer gets it too. The night screenshot (`night-tree.png`) now shows Jerry's panel, with the button.
 
 ## Final check on the live site
 1. Sign in with Google.

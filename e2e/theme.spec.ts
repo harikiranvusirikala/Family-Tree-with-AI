@@ -35,8 +35,8 @@ test("day, night or follow the device: the choice stays, and the tree is readabl
   await expect(cardName(page, "Jake Cruz")).toBeVisible();
   expect(await lightness(cardName(page, "Jake Cruz"), "color")).toBeGreaterThan(0.8); // light names...
   expect(await lightness(page.locator(".react-flow"), "backgroundColor")).toBeLessThan(0.15); // ...on a dark canvas
-  await page.getByRole("tabpanel").getByRole("button", { name: /^Jake Cruz,/ }).click();
-  await expect(page.getByRole("complementary", { name: "Person details" })).toBeVisible();
+  await page.getByRole("tabpanel").getByRole("button", { name: /^Jerry Willow,/ }).click();
+  await expect(page.getByRole("complementary", { name: "Person details" }).getByRole("button", { name: "Go to Jerry Willow's family" })).toBeVisible();
   await screenshot(page, "tree");
 
   await page.goto("/dashboard");
