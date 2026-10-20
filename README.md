@@ -4,6 +4,8 @@ A web app where a family builds its tree together. People are added by hand or b
 
 **Live:** https://family-tree-with-ai.vercel.app
 
+![A family's sheet in the app, by day: the tree laid out automatically, with the sheet tabs, the eye button that hides photos, Export, Import… and Ask AI](docs/screenshots/day-tree.png)
+
 - **Requirements and decisions:** [Features.md](Features.md)
 - **Design (code layout, data model, permissions, flows):** [ARCHITECTURE.md](ARCHITECTURE.md)
 - **Build plan and progress:** [BUILD_PLAN.md](BUILD_PLAN.md)

@@ -58,6 +58,7 @@ test("day, night or follow the device: the choice stays, and the tree is readabl
   await page.goto(`/g/${groupId}/s/${cruzSheet}`);
   await expect(cardName(page, "Jake Cruz")).toBeVisible();
   expect(await lightness(cardName(page, "Jake Cruz"), "color")).toBeLessThan(0.2);
+  await page.screenshot({ path: "test-results/screenshots/day-tree.png" }); // the sheets page as people see it by day
 
   // Night stays night when the device turns to day.
   await choice("Night theme").click();
