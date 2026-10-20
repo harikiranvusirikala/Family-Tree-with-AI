@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-@AGENTS.md
+@../AGENTS.md
 
 ## Start here
 
@@ -34,8 +34,9 @@ npm test                    # unit tests only, no database (npm run test:watch f
 npx vitest run src/app/page.test.tsx      # one test file
 npx vitest run -t "landing page"          # tests matching a name
 npm run build
-npm run test:e2e            # Playwright: builds, then serves on port 3100 (dev uses 3000)
+npm run test:e2e            # Playwright: builds, then serves on port 3100 (dev uses 3000); projects chromium (desktop), phone, tablet
 npx playwright test e2e/home.spec.ts      # one e2e file (also builds first); owner's terminal only, not allowlisted
+npx playwright test --project=phone       # one project; owner's terminal only
 npm run test:db             # *.db.test.ts integration tests against Atlas
 npx vitest run --config vitest.db.config.mts src/server/operations/apply.db.test.ts   # one db file; owner's terminal only
 npm run db:ping             # check the MONGODB_URI / MONGODB_DB connection
@@ -110,7 +111,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - Group pages follow `src/app/g/[groupId]/settings/page.tsx`: a `<Suspense>` boundary around an async component that awaits `params`, then `requireUser()`, then `requireRole()`. The sheets are drawn by the layout `src/app/g/[groupId]/s/layout.tsx` (same pattern), so the editor stays mounted while tabs change `[sheetId]` with `pushState`; the `[sheetId]` page itself renders nothing.
 - Writes that need more than content operations in the same transaction use `parseOperations` + `applyInTransaction` (see `createGroup`). Don't write persons, unions or sheets any other way.
 - Editing (step 6): forms build operations with the pure helpers in `src/tree/edits.ts` and send them to `applyChangesAction` (`src/app/g/[groupId]/actions.ts`), which calls `applyGroupChanges` (`roleInGroup(…, maintain)` + `applyOperations`) and `groupChanged`. New edit types: add a builder plus a unit test against the sample family (`test/planning.ts`), and a planner rule if needed. A name change goes through `editPersonOps`, which adds `renameSheetsOps` so the person's sheets still titled "<Name>'s family" follow; the assistant's `update_person` uses `renameSheetsOps` too, so any new way to rename someone should.
-- The sheets page is the hub most features plug into: `GroupSheets` (`src/app/g/[groupId]/s/GroupSheets.tsx`) holds the group's whole `GroupTree` (loaded once by the sheets layout), computes the current sheet's view, and keeps `run(ops)`, which sends a batch to `applyChangesAction` and resolves to the new ids once the page shows the change. Around the canvas: `SheetTabs` (with `trailing`: the eye that hides photos, Export, Import…, Ask AI), `FamilyCanvas` (also exposes `captureRef` for the picture), and side panels on the right (`PersonPanel`, `CouplePanel`, `ImportPanel`, `ChatWidget`). A new feature on a sheet usually adds a trailing button and a panel here, and saves through `run`.
+- The sheets page is the hub most features plug into: `GroupSheets` (`src/app/g/[groupId]/s/GroupSheets.tsx`) holds the group's whole `GroupTree` (loaded once by the sheets layout), computes the current sheet's view, and keeps `run(ops)`, which sends a batch to `applyChangesAction` and resolves to the new ids once the page shows the change. Around the canvas: `SheetTabs` (with `trailing`: the eye that hides photos, Export, Import…, Ask AI), `FamilyCanvas` (also exposes `captureRef` for the picture), and side panels on the right (`PersonPanel`, `CouplePanel`, `ImportPanel`, `ChatWidget`). A new feature on a sheet usually adds a trailing button and a panel here, and saves through `run`; below 1024 px the button also needs its `menuItems` (or `beforeMenu`) twin and the panel uses `panel.ts` (see Phones and tablets).
 - The canvas is read-only unless given `actions` (`CanvasActions`: onPerson, onCouple, selectedId). Cards and hearts then render overlay buttons named "Jake Cruz, 1945 – 2022" and "Steve Cruz and Arham Chopra, married", which e2e tests click.
 - Server actions live next to their page in `actions.ts`, take bound ids (`action.bind(null, groupId)`), and check the role themselves (see Permissions above). After changing a group (or later, its members or content), call `groupChanged(groupId)` from `src/server/group-changed.ts` before returning or redirecting. It revalidates `/dashboard` and the group's pages; otherwise Back/Forward and the header link show the pages the browser kept from before the change.
 
