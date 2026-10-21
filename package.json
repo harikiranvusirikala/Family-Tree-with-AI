@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
+    "@vercel/speed-insights": "^1.1.0",
     "@xyflow/react": "^12.12.0",
     "better-auth": "^1.7.10",
     "d3-force": "^3.0.0",
