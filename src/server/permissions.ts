@@ -21,6 +21,7 @@ export interface SessionUser {
  * the user menu's useSession() does that through /api/auth/get-session.
  */
 export const getUser = cache(async (): Promise<SessionUser | null> => {
+  await getDatabase(); // connects again after a failed connection, which Better Auth's queries never do
   const session = await auth.api.getSession({ headers: await headers(), query: { disableRefresh: true } });
   if (!session) return null;
   const { id, name, email } = session.user;

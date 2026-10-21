@@ -39,6 +39,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | A mother's side stays on her own sheet (owner request) | Done 2026-10-21 (unit tests: 409 passed; e2e: 76 passed). See its section at the end |
 | – | Marriage dates (owner request) | Done 2026-10-21 (unit tests: 433 passed; database: 42 passed; e2e: 78 passed). See its section at the end |
 | – | Birthdays and anniversaries (owner request) | Done 2026-10-21 (unit tests: 447 passed; e2e: 80 passed). See its section at the end |
+| – | "Topology is closed" on production (found by the owner) | Done 2026-10-21 (unit tests: 450 passed; e2e: 80 passed). See its section at the end |
 
 ## How we work
 
@@ -1360,3 +1361,15 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - The sample family has no full birth dates, so its Upcoming shows only Steve and Arham's anniversary, and the e2e test adds four birth dates with the device's day fixed (Playwright's `clock.setFixedTime`) on 21 October 2026.
   - The e2e checks that list ★ Everyone's views now expect five.
   - README: the ★ Everyone picture laid out again as a 2×3 grid with Upcoming (the three notes in the sixth cell), and `phone-panel.png` copied again (the panel now shows an age).
+
+## After the final check: "Topology is closed" on production (found by the owner)
+- **Why:** now and then a page on production showed "This page couldn't load". Vercel's runtime logs had Better Auth failing to get the session: `MongoTopologyClosedError: Topology is closed`, in 29 ms.
+- **Cause** (mongodb 7.7, read in `node_modules`): when connecting fails (a moment when Atlas can't be reached), the driver closes that attempt's topology but keeps it on the client. Queries use it as long as it's there and fail at once with "Topology is closed"; only `client.connect()` starts a new one. The app's own reads go through `getDatabase()`, which connects. Better Auth was given the client unconnected, and its queries never call `connect()`, so on that warm Vercel instance every session check failed until something connected again or the instance was replaced.
+- **Fix:** `getUser()` and Better Auth's route (`/api/auth/*`) call `getDatabase()` first: nothing to do when connected, a new connection after a failed one.
+- **Tests:**
+  - The driver's behaviour, reproduced without a database: a client pointed at a closed port fails to connect, a query then fails with "Topology is closed", and `getDatabase()` makes a new attempt.
+  - `getUser()` and the route connect before Better Auth runs. Both failed before the fix.
+- **Notes (2026-10-21):**
+  - The first failed connection isn't in the logs given. If the page still fails now and then, Vercel's logs just before it should say why (for example a server selection timeout); the page would then recover on the next request instead of staying broken.
+  - Vercel suggests `attachDatabasePool` (from `@vercel/functions`) for database clients on Fluid compute, which closes idle connections before an instance is suspended. Not added here: it's a new dependency, and not the cause of this error.
+  - The Speed Insights pull request merged into `main` needed `npm install` locally (the lockfile was already right).

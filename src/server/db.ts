@@ -16,14 +16,20 @@ function requireEnv(name: "MONGODB_URI" | "MONGODB_DB"): string {
 
 /**
  * The app's database, from MONGODB_URI and MONGODB_DB, without connecting: the driver connects on
- * first use. Better Auth gets this at import time, so the build never touches the database.
+ * first use. Better Auth gets this at import time, so the build never touches the database. Its
+ * queries never connect again after a failed connection (see getDatabase), so getUser() and its route
+ * call getDatabase() first.
  */
 export function lazyDatabase(): Database {
   const client = (cache.familyTreeMongo ??= new MongoClient(requireEnv("MONGODB_URI")));
   return { client, db: client.db(requireEnv("MONGODB_DB")) };
 }
 
-/** The app's database, connected. A failed connection is retried by the next call. */
+/**
+ * The app's database, connected. A failed connection is retried by the next call. The driver (7.7)
+ * keeps a failed attempt's closed topology, and any query that doesn't call connect() then fails
+ * with "Topology is closed" until something does (found on production, through Better Auth).
+ */
 export async function getDatabase(): Promise<Database> {
   const database = lazyDatabase();
   await database.client.connect(); // returns at once when already connected
