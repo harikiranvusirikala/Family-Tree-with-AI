@@ -33,6 +33,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | ★ Everyone, part 2: the List view (owner request) | Done 2026-10-21 (unit tests: 341 passed; e2e: 68 of 69 passed, and the one phone failure passed on a rerun of the phone tests in the owner's terminal). See its section at the end |
 | – | ★ Everyone, part 3: the Network view (owner request) | Done 2026-10-21 (unit tests: 352 passed; e2e: 71 passed). See its section at the end |
 | – | ★ Everyone, part 4: the Wheel view (owner request) | Done 2026-10-21 (unit tests: 378 passed; e2e: 73 passed). See its section at the end |
+| – | ★ Everyone: real screenshots in the README (owner request) | Done 2026-10-21. See its section at the end |
 
 ## How we work
 
@@ -1146,3 +1147,12 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - **A bug found while building:** switching to the Wheel with someone selected did nothing. The new middle was component state, which rendered before the pushed address reached `useSearchParams`, and the address effect then wrote the old view back. The middle now lives only in the address, and the effect reads the live address. The two e2e tests that failed before the fix cover it.
   - **Busy sides:** on a busy side (cousins) some lines run a long way, for example from an uncle to his wife a ring further out. Readable, and the first thing to polish if wanted.
   - **E2E runs:** one run had two failures outside this part: the phone panel's 28 px Close button, the flaky touch emulation seen in part 2, and the members page's "Role changed." arriving late. The next run passed all 73.
+
+## After the final check: ★ Everyone, real screenshots in the README (owner request)
+- **Why:** with all four views built, the README's picture of ★ Everyone (`docs/screenshots/everyone-views.png`) was still the design mockup.
+- **Build:** the same layout with the real app: the title, a 2×2 grid of the e2e screenshots, and the footer notes.
+  - The grid holds `everyone-tree.png`, `everyone-network-chosen.png` (Steve Cruz's family lit up), `everyone-wheel.png` (Telugu names) and `everyone-list.png`.
+  - The captions say what was built: arrows from the couple's heart, Telugu or English names, Put in the middle.
+  - The mockup's drawn tab row is gone; the screenshots show the real one.
+  - It's made by a temporary e2e spec that lays copies of the screenshots out in a page and saves a 2160 px wide picture (the method is in CLAUDE.md); the spec is deleted afterwards.
+- **Notes (2026-10-21):** the e2e run that made it had one failure, "the main controls are big enough to tap" (the phone's sheet picker at 40 px instead of 44). That's the third time the flaky touch emulation has struck one phone test, which then saw a mouse instead of a touch screen. It's worth a look of its own, for example a check that the page sees a touch screen before measuring.
