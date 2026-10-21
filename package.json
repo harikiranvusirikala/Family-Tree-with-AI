@@ -18,6 +18,7 @@
     "db:ping": "node --import tsx --env-file-if-exists=.env.local scripts/db-ping.mts",
     "test:db": "vitest run --config vitest.db.config.mts",
     "db:setup": "node --import tsx --env-file-if-exists=.env.local scripts/db-setup.mts",
+    "db:indexes": "node --import tsx --env-file-if-exists=.env.local scripts/db-indexes.mts",
     "seed": "node --import tsx --env-file-if-exists=.env.local scripts/seed.mts",
     "test:ai-live": "node --import tsx --env-file-if-exists=.env.local scripts/ai-live.mts",
     "test:smoke": "playwright test --config playwright.smoke.config.ts",

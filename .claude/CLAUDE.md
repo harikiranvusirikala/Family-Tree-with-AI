@@ -40,7 +40,8 @@ npx playwright test --project=phone       # one project; owner's terminal only
 npm run test:db             # *.db.test.ts integration tests against Atlas
 npx vitest run --config vitest.db.config.mts src/server/operations/apply.db.test.ts   # one db file; owner's terminal only
 npm run db:ping             # check the MONGODB_URI / MONGODB_DB connection
-npm run db:setup            # create indexes (idempotent)
+npm run db:setup            # create indexes and drop retired ones (idempotent)
+npm run db:indexes -- familytree_dev familytree_preview familytree   # list each collection's indexes and counts; owner's terminal only
 npm run seed                # sample family into MONGODB_DB, group 000000000000000000000001; view at /dev/tree/db
 npm run test:ai-live        # one real chat conversation (needs CHAT_API_KEY, costs < 1 cent); owner's terminal only
 npm run test:smoke          # Playwright against the live site, signed out only; owner's terminal (the sandbox blocks the site) and smoke.yml
@@ -185,7 +186,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 
 - `src/server/auth.ts` is the Better Auth instance (`import "server-only"`). Its settings are in `auth-options.ts`, which has no `server-only` so the e2e fixture can build an identical instance (same cookie names and signatures). Base URL and trusted origins come from the pure `authUrls(env)` in `auth-urls.ts`: exact origins only, never `*.vercel.app`.
 - Better Auth gets `lazyDatabase()` from `db.ts`: the shared client, not yet connected, so importing `auth.ts` during the build never touches the database. `getDatabase()` connects it.
-- Collections `users`, `sessions`, `accounts`, `verifications` (`usePlural: true`); user ids are `ObjectId`s. `ensureIndexes` adds TTL indexes on `sessions.expiresAt` and `verifications.expiresAt`; don't repeat Better Auth's own indexes there.
+- Collections `users`, `sessions`, `accounts`, `verifications` (`usePlural: true`); user ids are `ObjectId`s. **Better Auth's Mongo adapter creates no indexes for them** (it only makes those listed in a table's `indexes` option, and its core fields' `unique`/`index` flags are for SQL migrations), so `ensureIndexes` makes them: unique `sessions.token` and `users.email`, `sessions.userId`, `accounts.userId`, `accounts {providerId, accountId}`, `verifications.identifier`, plus TTL on `sessions.expiresAt` and `verifications.expiresAt`. If Better Auth is ever given `indexes` options, use the same keys, or MongoDB refuses the duplicate under another name.
 - `src/server/permissions.ts`: `getUser()` (user or null) and `requireUser()` (redirects to `/`). Both read the session with `disableRefresh`, because Server Components can't write cookies; only `/api/auth/get-session` (the user menu's `useSession()`) extends sessions. Route handlers use `getUser()` and answer 401. Don't use `use cache: private` for these: step 5's role must be read fresh.
 - `src/proxy.ts` (Next.js 16's middleware) checks only that a session cookie is present, using the pure `proxyDecision()` in `src/server/proxy-rules.ts`. It denies by default: a new public page must be added to `PUBLIC_PATHS` there. Signed-out page loads get a 307 to `/?returnTo=…`; API calls and POSTs get 401.
 - `SignInButton` follows Google's branding guidelines (the standard G, Google's light and dark colours); don't restyle it like the app's other buttons.

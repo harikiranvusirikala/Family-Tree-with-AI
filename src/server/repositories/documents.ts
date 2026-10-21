@@ -1,6 +1,6 @@
 // MongoDB document shapes (ARCHITECTURE.md §5). Every content record carries groupId.
 // References are ObjectIds; audit fields (createdBy, addedBy, …) hold the acting user's id as a string.
-import type { Db, ObjectId } from "mongodb";
+import { MongoServerError, type Db, type ObjectId } from "mongodb";
 import type { Gender, Union } from "@/tree/types";
 import type { GrantableRole } from "../members-rules";
 import type { Role } from "../roles";
@@ -130,7 +130,14 @@ export function collections(db: Db) {
   };
 }
 
-/** Creates the collections' indexes (§5). Safe to run repeatedly: `npm run db:setup`. */
+/** Indexes that were created once and are no longer used: `ensureIndexes` drops them where present. */
+export const RETIRED_INDEXES = [
+  // Couples are always loaded whole by groupId and checked in memory; nothing looked them up by these.
+  { collection: "unions", name: "groupId_1_partnerIds_1" },
+  { collection: "unions", name: "groupId_1_childIds_1" },
+] as const;
+
+/** Creates the collections' indexes (§5) and drops retired ones. Safe to run repeatedly: `npm run db:setup`. */
 export async function ensureIndexes(db: Db): Promise<void> {
   const { memberships, invites, accessRequests, chatUsage, persons, unions, sheets } = collections(db);
   await Promise.all([
@@ -148,13 +155,27 @@ export async function ensureIndexes(db: Db): Promise<void> {
     chatUsage.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     persons.createIndex({ groupId: 1 }),
     unions.createIndex({ groupId: 1 }),
-    unions.createIndex({ groupId: 1, partnerIds: 1 }),
-    unions.createIndex({ groupId: 1, childIds: 1 }),
     sheets.createIndex({ groupId: 1 }),
-    // Better Auth's collections: MongoDB removes expired sessions and sign-in states, so they don't
-    // fill the 512 MB cluster. Better Auth creates its other indexes itself on first write; don't
-    // repeat those here (the same keys under another index name fail).
+    // Better Auth's collections. Its Mongo adapter (1.7) creates no indexes for them: it only makes
+    // those listed in a table's `indexes` option, which is empty here (an owner request after the final
+    // check found none in Atlas). These match the lookups in its internal adapter: the session token on
+    // every signed-in request, users by email, accounts by user and by the provider's id.
+    db.collection("sessions").createIndex({ token: 1 }, { unique: true }),
+    db.collection("sessions").createIndex({ userId: 1 }),
+    db.collection("users").createIndex({ email: 1 }, { unique: true }),
+    db.collection("accounts").createIndex({ userId: 1 }),
+    db.collection("accounts").createIndex({ providerId: 1, accountId: 1 }),
+    db.collection("verifications").createIndex({ identifier: 1 }),
+    // MongoDB removes expired sessions and sign-in states, so they don't fill the 512 MB cluster.
     db.collection("sessions").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     db.collection("verifications").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
   ]);
+  for (const { collection, name } of RETIRED_INDEXES) {
+    try {
+      await db.collection(collection).dropIndex(name);
+    } catch (error) {
+      // Already gone, or the collection doesn't exist yet (IndexNotFound, NamespaceNotFound).
+      if (!(error instanceof MongoServerError && (error.code === 27 || error.code === 26))) throw error;
+    }
+  }
 }

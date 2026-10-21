@@ -35,6 +35,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | ★ Everyone, part 4: the Wheel view (owner request) | Done 2026-10-21 (unit tests: 378 passed; e2e: 73 passed). See its section at the end |
 | – | ★ Everyone: real screenshots in the README (owner request) | Done 2026-10-21. See its section at the end |
 | – | Full birth and death dates (owner request) | Done 2026-10-21 (unit tests: 400 passed; e2e: 75 passed). See its section at the end |
+| – | Database indexes (owner request) | Done 2026-10-21 (unit: 400 passed; database: 42 passed; e2e: 75 passed); `db:setup` to run on all three databases. See its section at the end |
 
 ## How we work
 
@@ -1207,3 +1208,31 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - GEDCOM imports keep an exact date ("12 MAR 1985") whole. Approximate ones ("ABT", "BET … AND", "MAR 1985") keep their year, and the import says "dates that aren't exact (only their years are kept)". Before, any full date was reported as not kept: the e2e import test's file has one, and now only "places" is.
   - The assistant's add and update tools have the four new fields, nullable like the others (the e2e stand-in sends them as null). `get_person` adds `birthDate`/`deathDate` when full dates are known, and the family list shows them.
   - A selected card's dates can be wider than the card ("12 Mar 1945 – 3 Jun 2022"); they stay on one line and may run a little past its edges, only while it's selected.
+
+## After the final check: database indexes (owner request)
+- **Why:** the owner asked what indexes the Atlas databases have and whether they need improving. A new read-only `npm run db:indexes -- <database>…` listed them (the owner ran it for all three):
+  - **`familytree_dev`** has only the step 3 indexes (`groupId` on persons, unions and sheets). `db:setup` was never run there again, so the unique indexes the code relies on are missing: memberships, invites, access requests and the chat counter, whose duplicate handling depends on its unique index. Its sessions and verifications don't expire either.
+  - **`familytree_preview` and `familytree`** have every index `ensureIndexes` defines.
+  - **All three lack Better Auth's indexes.** The code (and CLAUDE.md, ARCHITECTURE.md §5) assumed Better Auth makes them on first write. Its Mongo adapter (1.7.10, read in `node_modules`) only creates indexes listed in a table's `indexes` option, which is empty unless configured. The unique and indexed flags on its core fields are used only by its SQL migrations.
+    - So every signed-in page load looks up `sessions.token` without an index (cheap at today's handful of sessions, but it grows with use).
+    - Nothing stops two `users` with the same email if two first sign-ins race.
+  - **Usage counts** aren't available: Atlas's free tier refuses `$indexStats`.
+- **Build:**
+  - **Better Auth's lookups indexed by `ensureIndexes`,** matching the queries in Better Auth's internal adapter:
+    - `sessions`: unique `{token}`, and `{userId}`;
+    - `users`: unique `{email}`;
+    - `accounts`: `{userId}`, and `{providerId, accountId}` (Google sign-in returning);
+    - `verifications`: `{identifier}`.
+    - They use MongoDB's default names. If Better Auth is ever configured to create them, it must use the same keys.
+  - **Two unused indexes dropped:** `unions {groupId, partnerIds}` and `{groupId, childIds}`. No query uses them: couples are always loaded whole by `groupId` (`loadGroupTree`, `applyOperations`), and the planner works in memory. Every couple write still updates both. `ensureIndexes` drops them when present, so `db:setup` cleans each database.
+  - **`npm run db:indexes`** stays, for checking any database. It's in CLAUDE.md's commands, owner's terminal only.
+  - Docs: CLAUDE.md's Sign-in notes and ARCHITECTURE.md §5's index column corrected.
+- **Rollout:** after the merge, `npm run db:setup` for `familytree_dev` (runnable from here), then the owner runs `MONGODB_DB=familytree_preview npm run db:setup` and `MONGODB_DB=familytree npm run db:setup`, then `npm run db:indexes -- familytree_dev familytree_preview familytree` to check.
+  - A unique index can't be built over duplicates: `db:setup` would then stop with an error naming the collection, and nothing else changes.
+- **Tests:** a database test that `ensureIndexes` creates every expected index, unique where it should be, drops the two retired ones, and runs twice without error.
+- **Decision (owner, 2026-10-21):** both changes, as proposed: add Better Auth's indexes and drop the two unused couple indexes.
+- **Notes (2026-10-21):**
+  - `ensureIndexes` now creates an index on `accounts`, so a fresh database has that collection from `db:setup` on. The backup test lists the archived collections exactly, and now includes `accounts` (empty there; production's is backed up as before).
+  - The old database test that expected the couple indexes now expects only `{groupId}`.
+  - `db:indexes` tries `$indexStats` for usage counts; Atlas's free tier refuses it, so it prints none there.
+  - The first e2e run had two import tests still saving after 15 s, while most tests took two to three times their usual time (a slow Atlas); the rerun passed all 75.

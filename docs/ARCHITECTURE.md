@@ -147,13 +147,13 @@ erDiagram
 
 | Collection | Fields | Indexes |
 |---|---|---|
-| `users`, `sessions`, `accounts`, `verifications` | Managed by Better Auth: email, name, image; sessions; the Google account link; sign-in states | Better Auth's own, created on first write. Ours (`ensureIndexes`): TTL on `sessions.expiresAt` and `verifications.expiresAt` |
+| `users`, `sessions`, `accounts`, `verifications` | Managed by Better Auth: email, name, image; sessions; the Google account link; sign-in states | Ours (`ensureIndexes`), because Better Auth's Mongo adapter creates none: unique `{token}` · `{userId}` · TTL on `expiresAt` (sessions); unique `{email}` (users); `{userId}` · `{providerId, accountId}` (accounts); `{identifier}` · TTL on `expiresAt` (verifications) |
 | `groups` | `name`, audit fields, `deletedAt?` | — |
 | `memberships` | `groupId`, `userId` (Better Auth's `users._id`), `role` (`owner` · `admin` · `maintain` · `view`), `addedBy`, `createdAt` | unique `{groupId, userId}` · `{userId}` |
 | `invites` | `groupId`, `email`, `emailNormalized`, `role`, `token`, `invitedBy`, `status` (`pending` · `accepted` · `declined` · `revoked`), `expiresAt`, `createdAt`, `decidedBy?`, `decidedAt?` | unique `{token}` · unique `{groupId, emailNormalized}` where `status = pending` · `{emailNormalized, status}` · `{groupId, status}` |
 | `accessRequests` | `groupId` (not always a real group, see F4), `userId`, `email`, `message?`, `status` (`pending` · `approved` · `denied`), `decidedBy?`, `decidedAt?`, `createdAt` | unique `{groupId, userId}`: one per person per group · `{groupId, status}` · `{userId, status}` |
 | `persons` | `groupId`, `name`, `gender` (`male` · `female`), `birthYear?`, `birthMonth?`, `birthDay?`, `deathYear?`, `deathMonth?`, `deathDay?` (a day and month only together and with their year), `photoId?`, `notes?`, audit fields, `deletedAt?` | `{groupId}` |
-| `unions` | `groupId`, `partnerIds` (1 or 2), `status` (`married` · `divorced`), `childIds`, audit fields, `deletedAt?` | `{groupId}` · `{groupId, partnerIds}` · `{groupId, childIds}` |
+| `unions` | `groupId`, `partnerIds` (1 or 2), `status` (`married` · `divorced`), `childIds`, audit fields, `deletedAt?` | `{groupId}` (the partner and child indexes were retired: couples are loaded whole and checked in memory) |
 | `sheets` | `groupId`, `title`, `rootPersonId`, `pinned`, `order`, `extraPersonIds`, `hideChildrenOf?` (one of the root's couples, [§6](#6-sheets-views-not-copies)), `deletedAt?`, audit fields | `{groupId}` |
 | `chatUsage` | `userId`, `day` (`YYYY-MM-DD`, UTC), `count`, `expiresAt` | unique `{userId, day}` · TTL on `expiresAt` (30 days) |
 

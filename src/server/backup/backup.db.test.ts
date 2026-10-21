@@ -40,7 +40,8 @@ describe("nightly backup and restore against MongoDB (F12)", () => {
     const header = await restoreDatabase(target.db, decrypt(file, key));
 
     const restored = Object.keys(header.collections);
-    expect(restored).toEqual(["accessRequests", "chatUsage", "groups", "invites", "memberships", "persons", "sheets", "unions", "users"]);
+    // accounts: empty here, made by ensureIndexes (Better Auth's indexes); backed up like users.
+    expect(restored).toEqual(["accessRequests", "accounts", "chatUsage", "groups", "invites", "memberships", "persons", "sheets", "unions", "users"]);
     expect(header.collections.persons.count).toBe(36);
     for (const name of restored) {
       expect(await everything(target.db, name), name).toBe(await everything(source.db, name));
