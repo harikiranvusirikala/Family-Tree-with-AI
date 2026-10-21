@@ -8,9 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Three docs in `docs/` drive all work. Read the relevant parts before changing anything:
 
-- **[BUILD_PLAN.md](../docs/BUILD_PLAN.md)**: the build plan and its Progress table. All steps 1–11 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`; Google sign-in; groups, roles and sheet pages; editing by hand; photos; members, invites and access requests; AI chat; import and export; nightly backup and hardening), plus owner requests between and after steps (night theme, tree font, hide photos, sheet changes, going to a person's sheet). The final check on the live site is done (2026-10-20); after it came phones and tablets, ★ Everyone (Tree, List, Network and a Wheel with Telugu relation names) and full birth and death dates. Each built step has notes recording deviations and bugs found; read them before touching that area. New work follows the owner-request routine below.
+- **[BUILD_PLAN.md](../docs/BUILD_PLAN.md)**: the build plan and its Progress table. All steps 1–11 exist (skeleton; sheet view, ELK.js layout and the tree canvas; MongoDB and `applyOperations`; Google sign-in; groups, roles and sheet pages; editing by hand; photos; members, invites and access requests; AI chat; import and export; nightly backup and hardening), plus owner requests between and after steps (night theme, tree font, hide photos, sheet changes, going to a person's sheet). The final check on the live site is done (2026-10-20); after it came phones and tablets, ★ Everyone (Tree, List, Network and a Wheel with Telugu relation names), full birth and death dates, and database indexes (Better Auth's, which it never created itself). Each built step has notes recording deviations and bugs found; read them before touching that area. New work follows the owner-request routine below.
 - **[ARCHITECTURE.md](../docs/ARCHITECTURE.md)**: the blueprint (code layout §4, data model §5, sheet rules §6, layout §7, permissions §8, flows F1–F12, AI chat §10, environments §12, env vars §13, open questions §15). Folder names, collections and function names come from here.
 - **[FEATURES.md](../docs/FEATURES.md)**: the owner's requirements, then the agreed Decisions, under the same headings.
+
+[IDEAS.md](../docs/IDEAS.md) lists candidate features suggested on 2026-10-21 ("This is me", birthdays, change history, …). None is agreed: a chosen one gets its own BUILD_PLAN section and questions first.
 
 README.md and AGENTS.md stay at the root (`next dev` recreates a missing root AGENTS.md when an AI agent runs it), along with this file's `.claude/` folder.
 
@@ -206,7 +208,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
   - `CHAT_API_KEY`, `CHAT_MODEL=claude-haiku-5-5`, `CHAT_DAILY_LIMIT=50` (from step 9), the same in Production and Preview.
   - Vercel's system variables (`VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`) must be exposed; sign-in reads them. `vercel.json` sets no `regions`, so functions run in Vercel's default `iad1`.
 - CI (`.github/workflows/ci.yml`) runs lint, typecheck, `npm test`, `npm run test:db` and e2e, using the `MONGODB_URI` repository secret (a read/write test user). GitHub secrets from step 11: `MONGODB_BACKUP_URI` and `BACKUP_ENCRYPTION_KEY` (backup.yml). Dependabot alerts are on (no update pull requests).
-- README.md's "Run your own copy" walks a fork through every account, setting and secret (Atlas users, Google client, Cloudinary, Anthropic, Vercel variables per environment, GitHub secrets). A new environment variable, service, secret or workflow goes there too (its step and the variables table), as well as in `.env.example` and ARCHITECTURE.md §13.
+- README.md's "Run your own copy" walks a fork through every account, setting and secret (Atlas users, Google client, Cloudinary, Anthropic, Vercel variables per environment, GitHub secrets). A new environment variable, service, secret or workflow goes there too (its step and the variables table), as well as in `.env.example` and ARCHITECTURE.md §13; a new service or workflow also goes in README's diagram, `docs/architecture.svg` (hand-written SVG).
 
 ## Testing conventions
 
