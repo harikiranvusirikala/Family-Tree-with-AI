@@ -76,7 +76,7 @@ A built-in first tab on every group's sheets page that shows every person and ho
 
 - ★ Everyone comes first in the tab row (first in the sheet picker on phones), but a group still opens on its first pinned sheet, or its first sheet when none is pinned.
 - Tapping anyone, in any view, opens the same person panel as on a sheet (editing for Maintain and up), with shortcuts to the other views. The person you picked stays picked when you switch, and each view has its own link to share.
-- **Built so far: the tab, the Tree view and Find someone** (type part of a name to select someone and move to their card). List, Network and Wheel come next, one at a time; the picture is a design mockup of all four, drawn from the sample family. The agreed details are in [docs/FEATURES.md](docs/FEATURES.md#everyone-agreed-2026-10-20-part-1-the-tab-and-the-tree-view-built).
+- **Built so far: the tab, the Tree view, the List and Find someone.** On the Tree, Find someone selects a person and moves to their card; in the List it narrows the rows as you type, beside the filters Everyone, Living, Married in and On no sheet. A person's panel has "Find in list", on any sheet too. Network and Wheel come next, one at a time; the picture is a design mockup of all four, drawn from the sample family. The agreed details are in [docs/FEATURES.md](docs/FEATURES.md#everyone-agreed-2026-10-20-parts-1-and-2-the-tab-the-tree-view-and-the-list-built).
 
 ## Tech stack
 
@@ -153,7 +153,7 @@ The full design (code layout, data model, sheet rules, permissions table, flows 
 | A group | Loaded whole into the browser: comfortable up to a few thousand people |
 
 **Not built (yet)**
-- **★ Everyone**'s List, Network and Wheel views: designed ([above](#-everyone-the-whole-family-in-one-place)), to be built one at a time (the tab and its Tree view are built).
+- **★ Everyone**'s Network and Wheel views: designed ([above](#-everyone-the-whole-family-in-one-place)), to be built one at a time (the tab, its Tree view and its List are built).
 - Hiding one extra person from a sheet; copying photos when importing into a different group.
 - Email notifications for invites and requests (they show in the app, plus a link to share).
 - A cap on groups per account: anyone with a Google account can sign up and create groups (an accepted risk; see [Security](#security)).

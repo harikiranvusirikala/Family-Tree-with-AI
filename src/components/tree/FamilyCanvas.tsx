@@ -58,6 +58,8 @@ function Canvas({ view, sheetId, focus, captureRef }: { view: SheetView; sheetId
   const flow = useRef<HTMLDivElement>(null);
   /** The sheet last framed (null for the dev pages, which have no sheet id; undefined before the first). */
   const framed = useRef<string | null>(undefined);
+  /** Someone to centre whose card wasn't laid out yet (the Tree just opened): done after the layout. */
+  const pendingFocus = useRef<CanvasFocus | null>(null);
 
   useEffect(() => {
     if (!captureRef) return;
@@ -111,6 +113,12 @@ function Canvas({ view, sheetId, focus, captureRef }: { view: SheetView; sheetId
       const newSheet = framed.current !== (sheetId ?? null);
       framed.current = sheetId ?? null;
       requestAnimationFrame(() => {
+        const waiting = pendingFocus.current && built.find((n) => n.id === pendingFocus.current!.personId);
+        pendingFocus.current = null;
+        if (waiting && flow.current) {
+          const card = { ...waiting.position, width: waiting.width ?? 0, height: waiting.height ?? 0 };
+          return void setViewport(focusViewport(card, getViewport(), flow.current.getBoundingClientRect(), isPhone() ? PHONE_PANEL_SHARE : 0));
+        }
         if (!isTabletOrPhone()) return void fitView({ padding: 0.08 });
         // Phones and tablets: a new sheet opens zoomed in at its root. After a change to the same sheet
         // the view stays where the person left it, rather than jumping back to the root.
@@ -124,7 +132,7 @@ function Canvas({ view, sheetId, focus, captureRef }: { view: SheetView; sheetId
     return () => {
       cancelled = true;
     };
-  }, [view, sheetId, fitView, setViewport]);
+  }, [view, sheetId, fitView, getViewport, setViewport]);
 
   // Phones and tablets: bring the selected card (or heart) into view, above a phone's panel, or within
   // a tablet's tree, which the panel beside it has just made narrower.
@@ -142,7 +150,7 @@ function Canvas({ view, sheetId, focus, captureRef }: { view: SheetView; sheetId
   useEffect(() => {
     if (!focus || !flow.current) return;
     const node = getNode(focus.personId);
-    if (!node) return;
+    if (!node) return void (pendingFocus.current = focus);
     const card = { ...node.position, width: node.width ?? 0, height: node.height ?? 0 };
     void setViewport(focusViewport(card, getViewport(), flow.current.getBoundingClientRect(), isPhone() ? PHONE_PANEL_SHARE : 0), { duration: 300 });
   }, [focus, getNode, getViewport, setViewport]);

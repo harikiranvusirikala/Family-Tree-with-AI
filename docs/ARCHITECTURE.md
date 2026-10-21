@@ -103,7 +103,7 @@ src/
     import-export/                       json.ts, gedcom.ts, import-plan.ts (duplicates, choices → operations), types.ts; pure, also run in the browser
   tree/                                  pure functions, run in the browser and in tests
     sheet-view.ts                        which people and unions belong on a sheet
-    everyone.ts                          ★ Everyone: every person as one view (not a stored sheet), and Find someone's matching
+    everyone.ts                          ★ Everyone: every person as one view (not a stored sheet), Find someone's matching, the List's rows and filters, which view opens
     edits.ts                             edits made by hand → operations; tab order
     describe.ts                          a proposal in plain words (the chat's proposal card)
     layout/                              LayoutEngine interface + ELK.js adapter
@@ -112,7 +112,7 @@ src/
     ThemeToggle.tsx, theme.ts            Day / Night / Follow device switch, useTheme(); theme-script.ts runs in <head> before the first paint
     initials.ts, use-hydrated.ts         shared helpers; screen.ts (phone and tablet sizes, for the few things CSS can't do)
     auth/                                SignInButton, UserMenu, Better Auth's browser client, safeReturnTo
-    tree/                                FamilyCanvas, PersonNode, UnionNode (heart), PersonPhoto, photoUrl; HidePhotosButton (the eye: initials only); framing.ts (phones' and tablets' views, Find someone's centring); FindSomeone
+    tree/                                FamilyCanvas, PersonNode, UnionNode (heart), PersonPhoto, photoUrl; HidePhotosButton (the eye: initials only); framing.ts (phones' and tablets' views, Find someone's centring); FindSomeone; ★ Everyone's ViewSwitcher and EveryoneList
       edit/                              PersonPanel, CouplePanel, SheetTabs (with the phone's sheet picker and the sheet menu), person form (F6); PhotoControls, upload (F8); panel.ts (panel layouts)
       sheet-picture.ts                   the whole sheet as a PNG (html-to-image), download or print (F9)
     chat/                                ChatWidget (the conversation, kept in the browser), ProposalCard, the event-stream reader
@@ -186,7 +186,7 @@ What follows from this:
 - "A married into B" creates a new sheet rooted at the newcomer ([F7](#f7-ai-chat-priya-married-into-our-family)).
 - Deleting a sheet never deletes people. A deleted sheet is kept with `deletedAt` (like people and groups) and is gone for everyone. Pinned sheets (the father's and mother's start pinned) can't be deleted until unpinned, nor can a group's last sheet.
 
-**★ Everyone** (an owner request after the final check) is a built-in first tab, not a stored sheet: `everyoneView()` draws every person and every couple, with the same rules for what a couple and its children need to be drawn. Its address is `/g/{groupId}/s/everyone`; a group still opens on its first pinned sheet. Part 1 has the Tree view and Find someone; List, Network and Wheel come in parts 2–4 (FEATURES.md, Everyone).
+**★ Everyone** (an owner request after the final check) is a built-in first tab, not a stored sheet: `everyoneView()` draws every person and every couple, with the same rules for what a couple and its children need to be drawn. Its address is `/g/{groupId}/s/everyone?view=tree|list`, plus `&person=` for the selected person, so a link opens the same view and person; a group still opens on its first pinned sheet. Without a view in the address it opens the one last used on that device (`localStorage`), else List on phones and Tree elsewhere. Built: the Tree view and Find someone (part 1), the List (`listRows()`: each person's parents, partners, children and the sheets that show them, with filters, part 2); Network and Wheel come in parts 3–4 (FEATURES.md, Everyone).
 
 ## 7. Tree rendering and auto-layout
 
@@ -407,7 +407,7 @@ sequenceDiagram
 ```
 
 - The whole group's data is loaded once (fine up to a few thousand people), so switching sheet tabs is instant. A tab changes the URL with `history.pushState`, which Next.js's router follows, and the server isn't asked again.
-- Tabs: ★ Everyone first (§6), then the pinned sheets (Father's, then Mother's), then the rest in their saved order. Phones show the same order in a sheet picker (§7, phones and tablets).
+- Tabs: ★ Everyone first (§6), then the pinned sheets (Father's, then Mother's), then the rest in their saved order. Phones show the same order in a sheet picker (§7, phones and tablets). ★ Everyone's view switcher also changes the URL with `pushState` (Back returns to the view before); selecting someone there only replaces the URL's `person`.
 - The sheets are drawn by the layout `g/[groupId]/s/layout.tsx`, not the `[sheetId]` page, so they stay mounted while tabs change `[sheetId]`. Otherwise the next save's refresh would render a new page and close any open panel. An unknown sheet id shows the first sheet and corrects the address bar.
 
 ### F6. Edit the tree by hand
@@ -430,7 +430,7 @@ sequenceDiagram
 ```
 
 - The same `applyOperations` handles AI proposals ([F7](#f7-ai-chat-priya-married-into-our-family)) and imports ([F10](#f10-import)).
-- Clicking a card opens the person panel: details and "Go to <sheet title>" for each sheet rooted at them (apart from the one open; on ★ Everyone, for someone with no sheet of their own, the first sheet that shows them) for everyone, and for Maintain and up Edit details, Add parents (or "Add the other parent"; with "Create their own sheet" for the mother, unchecked by default: a sheet for her side of the family, without her children with the father), Add partner (with "Create their own sheet", checked by default), Add child, Show on another sheet, Create their own sheet (for someone with no sheet yet: a title, and whether it leaves out the children of one of their couples; a woman's leaves out her children with her partner unless changed) and Delete. Clicking a heart opens the couple panel: Married or Divorced, and Add child.
+- Clicking a card opens the person panel: details and "Go to <sheet title>" for each sheet rooted at them (apart from the one open; on ★ Everyone, for someone with no sheet of their own, the first sheet that shows them) and Find in list (★ Everyone's List at their row; not in the List itself) for everyone, and for Maintain and up Edit details, Add parents (or "Add the other parent"; with "Create their own sheet" for the mother, unchecked by default: a sheet for her side of the family, without her children with the father), Add partner (with "Create their own sheet", checked by default), Add child, Show on another sheet, Create their own sheet (for someone with no sheet yet: a title, and whether it leaves out the children of one of their couples; a woman's leaves out her children with her partner unless changed) and Delete. Clicking a heart opens the couple panel: Married or Divorced, and Add child.
 - The tabs have "+ New sheet" and a menu (⋯, at the start of the row on computers) to rename, pin, move and delete the current tab (buttons, not drag-and-drop). Many tabs scroll sideways with no scrollbar: a mouse wheel scrolls them, and the open tab is scrolled into view. Renaming a person renames their sheets that still have the title they were given, "<Name>'s family"; a title of your own stays.
 - Each form becomes one batch, so it's applied completely or not at all. Form errors show in the panel; the server's reason shows above the canvas.
 - Delete is a soft delete with a 10-second Undo. A sheet's root can't be deleted: delete the sheet first (as for a partner who married in). Deleted people count as absent ([§10](#10-ai-chat-design)), so after deleting someone's parents, new ones can be added.

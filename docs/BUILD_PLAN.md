@@ -30,6 +30,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | A sheet of their own, later (owner request, after the final check) | Done 2026-10-20. See its section at the end |
 | – | The sheet tab row (owner requests, after the final check) | Done 2026-10-20. See its section at the end |
 | – | ★ Everyone, part 1: the tab and the Tree view (owner request) | Done 2026-10-21 (e2e run in the owner's terminal: 66 passed). See its section at the end |
+| – | ★ Everyone, part 2: the List view (owner request) | Done 2026-10-21 (unit tests: 341 passed; e2e: 68 of 69 passed, and the one phone failure passed on a rerun of the phone tests in the owner's terminal). See its section at the end |
 
 ## How we work
 
@@ -914,3 +915,62 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - The sample family has 12 couples, not the 11 the mockups said; the count and the tests say 12.
   - The e2e runs happened in the owner's terminal. After this session restarted, its runs of `npm run test:e2e` and `npm run db:ping` were sandboxed again (no MongoDB, no ports). Retries started while the owner's run was going cleared `test-results/` (Playwright does at start), so three of the owner's tests failed on missing trace files: never start an e2e run while the owner may be running one.
   - The first run also caught five older tests that listed the tabs or the picker's choices exactly; they now expect ★ Everyone first.
+
+## After the final check: ★ Everyone, part 2: the List view (owner request)
+- **Why:** the second of the four agreed views (FEATURES.md, Everyone): a searchable directory of everyone with their relations and the sheets that show them. It's easy to scroll on a phone and good for spotting gaps (people on no sheet, no parents yet). With a second view, the view switcher appears.
+- **Build:**
+  - **The view switcher:** "Tree · List" buttons at the start of the bar above ★ Everyone (pressed buttons, `aria-pressed`), then the count, then Find someone at the end. Network and Wheel join it in parts 3 and 4, in the mockup's order: Tree · Network · Wheel · List. On phones the switcher has its own row above Find someone.
+  - **Which view opens:** the first time, Tree on computers and tablets and List on phones. After that, the last one used on that device (saved in the browser's `localStorage`, nothing on the server).
+  - **The address:** `/g/<group>/s/everyone?view=list`, plus `&person=<id>` while someone is selected, so a shared link opens the same view with the same person selected (the usual access rules).
+    - Switching views adds a history entry, so Back returns to the previous view, as with tabs. Selecting someone only updates the address.
+    - An address without `view` (part 1's links) opens the remembered view. A `person` who isn't in the group is ignored. Sheets' addresses don't change.
+  - **The List:** everyone in the group, A to Z by the name as written, first name first (no guessing which word is the family name, which differs between naming customs); the same name, oldest first. One row each:
+    - photo or initials (the eye hides photos here too), name and years;
+    - parents; partners, with "(divorced)"; children (how many, then their names);
+    - the sheets that show them, as buttons that open that sheet with the person selected.
+  - **One table that fits its width.** It uses container queries, so it also narrows when the panel opens beside it.
+    - Wide: all five columns, as in the mockup. Narrower: the sheets column goes.
+    - Narrow (phones, or a tablet with the panel open): only the person, with one line under the name, as in the phone mockup: "Child of Olivia & Arjun · ♥ Sammie, Arham · 3 children".
+  - **Choosing someone:** tapping a row selects them and opens the same person panel as on the Tree. The name is the row's button, for keyboards and screen readers. Names in the relation columns are plain text; the panel's links go to those people.
+    - The selected row is highlighted. It's scrolled into view when the selection comes from somewhere else: Find someone, a link in the panel, Find in list, or the Tree before switching. On phones it stays above the panel that covers the bottom of the screen.
+    - The selection is kept when switching views, as agreed.
+  - **Filters** above the list, each with its count: Everyone (36) · Living (25) · Married in (7) · On no sheet (0 in the sample).
+    - **Married in:** someone with a partner and no parents added, whose partner does have parents in the group. In the sample: Taylor Humes, Arjun Patel, Timothy Young, Sammie Chang, Arham Chopra, Jazmine Brooke and Jane Howell. Jerry Willow and Emma Young married in too, but their parents are added; couples at the top of the tree (Timothy Cruz and Amy Harolds) aren't counted.
+    - The filter stays while switching views and is forgotten on reload.
+    - When nobody matches: "Nobody matches.", with a button that shows everyone again.
+  - **Find someone in the List:** the box narrows the list as you type (the same matching: any part of a name, case and accents ignored), together with the filter. On the Tree it stays the drop-down that jumps to a card. What was typed stays while switching views.
+  - **The person panel gets Find in list**, on sheets and on the Tree, not in the List itself (the mockup: "on any sheet too"). It opens ★ Everyone's List with the person selected and their row in view, the filter back to Everyone. Viewers get it too.
+  - **Export in the List:** the picture and print are for the drawn views (Tree now, Network and Wheel later). In the List, Export has only the data files (Maintain and up), so a Viewer doesn't see Export there (nor its heading in the phone and tablet ⋯ menu).
+  - **Pure parts** in `src/tree/everyone.ts`, unit-tested on the sample family:
+    - `listRows(tree)`: each person's parents, partners, children and sheets, sorted. Each sheet's view is computed once, not once per person.
+    - the filters, and the narrow line (`relationSummary`).
+  - **Size:** no paging. A group of 2,000 people (the import limit) is one long list; photos load only as their rows scroll near the screen (`loading="lazy"`).
+  - No database, server or permission changes: everything comes from the group the page has already loaded.
+- **Tests:**
+  - Unit:
+    - `listRows`: 36 rows in order; Steve Cruz's parents, partners (Sammie Chang divorced), children and two sheets; people with the same name, oldest first; someone on no sheet has no sheets.
+    - The filters' counts on the sample, and On no sheet after adding someone who's on none.
+    - The narrow line for Steve Cruz, and for someone with no relations.
+    - Which view opens: the address first, then the saved choice, then the device (List on phones).
+    - `EveryoneList` (jsdom): its rows and columns, choosing a row, a sheet button, the filters, the selected row marked.
+    - `PersonPanel`: Find in list on a sheet and on the Tree, not in the List.
+  - E2E:
+    - Desktop: ★ Everyone opens on Tree. List shows 36 rows; Steve Cruz's row has his relations and both sheets. Clicking it opens his panel; his "Cruz family" button opens that sheet with him selected, and Back returns to the List.
+    - The view and the person are in the address, and a reload keeps both. After choosing List, opening ★ Everyone again from another tab opens List.
+    - The filters, with Zoë Ávila added on no sheet through the database fixture.
+    - From a sheet, Find in list opens the List with that person's row selected and on screen. A Viewer gets the List.
+    - Phone: ★ Everyone opens on List. Tapping a row opens the panel over the bottom, with the row still showing above it.
+    - Screenshots: `everyone-list.png`, `night-everyone-list.png` and `phone-everyone-list.png`.
+- **Decisions (owner, 2026-10-21),** each the proposal:
+  1. Married in: someone with a partner and no parents added, whose partner has parents in the group.
+  2. Find someone narrows the List as you type.
+  3. In the List, Export has only the data files.
+  4. A to Z by the name as written.
+- **Notes (2026-10-21):**
+  - Opening the Tree with someone selected (the switcher, or a link with `person`) centres their card, as Find someone does. The canvas used to ignore a focus whose card wasn't laid out yet, which is always the case just after switching; it now keeps it until the layout is done.
+  - The List sorts with one fixed collation (`Intl.Collator("en")`), because it's drawn on the server and then in the browser, whose language may differ. Find someone's matches use it too.
+  - The table has a fixed layout: an automatic one widened the table to fit the phone's line under a name instead of cutting it short.
+  - A Viewer in the List has nothing to export, and Viewers can't make sheets, so the phone and tablet ⋯ menu would be empty: it's hidden then.
+  - The narrow line uses each relative's first word, as the phone mockup does; the panel has the full names.
+  - Part 1's e2e tests expected ★ Everyone's address to end at `/s/everyone`; they now expect `?view=tree` (and `&person=` once someone is selected).
+  - One e2e run had a phone test fail on a 28 px Close button: that page wasn't treated as a touch screen at all (the sheet picker was at its 40 px mouse size too), while the other phone tests in the run were. Rerunning the phone tests passed; a flaky touch emulation, not this change.

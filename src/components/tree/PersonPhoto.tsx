@@ -19,9 +19,10 @@ const CIRCLE = {
 
 /**
  * The round photo in its blue or pink border, or the person's initials when there is no photo, photos
- * aren't set up or are hidden, or the photo doesn't load.
+ * aren't set up or are hidden, or the photo doesn't load. `lazy` (★ Everyone's List) loads the photo
+ * only when it scrolls near the screen; not on the tree, whose picture needs every photo.
  */
-export function PersonPhoto({ person, size }: { person: Pick<Person, "name" | "gender" | "photoId">; size: number }) {
+export function PersonPhoto({ person, size, lazy = false }: { person: Pick<Person, "name" | "gender" | "photoId">; size: number; lazy?: boolean }) {
   const cloudName = useContext(CloudNameContext);
   const hidden = useContext(PhotosHiddenContext);
   const [failed, setFailed] = useState<string>(); // the photo that didn't load
@@ -34,7 +35,7 @@ export function PersonPhoto({ person, size }: { person: Pick<Person, "name" | "g
       {src ? (
         // A plain <img>: Cloudinary already resizes, and next/image would use Vercel's image quota.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" onError={() => setFailed(person.photoId)} className="h-full w-full object-cover" />
+        <img src={src} alt="" loading={lazy ? "lazy" : undefined} onError={() => setFailed(person.photoId)} className="h-full w-full object-cover" />
       ) : (
         initials(person.name)
       )}

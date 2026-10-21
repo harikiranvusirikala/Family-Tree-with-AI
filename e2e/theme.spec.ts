@@ -38,6 +38,9 @@ test("day, night or follow the device: the choice stays, and the tree is readabl
   await page.getByRole("tabpanel").getByRole("button", { name: /^Jerry Willow,/ }).click();
   await expect(page.getByRole("complementary", { name: "Person details" }).getByRole("button", { name: "Go to Jerry Willow's family" })).toBeVisible();
   await screenshot(page, "tree");
+  await page.goto(`/g/${groupId}/s/everyone?view=list`); // ★ Everyone's List
+  await expect(page.getByRole("table", { name: "People" }).locator("tbody tr")).toHaveCount(36);
+  await screenshot(page, "everyone-list");
 
   await page.goto("/dashboard");
   await expect(page.getByRole("heading", { name: "Welcome, Nora Night" })).toBeVisible(); // not the loading text

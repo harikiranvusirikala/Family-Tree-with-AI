@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { GroupTree } from "@/tree/types";
@@ -21,7 +22,7 @@ const tree: GroupTree = {
 };
 const sheets = [tree.sheets[2], tree.sheets[1], tree.sheets[0]]; // tab order: pinned first
 
-function tabs(canEdit: boolean, everyone = false) {
+function tabs(canEdit: boolean, everyone = false, menuItems: ReactNode = <button type="button" role="menuitem">Picture (PNG)</button>) {
   const onOpen = vi.fn();
   render(
     <SheetTabs
@@ -33,7 +34,7 @@ function tabs(canEdit: boolean, everyone = false) {
       run={async () => null}
       onOpen={onOpen}
       beforeMenu={<button type="button">Hide photos</button>}
-      menuItems={<button type="button" role="menuitem">Picture (PNG)</button>}
+      menuItems={menuItems}
       everyone={everyone}
     />,
   );
@@ -107,5 +108,11 @@ describe("★ Everyone in the sheet row (owner request)", () => {
     expect((screen.getByRole("combobox", { name: "Sheet" }) as HTMLSelectElement).value).toBe("everyone");
     expect(screen.queryByRole("button", { name: "Sheet options" })).toBeNull();
     expect(items(openMenu())).toEqual(["+ New sheet", "Picture (PNG)"]);
+  });
+
+  test("a Viewer in the List, with nothing to export, gets no empty sheet menu", () => {
+    tabs(false, true, false);
+    expect(screen.queryByRole("button", { name: "Sheet menu" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Hide photos" })).toBeDefined(); // the eye stays
   });
 });

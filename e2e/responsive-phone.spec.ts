@@ -263,11 +263,35 @@ test("night colours on a phone", async ({ page, signIn, sampleGroup }) => {
   await shot(page, "night-phone-tree");
 });
 
-test("★ Everyone is the first choice in the sheet picker, and opens readable (owner request)", async ({ page, signIn, sampleGroup }) => {
+test("★ Everyone is the first choice in the sheet picker; a phone opens it on the List, and the Tree readable (owner request)", async ({ page, signIn, sampleGroup }) => {
   const { groupId } = await openSampleGroup(page, signIn, sampleGroup);
   await expect(picker(page).locator("option").first()).toHaveText("★ Everyone");
   await picker(page).selectOption({ label: "★ Everyone" });
-  await expect(page).toHaveURL(new RegExp(`/g/${groupId}/s/everyone$`));
+  await expect(page).toHaveURL(new RegExp(`/g/${groupId}/s/everyone\\?view=list$`)); // a phone's first view
+  const rows = page.getByRole("table", { name: "People" }).locator("tbody tr");
+  await expect(rows).toHaveCount(36);
+  await expect(page.getByRole("searchbox", { name: "Find someone" })).toBeVisible();
+  // Only the person, with their relations in one line.
+  const steve = rows.filter({ has: page.getByRole("button", { name: "Steve Cruz, 1985", exact: true }) });
+  await expect(steve.getByRole("cell")).toHaveCount(1);
+  await expect(steve.getByText("Child of Olivia & Arjun · ♥ Sammie, Arham · 3 children")).toBeVisible();
+  await fitsWidth(page);
+  expect(await page.getByRole("table", { name: "People" }).evaluate((table) => table.scrollWidth - table.parentElement!.clientWidth)).toBeLessThanOrEqual(0);
+  await shot(page, "phone-everyone-list");
+
+  // A row low on the screen opens the panel over the bottom, and moves up above it.
+  const carrie = page.getByRole("button", { name: "Carrie Young, 2001", exact: true });
+  await carrie.tap();
+  await expect(personPanel(page).getByRole("heading", { name: "Carrie Young" })).toBeVisible();
+  await expect.poll(async () => {
+    const row = await box(rows.filter({ has: carrie }));
+    return row.y > 0 && row.y + row.height <= (await box(personPanel(page))).y;
+  }).toBe(true);
+  await personPanel(page).getByRole("button", { name: "Close" }).tap();
+
+  // The Tree, readable.
+  await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Tree" }).tap();
+  await expect(page).toHaveURL(new RegExp(`/s/everyone\\?view=tree$`));
   await expect(cards(page)).toHaveCount(36);
   await expect(page.getByRole("combobox", { name: "Find someone" })).toBeVisible();
   await expect.poll(async () => (await box(cardBox(page, "Alexander Cruz"))).width).toBeGreaterThan(105);

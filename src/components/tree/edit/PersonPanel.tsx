@@ -59,7 +59,8 @@ const MOTHER_SHEET_HINT = "a tab for her side of the family: her parents, brothe
  * F6: one person's details and, for Maintain and up, what can be done with them. `signPhotoUpload` is
  * given when they may change photos and photos are set up (F8). Everyone can go to the person's own
  * sheets (an owner request after step 11): `onOpenSheet` opens one, as its tab would. On ★ Everyone
- * (`currentSheetId` EVERYONE) it also offers a sheet that shows them.
+ * (`currentSheetId` EVERYONE) it also offers a sheet that shows them. `onFindInList`, given everywhere
+ * but in ★ Everyone's List, opens the List at their row.
  */
 export function PersonPanel({
   person,
@@ -67,6 +68,7 @@ export function PersonPanel({
   signPhotoUpload,
   currentSheetId,
   onOpenSheet,
+  onFindInList,
   ...props
 }: PanelProps & {
   person: Person;
@@ -74,6 +76,7 @@ export function PersonPanel({
   signPhotoUpload?: SignPhotoUpload;
   currentSheetId: string;
   onOpenSheet: (sheetId: string) => void;
+  onFindInList?: () => void;
 }) {
   const { tree, canEdit, pending, run, onSelect, onClose } = props;
   const [mode, setMode] = useState<Mode>("details");
@@ -158,7 +161,7 @@ export function PersonPanel({
               </dd>
             </div>
           </dl>
-          {jumps.length > 0 && (
+          {(jumps.length > 0 || onFindInList) && (
             <div className="flex flex-col items-start gap-2">
               {jumps.map((jump) => (
                 <button
@@ -170,6 +173,11 @@ export function PersonPanel({
                   {jump.label}
                 </button>
               ))}
+              {onFindInList && (
+                <button type="button" onClick={onFindInList} className="rounded-full border border-zinc-300 px-3 py-1 text-left text-sm font-medium hover:bg-zinc-100 pointer-coarse:min-h-11 dark:border-zinc-700 dark:hover:bg-zinc-800">
+                  Find in list
+                </button>
+              )}
             </div>
           )}
           {canEdit && (

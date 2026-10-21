@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 /**
  * F9: Export, at the end of the sheet tabs. Everyone can save the sheet as a picture or print it
  * (and so save a PDF); Maintain and up also download the data, of this sheet or the whole group.
- * Without `sheetId` (★ Everyone) there's no "this sheet" data: the whole group's is the same.
+ * Without `sheetId` (★ Everyone) there's no "this sheet" data: the whole group's is the same. Without
+ * `onPicture` and `onPrint` (★ Everyone's List, which draws no tree) there's no picture either.
  */
 export function ExportMenu({
   groupId,
@@ -19,8 +20,8 @@ export function ExportMenu({
   sheetId?: string;
   canExportData: boolean;
   busy: boolean;
-  onPicture: () => void;
-  onPrint: () => void;
+  onPicture?: () => void;
+  onPrint?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
@@ -85,8 +86,8 @@ export function ExportItems({
   groupId: string;
   sheetId?: string;
   canExportData: boolean;
-  onPicture: () => void;
-  onPrint: () => void;
+  onPicture?: () => void;
+  onPrint?: () => void;
   onDone?: () => void;
   itemClass: string;
   headings?: boolean;
@@ -94,13 +95,19 @@ export function ExportItems({
   const data = (format: "json" | "gedcom", sheet: boolean) => `/api/groups/${groupId}/export?format=${format}${sheet ? `&sheet=${sheetId}` : ""}`;
   return (
     <>
-      {headings && <p className="px-3 pt-1 text-xs text-zinc-500 dark:text-zinc-400">{sheetId ? "This sheet" : "Everyone"}</p>}
-      <button type="button" role="menuitem" className={itemClass} onClick={() => (onDone(), onPicture())}>
-        Picture (PNG)
-      </button>
-      <button type="button" role="menuitem" className={itemClass} onClick={() => (onDone(), onPrint())}>
-        Print or save as PDF
-      </button>
+      {headings && (onPicture || (canExportData && sheetId)) && (
+        <p className="px-3 pt-1 text-xs text-zinc-500 dark:text-zinc-400">{sheetId ? "This sheet" : "Everyone"}</p>
+      )}
+      {onPicture && (
+        <button type="button" role="menuitem" className={itemClass} onClick={() => (onDone(), onPicture())}>
+          Picture (PNG)
+        </button>
+      )}
+      {onPrint && (
+        <button type="button" role="menuitem" className={itemClass} onClick={() => (onDone(), onPrint())}>
+          Print or save as PDF
+        </button>
+      )}
       {canExportData && (
         <>
           {sheetId && (

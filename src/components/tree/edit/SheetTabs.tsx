@@ -201,16 +201,19 @@ export function SheetTabs({
         </div>
         <SheetPicker sheets={sheets} current={everyone ? EVERYONE : current.id} onOpen={onOpen} />
         {beforeMenu && <div className="flex shrink-0 md:mb-1 lg:hidden">{beforeMenu}</div>}
-        <button
-          type="button"
-          aria-label="Sheet menu"
-          aria-haspopup="menu"
-          aria-expanded={tool === "more"}
-          onClick={() => (tool === "more" ? close() : setTool("more"))}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg hover:bg-zinc-100 aria-expanded:bg-zinc-100 md:mb-1 lg:hidden pointer-coarse:h-11 pointer-coarse:w-11 dark:hover:bg-zinc-800 dark:aria-expanded:bg-zinc-800"
-        >
-          ⋯
-        </button>
+        {/* Not when it would be empty: a Viewer on ★ Everyone's List, which has nothing to export. */}
+        {(canEdit || menuItems) && (
+          <button
+            type="button"
+            aria-label="Sheet menu"
+            aria-haspopup="menu"
+            aria-expanded={tool === "more"}
+            onClick={() => (tool === "more" ? close() : setTool("more"))}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg hover:bg-zinc-100 aria-expanded:bg-zinc-100 md:mb-1 lg:hidden pointer-coarse:h-11 pointer-coarse:w-11 dark:hover:bg-zinc-800 dark:aria-expanded:bg-zinc-800"
+          >
+            ⋯
+          </button>
+        )}
         {trailing && <div className="mb-1 hidden shrink-0 pt-2 lg:block">{trailing}</div>}
       </div>
 

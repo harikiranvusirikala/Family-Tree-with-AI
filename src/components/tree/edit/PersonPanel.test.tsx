@@ -22,7 +22,7 @@ const tree: GroupTree = {
   ],
 };
 
-function panel(personId: string, currentSheetId: string, canEdit = true) {
+function panel(personId: string, currentSheetId: string, canEdit = true, onFindInList?: () => void) {
   const onOpenSheet = vi.fn();
   const run = vi.fn(async () => ({ "new:sheet": "new-tab" }));
   render(
@@ -37,6 +37,7 @@ function panel(personId: string, currentSheetId: string, canEdit = true) {
       onDelete={() => {}}
       currentSheetId={currentSheetId}
       onOpenSheet={onOpenSheet}
+      onFindInList={onFindInList}
     />,
   );
   return { onOpenSheet, run };
@@ -127,5 +128,22 @@ describe("on ★ Everyone: going to a sheet that shows them (owner request)", ()
     cleanup();
     panel("cynthia", "cruz-tab");
     expect(goTo()).toEqual([]);
+  });
+});
+
+describe("Find in list (★ Everyone, part 2, owner request)", () => {
+  const findInList = () => screen.queryByRole("button", { name: "Find in list" });
+
+  test("offered when given (on sheets and the Tree), after the Go to buttons, for Viewers too", () => {
+    const onFindInList = vi.fn();
+    panel("jerry", "cruz-tab", false, onFindInList);
+    expect(screen.getAllByRole("button", { name: /^(Go to |Find in list)/ }).map((b) => b.textContent)).toEqual(["Go to Jerry Willow's family", "Go to The Willows", "Find in list"]);
+    fireEvent.click(findInList()!);
+    expect(onFindInList).toHaveBeenCalled();
+  });
+
+  test("not in the List itself (not given)", () => {
+    panel("cynthia", "everyone");
+    expect(findInList()).toBeNull();
   });
 });

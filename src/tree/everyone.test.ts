@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, test } from "vitest";
 import { sampleState, toGroupTree } from "@test/planning";
-import { EVERYONE, everyoneView, findPeople } from "./everyone";
+import { chooseView, EVERYONE, everyoneHref, everyoneView, filterRows, findPeople, listRows, relationSummary } from "./everyone";
 import type { GroupTree } from "./types";
 
 const tree = toGroupTree(sampleState());
@@ -63,5 +63,76 @@ describe("Find someone (owner request)", () => {
     expect(findPeople([...tree.persons, zoe], "  ZOE  avila ").map((p) => p.name)).toEqual(["Zoë Ávila"]);
     expect(findPeople(tree.persons, "   ")).toEqual([]);
     expect(findPeople(tree.persons, "cruz")).toHaveLength(8);
+  });
+});
+
+describe("the List (★ Everyone, part 2, owner request)", () => {
+  const rows = listRows(tree);
+  const row = (name: string, rs = rows) => rs.find((r) => r.person.name === name)!;
+  const names = (people: { name: string }[]) => people.map((p) => p.name);
+
+  test("everyone, A to Z by the name as written, the same name oldest first", () => {
+    expect(rows).toHaveLength(36);
+    expect(rows.slice(0, 4).map((r) => r.person.name)).toEqual(["Alex Cruz", "Alexander Cruz", "Amelia Young", "Amy Harolds"]);
+    expect(rows.filter((r) => r.person.name === "Timothy Cruz").map((r) => r.person.birthYear)).toEqual([1880, 1940]);
+  });
+
+  test("each person's parents, partners (divorced marked), children and the sheets that show them, in tab order", () => {
+    const steve = row("Steve Cruz");
+    expect(names(steve.parents)).toEqual(["Olivia Cruz", "Arjun Patel"]);
+    expect(steve.partners.map((p) => [p.person.name, p.divorced])).toEqual([["Sammie Chang", true], ["Arham Chopra", false]]);
+    expect(names(steve.children)).toEqual(["William Cruz", "Anna Cruz", "Taylor Cruz"]);
+    expect(steve.sheets.map((s) => s.title)).toEqual(["Cruz family", "Jerry Willow's family"]);
+    expect(row("Amy Harolds").sheets.map((s) => s.title)).toEqual(["Cruz family"]); // not on Jerry Willow's family
+    expect(row("Amy Harolds").parents).toEqual([]);
+  });
+
+  test("married in: a partner, no parents added, and a partner whose parents are", () => {
+    expect(filterRows(rows, "marriedIn").map((r) => r.person.name)).toEqual([
+      "Arham Chopra", "Arjun Patel", "Jane Howell", "Jazmine Brooke", "Sammie Chang", "Taylor Humes", "Timothy Young",
+    ]);
+    expect(row("Jerry Willow").marriedIn).toBe(false); // his parents are added
+    expect(row("Timothy Cruz").marriedIn).toBe(false); // the top of the tree
+  });
+
+  test("filters: everyone, living, married in, on no sheet; narrowed by a name typed", () => {
+    expect([filterRows(rows, "everyone"), filterRows(rows, "living"), filterRows(rows, "noSheet")].map((r) => r.length)).toEqual([36, 25, 0]);
+    const zoe = { id: "z".repeat(24), name: "Zoë Ávila", gender: "female" as const };
+    const more = listRows({ ...tree, persons: [...tree.persons, zoe] });
+    expect(filterRows(more, "noSheet").map((r) => r.person.name)).toEqual(["Zoë Ávila"]);
+    expect(row("Zoë Ávila", more)).toMatchObject({ parents: [], partners: [], children: [], sheets: [], marriedIn: false });
+    expect(filterRows(rows, "everyone", "  YOUNG ").map((r) => r.person.name).slice(0, 2)).toEqual(["Amelia Young", "Carlo Young"]);
+    expect(filterRows(rows, "living", "timothy").map((r) => `${r.person.name} ${r.person.birthYear}`)).toEqual(["Timothy Young 1970", "Timothy Young 2010"]);
+  });
+
+  test("the line under a name when the List is narrow", () => {
+    expect(relationSummary(row("Steve Cruz"))).toEqual(["Child of Olivia & Arjun", "♥ Sammie, Arham", "3 children"]);
+    expect(relationSummary(row("Arjun Patel"))).toEqual(["♥ Olivia", "1 child"]);
+    expect(relationSummary(row("Alex Cruz"))).toEqual(["Child of Jane & William"]);
+    const alone = listRows({ ...tree, persons: [{ id: "z".repeat(24), name: "Zoë Ávila", gender: "female" }], unions: [] })[0];
+    expect(relationSummary(alone)).toEqual([]);
+  });
+
+  test("2,000 people make their rows quickly", () => {
+    const persons = Array.from({ length: 2000 }, (_, i) => ({ id: i.toString(16).padStart(24, "0"), name: `Person ${i}`, gender: "male" as const }));
+    const unions = Array.from({ length: 999 }, (_, i) => ({ id: `u${i}`.padStart(24, "0"), partnerIds: [persons[i].id] as [string], status: "married" as const, childIds: [persons[i + 1000].id] }));
+    const start = performance.now();
+    listRows({ persons, unions, sheets: tree.sheets });
+    expect(performance.now() - start).toBeLessThan(process.env.CI ? 1000 : 300);
+  });
+});
+
+describe("which ★ Everyone view opens (owner request)", () => {
+  test("the address's, else the last used on this device, else List on a phone and Tree elsewhere", () => {
+    expect(chooseView("list", "tree", false)).toBe("list");
+    expect(chooseView(null, "list", false)).toBe("list");
+    expect(chooseView("wheel", "tree", true)).toBe("tree"); // not built yet
+    expect(chooseView(null, null, true)).toBe("list");
+    expect(chooseView(null, "nonsense", false)).toBe("tree");
+  });
+
+  test("its address holds the view and the selected person", () => {
+    expect(everyoneHref("g1", "list", "p1")).toBe("/g/g1/s/everyone?view=list&person=p1");
+    expect(everyoneHref("g1", "tree")).toBe("/g/g1/s/everyone?view=tree");
   });
 });
