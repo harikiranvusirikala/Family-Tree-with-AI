@@ -36,6 +36,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | ★ Everyone: real screenshots in the README (owner request) | Done 2026-10-21. See its section at the end |
 | – | Full birth and death dates (owner request) | Done 2026-10-21 (unit tests: 400 passed; e2e: 75 passed). See its section at the end |
 | – | Database indexes (owner request) | Done 2026-10-21 (unit: 400 passed; database: 42 passed; e2e: 75 passed); `db:setup` to run on all three databases. See its section at the end |
+| – | A mother's side stays on her own sheet (owner request) | Done 2026-10-21 (unit tests: 409 passed; e2e: 76 passed). See its section at the end |
 
 ## How we work
 
@@ -1236,3 +1237,29 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - The old database test that expected the couple indexes now expects only `{groupId}`.
   - `db:indexes` tries `$indexStats` for usage counts; Atlas's free tier refuses it, so it prints none there.
   - The first e2e run had two import tests still saving after 15 s, while most tests took two to three times their usual time (a slow Atlas); the rerun passed all 75.
+
+## After the final check: a mother's side stays on her own sheet (owner request)
+- **Why:** on Father's sheet, the owner added his parents with Grandmother getting her own sheet, then Grandmother's parents and cousins. They showed on Father's sheet too, because a sheet walked up through both parents of every ancestor. Only Grandfather's parents and cousins belong there; Grandmother's belong on her sheet, just as a partner who married in has their own sheet for their parents and cousins.
+- **Build:**
+  - **The rule** (§6 step 1, `buildSheetView`): the walk up from the root doesn't go above a parent whose side of the family is on their own sheet, meaning a sheet rooted at them whose `hideChildrenOf` is the couple the walk came through. That parent still shows, and so do their children with someone else (the root's half-brothers and sisters). Their parents, brothers, sisters and cousins don't.
+    - Decided by the sheets, not gender: a mother without her own sheet keeps her side on her children's sheets, as before; a man's own sheet that leaves out his children works the same way.
+    - Someone reached through two couples (cousins who married) is still walked above through the couple their sheet doesn't leave out.
+    - No new field and no database change: `buildSheetView` reads the group's sheets from the `GroupTree` it's given. Existing groups change straight away where a mother already has such a sheet (made by Add parents, Create their own sheet, or a new group's Mother's sheet). Everywhere that asks who is on a sheet follows: the canvas, export of one sheet, ★ Everyone's List (its sheets column and "On no sheet") and the panel's Go to and Show on another sheet.
+  - **Add parents:**
+    - The mother's "Create their own sheet" box now starts checked, like a partner's (also in "Add the other parent" when that parent is a woman). With no mother entered, it's ignored: the father is saved alone, without the old "Enter the mother's name" message.
+    - From a sheet that won't show the new parents, the form says "They'll be on <sheet>, not on this sheet. Saving opens it." Saving opens that sheet (the first sheet rooted at the person, in tab order), with the panel still on them; Back returns. `showsNewParentsOf(tree, sheet, personId)` decides this by drawing the sheet with a stand-in parent. This covers a mother with her own sheet and a partner who married in and has one. Without a sheet of their own, nothing changes.
+  - The "Create their own sheet" hints say her parents, brothers and sisters then show there, not on her children's sheets.
+- **Decisions (owner, 2026-10-21):**
+  1. A sheet stops at a mother when she has her own sheet for her side, not always at every woman (the proposal).
+  2. The mother's box in Add parents starts checked (the proposal). This replaces decision 1 of the sheet changes after step 11.
+  3. Parents added from a sheet that won't show them: the form says where, and saving opens that sheet (the proposal).
+- **Tests:**
+  - Unit:
+    - `buildSheetView` on the sample family: Marvin Young's sheet shows 36 people, then 34 once Emma Young has her own sheet hiding her children with Timothy Cruz (no Margaret Yap or Nick Young, while his father's side goes to the top). Her sheet shows the four of them. Jerry Willow's own side stops Marvin's sheet at him. Jerry's sheet that shows all his children stops nothing. A made-up family with cousins who married covers someone reached through two couples.
+    - `showsNewParentsOf`: the top of the father's side, above a mother with her own sheet, on her own sheet, a partner who married in, and the other parent.
+    - The edits test from the sheet changes after step 11: Rohan's own sheet now shows his mother Sunita but not her parents or brother (it showed both sides before).
+    - The panel: the box starts checked. A father alone saves without a sheet or message. A mother gets her sheet. Gran's parents from Dad's sheet show the message and open Gran's sheet. No message or sheet change on her own sheet, for Grandpa on Dad's sheet, or for Mum, who married in and has no sheet.
+  - E2E (`editing.spec.ts`):
+    - The mother's sheet test: the box starts checked, and Arham Chopra's father alone gets no sheet.
+    - "Add parents, delete both, and add parents again" unchecks the box: a sheet's root can't be deleted, so a mother given her sheet by default now needs it deleted first (as a partner who married in does).
+    - New: on the Cruz family, Timothy Cruz (1880) gets Henry Cruz and Rose Bell, and "Rose Bell's family" appears. Rose's parents, added from the Cruz family, bring the message. Saving opens Rose's sheet with the four of them, her panel still open, and "Ida Bell's family" created. Back to the Cruz family: 38 cards, Rose without her parents.

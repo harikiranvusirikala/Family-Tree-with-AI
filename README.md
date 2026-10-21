@@ -31,7 +31,7 @@ A web app where a family builds its tree together. People are added by hand or b
 
 **Family trees**
 - **Groups.** A group holds one family's trees and is what you share. Create one with the father's and mother's names (and yourself as their child); it starts with two pinned sheets, "<Father>'s family" and "<Mother>'s family". The dashboard lists My groups and Shared with me.
-- **Sheets are views, not copies.** Each person is stored once. A sheet shows a root person's ancestors, their descendants and partners, so a child added once appears on every sheet that reaches them. Someone who marries in gets their own sheet for their parents and cousins; a mother can get a sheet for her side of the family.
+- **Sheets are views, not copies.** Each person is stored once. A sheet shows a root person's ancestors, their descendants and partners, so a child added once appears on every sheet that reaches them. Someone who marries in gets their own sheet for their parents and cousins; a mother gets a sheet for her side of the family, and her parents and cousins show there rather than on her children's sheets.
 - **Automatic layout** in the style of a classic family tree: round photos with a light blue (male) or light pink (female) ring, a heart between partners (broken when divorced), children hanging below. Living people show only their birth year ("1985"), others "1945 – 2022"; a selected card shows full dates where known ("12 Mar 1945 – 3 Jun 2022").
 - **Editing by hand.** Click a person to edit them, add parents, a partner or a child, show them on another sheet, go to their own sheet, or delete them (with Undo). Click a heart to mark a couple married or divorced. Create, rename, pin, reorder and delete sheets.
 

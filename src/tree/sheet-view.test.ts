@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, test } from "vitest";
-import { buildSheetView } from "./sheet-view";
-import type { FamilyData } from "./types";
+import { buildSheetView, showsNewParentsOf } from "./sheet-view";
+import type { FamilyData, Sheet, Union } from "./types";
 import { cruzSheet, cruzYoung, inLawParentIds, jerrySheet, wholeSampleSheet } from "@test/fixtures/cruz-young";
 
 const ids = (view: { persons: { id: string }[] }) => view.persons.map((p) => p.id);
@@ -52,6 +52,71 @@ describe("buildSheetView: a sheet that leaves out one couple's children (hideChi
     const view = buildSheetView(cruzYoung, { rootPersonId: "steve-cruz", extraPersonIds: ["taylor-cruz"], hideChildrenOf: "u-steve-arham" });
     expect(ids(view)).toEqual(expect.arrayContaining(["william-cruz-2002", "jane-howell", "william-cruz-2021", "alex-cruz", "taylor-cruz"]));
     expect(ids(view)).not.toContain("anna-cruz");
+  });
+});
+
+describe("buildSheetView: not above someone whose side of the family is on their own sheet (owner request)", () => {
+  const marvin: Sheet = { rootPersonId: "marvin-young", extraPersonIds: [] };
+  // Emma Young's own sheet, leaving out her children with Timothy Cruz: her side of the family.
+  const emmasSide: Sheet = { rootPersonId: "emma-young", extraPersonIds: [], hideChildrenOf: "u-timothy-emma" };
+
+  test("her son's sheet shows her, and his father's side to the top, but not her parents; her own sheet shows them", () => {
+    expect(buildSheetView(cruzYoung, marvin).persons).toHaveLength(36); // without her sheet: both sides
+    const withHers = { ...cruzYoung, sheets: [marvin, emmasSide] };
+    const view = ids(buildSheetView(withHers, marvin));
+    expect(view).toEqual(
+      expect.arrayContaining(["emma-young", "timothy-cruz-1940", "alexander-cruz", "jerry-willow", "timothy-cruz-1880", "amy-harolds", "cynthia-willow", "fred-lambert"]),
+    );
+    expect(view).not.toContain("margaret-yap");
+    expect(view).not.toContain("nick-young");
+    expect(view).toHaveLength(34);
+    expect(ids(buildSheetView(withHers, emmasSide)).sort()).toEqual(["emma-young", "margaret-yap", "nick-young", "timothy-cruz-1940"]);
+  });
+
+  test("the sheet decides, not gender: Jerry Willow's own side stops his grandson's sheet at him", () => {
+    const jerrysSide: Sheet = { ...jerrySheet, hideChildrenOf: "u-alexander-jerry" };
+    const view = ids(buildSheetView({ ...cruzYoung, sheets: [jerrysSide] }, marvin));
+    expect(view).toEqual(expect.arrayContaining(["jerry-willow", "timothy-cruz-1880", "amy-harolds", "margaret-yap", "nick-young"]));
+    expect(view).not.toContain("cynthia-willow");
+    expect(view).not.toContain("fred-lambert");
+  });
+
+  test("a sheet of theirs that shows all their children doesn't stop it", () => {
+    expect(ids(buildSheetView({ ...cruzYoung, sheets: [jerrySheet] }, marvin))).toEqual(expect.arrayContaining(["cynthia-willow", "fred-lambert"]));
+  });
+
+  test("someone reached through two couples is still walked above through the one their sheet doesn't leave out", () => {
+    // Gran's grandchildren by two husbands, cousins, are Rose's parents.
+    const u = (id: string, partnerIds: [string, string], childIds: string[]): Union => ({ id, partnerIds, status: "married", childIds });
+    const family: FamilyData = {
+      persons: ["ggf", "ggm", "gran", "andy", "bob", "c1", "c2", "x", "y", "d1", "d2", "rose"].map((id) => ({ id, name: id, gender: "female" })),
+      unions: [
+        u("u-gg", ["ggf", "ggm"], ["gran"]),
+        u("u1", ["gran", "andy"], ["c1"]),
+        u("u2", ["gran", "bob"], ["c2"]),
+        u("u3", ["c1", "x"], ["d1"]),
+        u("u4", ["c2", "y"], ["d2"]),
+        u("u5", ["d1", "d2"], ["rose"]),
+      ],
+    };
+    const rose: Sheet = { rootPersonId: "rose", extraPersonIds: [] };
+    const side = (couple: string): Sheet => ({ rootPersonId: "gran", extraPersonIds: [], hideChildrenOf: couple });
+    expect(ids(buildSheetView({ ...family, sheets: [side("u1")] }, rose))).toEqual(expect.arrayContaining(["ggf", "ggm"]));
+    expect(ids(buildSheetView({ ...family, sheets: [side("u2")] }, rose))).toEqual(expect.arrayContaining(["ggf", "ggm"]));
+    expect(ids(buildSheetView({ ...family, sheets: [side("u1"), side("u2")] }, rose))).not.toContain("ggf");
+  });
+
+  test("showsNewParentsOf: whether parents added to someone would be drawn on a sheet", () => {
+    const withHers = { ...cruzYoung, sheets: [marvin, emmasSide] };
+    expect(showsNewParentsOf(withHers, marvin, "timothy-cruz-1880")).toBe(true); // the top of the father's side
+    expect(showsNewParentsOf(withHers, marvin, "margaret-yap")).toBe(false); // above Emma: her sheet's
+    expect(showsNewParentsOf(withHers, emmasSide, "margaret-yap")).toBe(true);
+    expect(showsNewParentsOf(cruzYoung, cruzSheet, "taylor-humes")).toBe(false); // she married in (step 3)
+    expect(showsNewParentsOf(cruzYoung, { rootPersonId: "taylor-humes", extraPersonIds: [] }, "taylor-humes")).toBe(true);
+    // The other parent, joining a single parent's couple.
+    const fatherOnly: FamilyData = { ...cruzYoung, unions: cruzYoung.unions.map((u) => (u.id === "u-timothy-amy" ? { ...u, partnerIds: ["timothy-cruz-1880"] } : u)) };
+    expect(showsNewParentsOf(fatherOnly, cruzSheet, "alexander-cruz")).toBe(true);
+    expect(showsNewParentsOf(fatherOnly, jerrySheet, "alexander-cruz")).toBe(false); // Jerry's partner: his parents aren't followed
   });
 });
 

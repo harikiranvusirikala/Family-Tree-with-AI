@@ -123,18 +123,14 @@ test("someone added without a sheet gets one later: Taylor Humes's leaves out he
   await expect(card(page, "Jake Cruz")).toBeVisible();
 });
 
-test("adding parents, the mother can get her own sheet, showing her side (owner request)", async ({ page, signIn, sampleGroup }) => {
+test("adding parents, the mother gets her own sheet, showing her side (owner requests)", async ({ page, signIn, sampleGroup }) => {
   await openSampleGroup(page, signIn, sampleGroup);
   await card(page, "Taylor Humes").click();
   await personPanel(page).getByRole("button", { name: "Add parents" }).click();
   const add = form(page, "Add parents");
   const ownSheet = add.getByRole("checkbox", { name: /Create their own sheet/ });
-  await expect(ownSheet).not.toBeChecked(); // an option, unlike a partner's
+  await expect(ownSheet).toBeChecked(); // like a partner's, since her side moved there (owner request after the full dates)
   await add.getByRole("textbox", { name: "Father's name" }).fill("Frank Humes");
-  await ownSheet.check();
-  await add.getByRole("button", { name: "Add parents" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "Enter the mother's name, or uncheck Create their own sheet." })).toBeVisible();
-
   await add.getByRole("textbox", { name: "Mother's name" }).fill("Grace Lee");
   await add.getByRole("button", { name: "Add parents" }).click();
   await expect(page.getByRole("tab", { name: "Grace Lee's family" })).toBeVisible();
@@ -145,23 +141,60 @@ test("adding parents, the mother can get her own sheet, showing her side (owner 
   for (const name of ["Grace Lee", "Frank Humes"]) await expect(card(page, name)).toBeVisible();
   await expect(card(page, "Taylor Humes")).toHaveCount(0);
 
-  // "Add the other parent" offers it only when that parent is the mother.
+  // "Add the other parent" offers it only when that parent is the mother. With only a father, the
+  // checked box is left alone: no mother, no sheet.
   await page.getByRole("tab", { name: "Cruz family" }).click();
   await card(page, "Arham Chopra").click();
   await personPanel(page).getByRole("button", { name: "Add parents" }).click();
+  await expect(ownSheet).toBeChecked();
   await add.getByRole("textbox", { name: "Father's name" }).fill("Dev Chopra");
   await add.getByRole("button", { name: "Add parents" }).click();
   await expect(personPanel(page).getByRole("button", { name: "Add the other parent" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Dev Chopra's family" })).toHaveCount(0);
   await personPanel(page).getByRole("button", { name: "Add the other parent" }).click();
   await expect(add.getByRole("radio", { name: "Female", exact: true })).toBeChecked();
-  await expect(ownSheet).toBeVisible();
+  await expect(ownSheet).toBeChecked();
   await add.getByRole("radio", { name: "Male", exact: true }).check();
   await expect(ownSheet).toHaveCount(0);
   await add.getByRole("radio", { name: "Female", exact: true }).check();
-  await ownSheet.check();
   await add.getByRole("textbox", { name: "Name" }).fill("Meera Chopra");
   await add.getByRole("button", { name: "Add parent" }).click();
   await expect(page.getByRole("tab", { name: "Meera Chopra's family" })).toBeVisible();
+});
+
+test("a mother's own sheet holds her side: her parents go there, not on her son's sheet (owner request)", async ({ page, signIn, sampleGroup }) => {
+  const { cruzSheet } = await openSampleGroup(page, signIn, sampleGroup);
+  const tabpanel = page.getByRole("tabpanel");
+  // Timothy Cruz (1880), at the top of the Cruz family, gets parents; his mother gets her own sheet.
+  await tabpanel.getByRole("button", { name: "Timothy Cruz, 1880 – 1962", exact: true }).click();
+  await personPanel(page).getByRole("button", { name: "Add parents" }).click();
+  const add = form(page, "Add parents");
+  await expect(add.getByText(/not on this sheet/)).toHaveCount(0); // they show here
+  await add.getByRole("textbox", { name: "Father's name" }).fill("Henry Cruz");
+  await add.getByRole("textbox", { name: "Mother's name" }).fill("Rose Bell");
+  await add.getByRole("button", { name: "Add parents" }).click();
+  await expect(page.getByRole("tab", { name: "Rose Bell's family" })).toBeVisible();
+  await expect(cards(page)).toHaveCount(38);
+
+  // Her parents, added from the Cruz family sheet, go on hers, which opens.
+  await card(page, "Rose Bell").click();
+  await personPanel(page).getByRole("button", { name: "Add parents" }).click();
+  await expect(add.getByText("They'll be on Rose Bell's family, not on this sheet. Saving opens it.")).toBeVisible();
+  await add.getByRole("textbox", { name: "Father's name" }).fill("Walter Bell");
+  await add.getByRole("textbox", { name: "Mother's name" }).fill("Ida Bell");
+  await add.getByRole("button", { name: "Add parents" }).click();
+  await expect(page.getByRole("tab", { name: "Rose Bell's family" })).toHaveAttribute("aria-selected", "true");
+  await expect(personPanel(page).getByRole("heading", { name: "Rose Bell" })).toBeVisible();
+  for (const name of ["Rose Bell", "Henry Cruz", "Walter Bell", "Ida Bell"]) await expect(card(page, name)).toBeVisible();
+  await expect(cards(page)).toHaveCount(4); // her side, her partner; not their son's family
+  await expect(page.getByRole("tab", { name: "Ida Bell's family" })).toBeVisible(); // the box starts checked
+
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/s/${cruzSheet}$`));
+  await expect(cards(page)).toHaveCount(38); // Rose, but not her parents
+  await expect(card(page, "Rose Bell")).toBeVisible();
+  await expect(card(page, "Walter Bell")).toHaveCount(0);
+  await expect(card(page, "Ida Bell")).toHaveCount(0);
 });
 
 test("a renamed person's sheet follows; a partner's sheet is deleted, then the partner (owner request)", async ({ page, signIn, sampleGroup }) => {
@@ -233,6 +266,7 @@ test("add parents, delete both, and add parents again; then replace one (found i
     const add = form(page, "Add parents");
     await add.getByRole("textbox", { name: "Father's name" }).fill(father);
     await add.getByRole("textbox", { name: "Mother's name" }).fill(mother);
+    await add.getByRole("checkbox", { name: /Create their own sheet/ }).uncheck(); // a sheet's root can't be deleted
     await add.getByRole("button", { name: "Add parents" }).click();
   }
   async function remove(name: string) {

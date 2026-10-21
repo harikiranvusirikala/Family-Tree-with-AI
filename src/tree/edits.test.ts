@@ -105,7 +105,8 @@ describe("edits against the sample family", () => {
     expect(t.sheets).toHaveLength(4); // the sample's two, Rohan's, and Sunita's; none for the father
     expect(buildSheetView(t, sunita).persons.map((p) => p.name).sort()).toEqual(["Sunita Mehta", "Vikram Mehta"]);
 
-    // Both sides get parents, and Sunita a brother: her sheet shows her side; Rohan's, both.
+    // Both sides get parents, and Sunita a brother: her sheet shows her side; Rohan's, his father's side
+    // and Sunita, but not her parents or brother (an owner request: they're on her sheet).
     state = applyPlan(state, addParentsOps(t, idOf(t, "Sunita Mehta"), [{ name: "Mohan Rao", gender: "male" }, { name: "Lata Rao", gender: "female" }]));
     t = toGroupTree(state);
     state = applyPlan(state, addChildOps(t, idOf(t, "Mohan Rao"), relationsOf(t, idOf(t, "Sunita Mehta")).parentsCouple!.id, { name: "Anil Rao", gender: "male" }));
@@ -115,7 +116,7 @@ describe("edits against the sample family", () => {
     expect(buildSheetView(t, sunita).persons.map((p) => p.name).sort()).toEqual(["Anil Rao", "Lata Rao", "Mohan Rao", "Sunita Mehta", "Vikram Mehta"]);
     const rohanSheet = t.sheets.find((s) => s.title === "Rohan Mehta's family")!;
     expect(buildSheetView(t, rohanSheet).persons.map((p) => p.name).sort()).toEqual(
-      ["Amelia Young", "Anil Rao", "Kamala Mehta", "Lata Rao", "Mohan Rao", "Raj Mehta", "Rohan Mehta", "Sunita Mehta", "Vikram Mehta"],
+      ["Amelia Young", "Kamala Mehta", "Raj Mehta", "Rohan Mehta", "Sunita Mehta", "Vikram Mehta"],
     );
     expect(t.sheets).toHaveLength(4);
   });

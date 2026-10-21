@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import type { Operation } from "@/server/operations/schema";
 import { addChildOps, addParentsOps, addPartnerOps, editPersonOps, newSheetOps, relationsOf, showOnSheetOps, tabOrder, type NewParent } from "@/tree/edits";
 import { EVERYONE } from "@/tree/everyone";
-import { buildSheetView } from "@/tree/sheet-view";
+import { buildSheetView, showsNewParentsOf } from "@/tree/sheet-view";
 import type { Gender, GroupTree, Person } from "@/tree/types";
 import { formatLife, formatYears } from "@/tree/years";
 import { PersonPhoto } from "../PersonPhoto";
@@ -48,8 +48,8 @@ function PersonLink({ p, onSelect }: { p: Person; onSelect: (personId: string) =
 
 /**
  * "Create their own sheet": a tab rooted at the new person. Checked for a partner, who usually married
- * in; an option for a mother (an owner request after step 11), whose sheet leaves out her children
- * with the father.
+ * in, and for a mother (owner requests after step 11 and after the full dates), whose sheet leaves out
+ * her children with the father and holds her side of the family.
  */
 function OwnSheetBox({ name, checked = false, hint }: { name: string; checked?: boolean; hint: string }) {
   return (
@@ -63,7 +63,7 @@ function OwnSheetBox({ name, checked = false, hint }: { name: string; checked?: 
   );
 }
 
-const MOTHER_SHEET_HINT = "a tab for her side of the family: her parents, brothers and sisters.";
+const MOTHER_SHEET_HINT = "a tab for her side of the family. Her parents, brothers and sisters show there, not on her children's sheets.";
 
 /**
  * F6: one person's details and, for Maintain and up, what can be done with them. `signPhotoUpload` is
@@ -105,14 +105,17 @@ export function PersonPanel({
   const otherIsMother = parents.length === 1 && (otherGender ?? opposite(parents[0].gender)) === "female";
   const dates = formatLife(person); // full dates where known (an owner request)
 
-  /** Reads a form, builds its operations, and goes back to the details once saved. */
-  const submit = (build: (form: FormData) => Operation[] | string) => async (event: FormEvent<HTMLFormElement>) => {
+  /** Reads a form, builds its operations, and goes back to the details once saved (then `onSaved`). */
+  const submit = (build: (form: FormData) => Operation[] | string, onSaved?: () => void) => async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const built = build(new FormData(event.currentTarget));
     if (typeof built === "string") return setFormError(built);
     setFormError(null);
     if (built.length === 0) return setMode("details");
-    if (await run(built)) setMode("details");
+    if (await run(built)) {
+      setMode("details");
+      onSaved?.();
+    }
   };
   const back = () => {
     setFormError(null);
@@ -136,6 +139,14 @@ export function PersonPanel({
   const hasOwnSheet = tree.sheets.some((s) => s.rootPersonId === person.id);
   const withChildren = couples.filter((c) => c.children.length > 0);
   const their = person.gender === "female" ? "her" : "his";
+  // Parents added from a sheet that won't show them (above a mother whose side is on her own sheet, or
+  // a partner who married in) go on the person's own sheet, which opens once they're saved (an owner
+  // request after the full dates).
+  const currentSheet = tree.sheets.find((s) => s.id === currentSheetId);
+  const parentsOn =
+    mode === "parents" && currentSheet && !showsNewParentsOf(tree, currentSheet, person.id)
+      ? tabOrder(tree.sheets).find((s) => s.rootPersonId === person.id)
+      : undefined;
 
   return (
     <aside aria-label="Person details" className={detailsPanel(mode !== "details")}>
@@ -271,30 +282,34 @@ export function PersonPanel({
             const read = readPerson(form, "other-");
             return typeof read === "string" ? read : addParentsOps(tree, person.id, [{ ...read, ownSheet: read.gender === "female" && ownSheet("other-") }]);
           }
-          if (ownSheet("mother-") && String(form.get("mother-name") ?? "").trim() === "") return "Enter the mother's name, or uncheck Create their own sheet.";
           const entered: NewParent[] = [];
           for (const [prefix, who] of [["father-", "Father"], ["mother-", "Mother"]] as const) {
-            if (String(form.get(`${prefix}name`) ?? "").trim() === "") continue; // either may be left out
+            if (String(form.get(`${prefix}name`) ?? "").trim() === "") continue; // either may be left out, and then has no sheet
             const read = readPerson(form, prefix, who);
             if (typeof read === "string") return read;
             entered.push({ ...read, ownSheet: ownSheet(prefix) });
           }
           return entered.length ? addParentsOps(tree, person.id, entered) : "Enter at least one parent's name.";
-        })} className="flex flex-col gap-3">
+        }, parentsOn && (() => onOpenSheet(parentsOn.id)))} className="flex flex-col gap-3">
           {parents.length === 1 ? (
             <>
               <h3 className="font-medium">The other parent of {person.name}</h3>
               <PersonFields prefix="other-" defaults={{ gender: opposite(parents[0].gender) }} />
-              {otherIsMother && <OwnSheetBox name="other-ownSheet" hint={`For the mother: ${MOTHER_SHEET_HINT}`} />}
+              {otherIsMother && <OwnSheetBox name="other-ownSheet" checked hint={`For the mother: ${MOTHER_SHEET_HINT}`} />}
             </>
           ) : (
             <>
               <h3 className="font-medium">Parents of {person.name}</h3>
               <PersonFields prefix="father-" who="Father" fixedGender="male" />
               <PersonFields prefix="mother-" who="Mother" fixedGender="female" />
-              <OwnSheetBox name="mother-ownSheet" hint={`For the mother: ${MOTHER_SHEET_HINT}`} />
+              <OwnSheetBox name="mother-ownSheet" checked hint={`For the mother: ${MOTHER_SHEET_HINT}`} />
               <p className="text-xs text-zinc-500 dark:text-zinc-400">Leave one out if you don&apos;t know them yet.</p>
             </>
+          )}
+          {parentsOn && (
+            <p className="rounded-md bg-amber-50 p-2 text-sm dark:bg-amber-950/40">
+              They&apos;ll be on {parentsOn.title}, not on this sheet. Saving opens it.
+            </p>
           )}
           <SubmitRow label={parents.length === 1 ? "Add parent" : "Add parents"} pending={pending} onCancel={back} />
         </form>
@@ -386,7 +401,8 @@ export function PersonPanel({
                 <span>Show all {their} children</span>
               </label>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Leaving them out makes a tab for {their} side of the family: {their} parents, brothers and sisters.
+                Leaving them out makes a tab for {their} side of the family: {their} parents, brothers and sisters show there, not on
+                those children&apos;s sheets.
               </p>
             </fieldset>
           )}

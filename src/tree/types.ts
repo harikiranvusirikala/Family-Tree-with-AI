@@ -31,7 +31,8 @@ export interface Sheet {
   /**
    * One of the root's couples whose children (and their families) this sheet leaves out, because
    * another sheet shows them: a mother's own sheet shows her side of the family, not her children
-   * with the father (an owner request after step 11).
+   * with the father (an owner request after step 11). In turn, sheets that reach the root through
+   * that couple's children stop at the root: her parents and cousins are on her sheet (§6 step 1).
    */
   hideChildrenOf?: string;
 }

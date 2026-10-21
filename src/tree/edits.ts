@@ -37,7 +37,8 @@ export function relationsOf(family: FamilyData, personId: string) {
 
 /**
  * A parent to add. `ownSheet` also gives them a sheet rooted at them: the mother's side of the family,
- * without the couple's children, who are on the father's side.
+ * without the couple's children, who are on the father's side. Their sheets then stop at her: her
+ * parents and cousins are on hers (§6).
  */
 export interface NewParent extends NewPerson {
   ownSheet?: boolean;

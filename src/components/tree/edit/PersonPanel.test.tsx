@@ -117,6 +117,91 @@ describe("creating someone's own sheet later (owner request)", () => {
   });
 });
 
+describe("adding parents: the mother's own sheet holds her side (owner request after the full dates)", () => {
+  // Dad's sheet; Gran has her own, leaving out her children with Grandpa; Mum married in, with no sheet.
+  const family: GroupTree = {
+    persons: [
+      { id: "dad", name: "Dad", gender: "male" },
+      { id: "grandpa", name: "Grandpa", gender: "male" },
+      { id: "gran", name: "Gran", gender: "female" },
+      { id: "mum", name: "Mum", gender: "female" },
+    ],
+    unions: [
+      { id: "grandparents", partnerIds: ["grandpa", "gran"], status: "married", childIds: ["dad"] },
+      { id: "parents", partnerIds: ["dad", "mum"], status: "married", childIds: [] },
+    ],
+    sheets: [
+      { id: "dad-tab", title: "Dad's family", rootPersonId: "dad", extraPersonIds: [], pinned: true, order: 0 },
+      { id: "gran-tab", title: "Gran's family", rootPersonId: "gran", extraPersonIds: [], pinned: false, order: 1, hideChildrenOf: "grandparents" },
+    ],
+  };
+  function addParents(personId: string, currentSheetId: string) {
+    const onOpenSheet = vi.fn();
+    const run = vi.fn(async () => ({}));
+    render(
+      <PersonPanel
+        person={family.persons.find((p) => p.id === personId)!}
+        tree={family}
+        canEdit
+        pending={false}
+        run={run}
+        onSelect={() => {}}
+        onClose={() => {}}
+        onDelete={() => {}}
+        currentSheetId={currentSheetId}
+        onOpenSheet={onOpenSheet}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add parents" }));
+    const name = (who: string, value: string) => fireEvent.change(screen.getByRole("textbox", { name: `${who}'s name` }), { target: { value } });
+    const save = () => fireEvent.submit(screen.getByRole("form", { name: "Add parents" }));
+    return { onOpenSheet, run, name, save };
+  }
+  const note = () => screen.queryByText(/not on this sheet/)?.textContent;
+
+  test("her box starts checked; with only a father, it saves him alone, with no sheet and no message", async () => {
+    const { run, name, save } = addParents("grandpa", "dad-tab");
+    expect(screen.getByRole("checkbox", { name: /Create their own sheet/ })).toHaveProperty("checked", true);
+    name("Father", "Great-grandpa");
+    save();
+    await vi.waitFor(() => expect(run).toHaveBeenCalled());
+    expect((run.mock.calls[0] as unknown as [{ op: string }[]])[0].map((o) => o.op)).toEqual(["createPerson", "createUnion", "addChild"]);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  test("with a mother, the same save creates her sheet", async () => {
+    const { run, name, save } = addParents("mum", "dad-tab");
+    name("Father", "Nana's husband");
+    name("Mother", "Nana");
+    save();
+    await vi.waitFor(() => expect(run).toHaveBeenCalled());
+    expect((run.mock.calls[0] as unknown as [{ op: string }[]])[0]).toContainEqual(
+      { op: "createSheet", tempId: "new:sheet-2", title: "Nana's family", rootPersonId: "new:parent-2", hideChildrenOf: "new:parents" },
+    );
+  });
+
+  test("Gran's parents from Dad's sheet: the form says they'll be on her sheet, and saving opens it", async () => {
+    const { onOpenSheet, run, name, save } = addParents("gran", "dad-tab");
+    expect(note()).toBe("They'll be on Gran's family, not on this sheet. Saving opens it.");
+    name("Father", "Great-grandpa");
+    save();
+    await vi.waitFor(() => expect(onOpenSheet).toHaveBeenCalledWith("gran-tab"));
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  test("no message where they'll show (her own sheet, Grandpa on Dad's) or with no sheet to open (Mum, who married in)", async () => {
+    for (const [personId, sheetId] of [["gran", "gran-tab"], ["grandpa", "dad-tab"], ["mum", "dad-tab"]]) {
+      const { onOpenSheet, run, name, save } = addParents(personId, sheetId);
+      expect(note()).toBeUndefined();
+      name("Father", "Someone");
+      save();
+      await vi.waitFor(() => expect(run).toHaveBeenCalled());
+      expect(onOpenSheet).not.toHaveBeenCalled();
+      cleanup();
+    }
+  });
+});
+
 describe("on ★ Everyone: going to a sheet that shows them (owner request)", () => {
   test("someone without a sheet of their own gets the first sheet, in tab order, that shows them", () => {
     const { onOpenSheet } = panel("cynthia", "everyone");
