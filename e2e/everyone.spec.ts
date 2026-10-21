@@ -462,8 +462,20 @@ test("Upcoming: birthdays and anniversaries nearest first; a row opens the perso
   await page.clock.setFixedTime(new Date(2026, 9, 21, 10)); // Wednesday 21 October 2026, on the device
   const { owner, groupId } = await sampleOwner(page, signIn, sampleGroup);
   const tree = await loadGroupTree(database.db, groupId);
-  const born = (name: string, birthMonth: number, birthDay: number) => ({ op: "updatePerson", personId: tree.persons.find((p) => p.name === name)!.id, set: { birthMonth, birthDay } });
-  await applyOperations(database, groupId, [born("Steve Cruz", 10, 21), born("Amelia Young", 10, 22), born("Arham Chopra", 11, 3), born("Jake Cruz", 10, 25)], owner.id);
+  const id = (name: string) => tree.persons.find((p) => p.name === name)!.id;
+  const born = (name: string, birthMonth: number, birthDay: number) => ({ op: "updatePerson", personId: id(name), set: { birthMonth, birthDay } });
+  await applyOperations(
+    database,
+    groupId,
+    [
+      born("Steve Cruz", 10, 21),
+      born("Amelia Young", 10, 22),
+      born("Arham Chopra", 11, 3),
+      born("Jake Cruz", 10, 25),
+      { op: "updatePerson", personId: id("Olivia Cruz"), set: { birthYear: 1966, birthMonth: 11, birthDay: 10 } }, // her 60th: a milestone
+    ],
+    owner.id,
+  );
 
   await page.goto(`/g/${groupId}/s/everyone?view=upcoming`);
   const rows = page.getByRole("tabpanel").getByTestId("upcoming-row");
@@ -471,10 +483,11 @@ test("Upcoming: birthdays and anniversaries nearest first; a row opens the perso
     "Wed 21 OctTodaySCSteve CruzTurns 41",
     "Thu 22 OctTomorrowAYAmelia YoungTurns 25",
     "Tue 3 NovIn 13 daysACArham ChopraTurns 43",
+    "Tue 10 NovIn 20 daysOCOlivia CruzTurns 60Shashtipurti",
     "Wed 8 SepSCACSteve Cruz & Arham Chopra19th anniversary", // Jake Cruz has died: no birthday, no anniversary with Taylor
   ]);
   await expect(page.getByRole("tabpanel").getByRole("heading")).toHaveText(["October 2026", "November 2026", "September 2027"]);
-  await expect(page.getByText("22 living people have no full birth date, so their birthdays aren't shown.")).toBeVisible();
+  await expect(page.getByText("21 living people have no full birth date, so their birthdays aren't shown.")).toBeVisible();
   await page.screenshot({ path: "test-results/screenshots/everyone-upcoming.png" });
 
   // A birthday opens the person, with their age; an anniversary the couple.
@@ -497,8 +510,12 @@ test("Upcoming: birthdays and anniversaries nearest first; a row opens the perso
     "Wed 21 OctTodaySteve Cruz turns 41Cruz family",
     "Thu 22 OctTomorrowAmelia Young turns 25Cruz family",
     "Tue 3 NovIn 13 daysArham Chopra turns 43Cruz family",
+    "Tue 10 NovIn 20 daysOlivia Cruz turns 60Cruz familyShashtipurti",
   ]);
-  await page.screenshot({ path: "test-results/screenshots/dashboard-upcoming.png", fullPage: true });
+  // The page's top part: the welcome and Upcoming (a README picture).
+  const main = await box(page.getByRole("main"));
+  const section = await box(page.getByRole("region", { name: "Upcoming", exact: true }));
+  await page.screenshot({ path: "test-results/screenshots/dashboard-upcoming.png", clip: { x: main.x, y: main.y, width: main.width, height: section.y + section.height - main.y + 32 } });
   await soon.nth(1).click();
   await expect(page).toHaveURL(/\/s\/everyone\?view=upcoming&person=[0-9a-f]{24}$/);
   await expect(personPanel(page).getByRole("heading", { name: "Amelia Young" })).toBeVisible();

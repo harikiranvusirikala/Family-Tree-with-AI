@@ -40,6 +40,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Marriage dates (owner request) | Done 2026-10-21 (unit tests: 433 passed; database: 42 passed; e2e: 78 passed). See its section at the end |
 | – | Birthdays and anniversaries (owner request) | Done 2026-10-21 (unit tests: 447 passed; e2e: 80 passed). See its section at the end |
 | – | "Topology is closed" on production (found by the owner) | Done 2026-10-21 (unit tests: 450 passed; e2e: 80 passed). See its section at the end |
+| – | The README's pictures (owner request) | Done 2026-10-21 (e2e: 80 passed). See its section at the end |
 
 ## How we work
 
@@ -1373,3 +1374,22 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - The first failed connection isn't in the logs given. If the page still fails now and then, Vercel's logs just before it should say why (for example a server selection timeout); the page would then recover on the next request instead of staying broken.
   - Vercel suggests `attachDatabasePool` (from `@vercel/functions`) for database clients on Fluid compute, which closes idle connections before an instance is suspended. Not added here: it's a new dependency, and not the cause of this error.
   - The Speed Insights pull request merged into `main` needed `npm install` locally (the lockfile was already right).
+
+## After the final check: the README's pictures (owner request)
+- **Why:** the README shows only a plain desktop tree, two phone screens, the ★ Everyone grid and the architecture diagram. The AI assistant (the app's name) and the dashboard's Upcoming have no picture, although the e2e tests already take good ones.
+- **Build:**
+  - **The top picture:** the tree with Ask AI open on its proposal card ("Priya Sharma married Ravi" → "Which one…?" → Proposed changes, Confirm), a copy of `chat.png`. It shows the two main ideas at once: the tree laid out by itself, and an assistant that proposes and waits for Confirm. The plain tree (`day-tree.png`) leaves the README.
+  - **The dashboard's Upcoming** in the ★ Everyone section, beside the line about it: a copy of `dashboard-upcoming.png`, which the e2e test now takes of the page's top part only (the welcome and Upcoming), not the whole page.
+  - **Phones:** a third picture beside the tree and the panel, ★ Everyone's Upcoming (`phone-everyone-upcoming.png`), three across.
+  - **A milestone in the pictures:** the Upcoming e2e test also gives Olivia Cruz a birth date that makes her turn 60 in 20 days, so the Upcoming view and the dashboard show a Shashtipurti badge. The README's ★ Everyone grid is laid out again with that picture.
+  - **Copies, as now:** each picture is a copy in `docs/screenshots/`, made again after visible changes; CLAUDE.md's list of README copies names them all.
+- **Decisions (owner, 2026-10-21):**
+  1. The tree with Ask AI at the top (the proposal), instead of the plain tree.
+  2. Of the extra pictures offered (night mode, the import preview, an exported picture, the dashboard's Upcoming), only the dashboard's Upcoming. With one picture there's no "In pictures" table: it goes in the ★ Everyone section.
+  3. A third phone picture: ★ Everyone's Upcoming (the proposal).
+  4. Initials, as now: no photos in the screenshots (the proposal).
+- **Notes (2026-10-21):**
+  - The top picture is `chat.png` as the chat e2e test takes it (1600 × 1000): the proposal card and Confirm are on screen with the tree beside them.
+  - The dashboard picture is clipped from the top of the page's main column to just below Upcoming, so the README shows no empty page or Create a group form.
+  - Olivia Cruz's birth year is 1966 only in that e2e test's group, for the milestone; the shared sample family is unchanged.
+  - `docs/screenshots/day-tree.png` is gone: nothing shows it any more (the e2e test still takes `day-tree.png` for checking by eye).

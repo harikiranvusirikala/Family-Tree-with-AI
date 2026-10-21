@@ -4,12 +4,14 @@ A web app where a family builds its tree together. People are added by hand or b
 
 **Live:** https://family-tree-with-ai.vercel.app · **Docs:** [features and decisions](docs/FEATURES.md) · [architecture](docs/ARCHITECTURE.md) · [build plan](docs/BUILD_PLAN.md)
 
-![A family's sheet in the app on a computer: the tree laid out automatically, with the sheet tabs, the eye button that hides photos, Export, Import… and Ask AI](docs/screenshots/day-tree.png)
+![A family's sheet on a computer: the tree laid out automatically, and Ask AI beside it. Told "Priya Sharma married Ravi", it asks which Ravi, then proposes the changes on a card that waits for Confirm](docs/screenshots/chat.png)
 
 <p>
-  <img src="docs/screenshots/phone-tree.png" alt="The same sheet on a phone: a sheet picker, the eye, the ⋯ menu, names readable, and the round Ask AI button" width="260">
+  <img src="docs/screenshots/phone-tree.png" alt="The same sheet on a phone: a sheet picker, the eye, the ⋯ menu, names readable, and the round Ask AI button" width="250">
   &nbsp;
-  <img src="docs/screenshots/phone-panel.png" alt="On a phone, a person's details open over the bottom half, with their card moved above" width="260">
+  <img src="docs/screenshots/phone-panel.png" alt="On a phone, a person's details open over the bottom half, with their card moved above and their age" width="250">
+  &nbsp;
+  <img src="docs/screenshots/phone-everyone-upcoming.png" alt="★ Everyone's Upcoming on a phone: the next wedding anniversary, with the five views' names across the top" width="250">
 </p>
 
 ## Contents
@@ -76,9 +78,12 @@ A built-in first tab on every group's sheets page that shows every person and ho
 | ▦ **Upcoming** | Everyone's next birthday ("Turns 41") and every couple's next wedding anniversary over the next 12 months, nearest first, with Shashtipurti, Silver and Golden marked | Every screen |
 
 - ★ Everyone comes first in the tab row (first in the sheet picker on phones), but a group still opens on its first pinned sheet, or its first sheet when none is pinned.
-- The dashboard lists the birthdays and anniversaries in the next 30 days across your groups, and a person's panel shows their age.
 - Tapping anyone, in any view, opens the same person panel as on a sheet (editing for Maintain and up), with shortcuts to the other views. The person you picked stays picked when you switch, and each view has its own link to share.
 - **All five views are built.** Find someone selects a person and moves to them (in the List it narrows the rows; in the Wheel it puts them in the middle). The List filters Everyone, Living, Married in and On no sheet. In the Network, choosing someone lights up their parents, partners and children. The Wheel labels everyone with their relation in Telugu relationship names written in English letters (Amma, Babai, Menamama, Bava…) or, with the "తె | En" toggle, in English. Upcoming lists the next 12 months of birthdays and anniversaries by month, for people with full dates. A person's panel has "Find in list", "Show in network" and "Relatives wheel", on any sheet too. The picture above shows them with the sample family. The agreed details are in [docs/FEATURES.md](docs/FEATURES.md#everyone-agreed-2026-10-20-all-four-views-built-tree-list-network-wheel).
+
+The dashboard lists the birthdays and anniversaries in the next 30 days across your groups, with milestones marked, and a person's panel shows their age:
+
+<img src="docs/screenshots/dashboard-upcoming.png" alt="The dashboard's Upcoming: today's and tomorrow's birthdays, then the next ones with how soon they are, the group each is in, and a Shashtipurti badge for a 60th birthday" width="600">
 
 ## Tech stack
 
