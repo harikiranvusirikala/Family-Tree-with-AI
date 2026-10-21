@@ -2,7 +2,7 @@
 // browser and in tests. The server validates every batch again in applyOperations.
 import type { Operation } from "@/server/operations/schema";
 import type { FamilyData, Gender, NamedSheet, Person, Union } from "./types";
-import { DATE_FIELDS, lifeDates, type LifeDates } from "./years";
+import { DATE_FIELDS, lifeDates, MARRIAGE_FIELDS, type LifeDates, type MarriageDate } from "./years";
 
 /** A person to add or the details to save: the name, gender, and years with full dates where known. */
 export interface NewPerson extends LifeDates {
@@ -124,7 +124,16 @@ export function renameSheetsOps(sheets: NamedSheet[], person: Pick<Person, "id" 
 /** Never a pinned sheet (the father's and mother's) or the last one; people on it stay. */
 export const deleteSheetOps = (sheetId: string): Operation[] => [{ op: "deleteSheet", sheetId }];
 
-export const coupleStatusOps = (unionId: string, status: Union["status"]): Operation[] => [{ op: "updateUnion", unionId, status }];
+export const coupleStatusOps = (unionId: string, status: Union["status"]): Operation[] => [{ op: "updateUnion", unionId, set: { status } }];
+
+/** A couple's marriage date (an owner request after the final check): only the fields that changed; an empty year clears the date. */
+export function marriageDateOps(union: Union, next: MarriageDate): Operation[] {
+  const set: Extract<Operation, { op: "updateUnion" }>["set"] = {};
+  for (const key of MARRIAGE_FIELDS) {
+    if (next[key] !== union[key]) set[key] = next[key] ?? null;
+  }
+  return Object.keys(set).length ? [{ op: "updateUnion", unionId: union.id, set }] : [];
+}
 export const deletePersonOps = (personId: string): Operation[] => [{ op: "deletePerson", personId }];
 export const restorePersonOps = (personId: string): Operation[] => [{ op: "restorePerson", personId }];
 /** A photo uploaded to Cloudinary (F8), or null to remove it. The replaced photo is deleted once saved. */

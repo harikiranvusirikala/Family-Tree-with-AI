@@ -153,7 +153,7 @@ erDiagram
 | `invites` | `groupId`, `email`, `emailNormalized`, `role`, `token`, `invitedBy`, `status` (`pending` · `accepted` · `declined` · `revoked`), `expiresAt`, `createdAt`, `decidedBy?`, `decidedAt?` | unique `{token}` · unique `{groupId, emailNormalized}` where `status = pending` · `{emailNormalized, status}` · `{groupId, status}` |
 | `accessRequests` | `groupId` (not always a real group, see F4), `userId`, `email`, `message?`, `status` (`pending` · `approved` · `denied`), `decidedBy?`, `decidedAt?`, `createdAt` | unique `{groupId, userId}`: one per person per group · `{groupId, status}` · `{userId, status}` |
 | `persons` | `groupId`, `name`, `gender` (`male` · `female`), `birthYear?`, `birthMonth?`, `birthDay?`, `deathYear?`, `deathMonth?`, `deathDay?` (a day and month only together and with their year), `photoId?`, `notes?`, audit fields, `deletedAt?` | `{groupId}` |
-| `unions` | `groupId`, `partnerIds` (1 or 2), `status` (`married` · `divorced`), `childIds`, audit fields, `deletedAt?` | `{groupId}` (the partner and child indexes were retired: couples are loaded whole and checked in memory) |
+| `unions` | `groupId`, `partnerIds` (1 or 2), `status` (`married` · `divorced`), `marriageYear?`, `marriageMonth?`, `marriageDay?` (when they married: only couples of two, a day and month only together and with their year), `childIds`, audit fields, `deletedAt?` | `{groupId}` (the partner and child indexes were retired: couples are loaded whole and checked in memory) |
 | `sheets` | `groupId`, `title`, `rootPersonId`, `pinned`, `order`, `extraPersonIds`, `hideChildrenOf?` (one of the root's couples, [§6](#6-sheets-views-not-copies)), `deletedAt?`, audit fields | `{groupId}` |
 | `chatUsage` | `userId`, `day` (`YYYY-MM-DD`, UTC), `count`, `expiresAt` | unique `{userId, day}` · TTL on `expiresAt` (30 days) |
 
@@ -551,7 +551,7 @@ sequenceDiagram
 - Importing into a new group creates the group first ([F2](#f2-create-a-group-with-fathers-and-mothers-sheets)), with the importer as Owner.
 - As built (step 10): **every file is read in the browser** (decided in step 10), so there is no upload limit and no import route. The preview (`ImportPanel`) shows the counts, what isn't kept, repairs, possible duplicates (same name, ignoring case and accents, and the same birth year; "Use existing" by default, or "Keep both"), people with no recorded sex (male or female must be chosen) and whose sheet opens. The resulting operations go to `applyChangesAction` (into this group) or `importGroupAction` (a new group, through `createGroup`), and are checked like any batch.
 - At most 2,000 people per file; the operations schema allows 20,000 operations and 2,000 new people per batch, and server actions take up to 4 MB.
-- GEDCOM 5.5.1 keeps names, sex, birth and death years, couples, children and divorces. Places, full dates, notes, sources and media aren't kept, and the preview says so. A family without partners is skipped, a child in two families stays with the first (or the birth family), and a couple listed twice is joined, each with a warning.
+- GEDCOM 5.5.1 keeps names, sex, birth and death dates, couples with the date they married (`MARR`), children and divorces. An exact date is kept whole and any other only as its year. Places, notes, sources and media aren't kept, and the preview says so. A family without partners is skipped, a child in two families stays with the first (or the birth family), and a couple listed twice is joined, each with a warning.
 - Photos come in only when a JSON file goes back into the group it was exported from (a photo lives in its group's Cloudinary folder).
 
 ### F11. Deploy
@@ -586,10 +586,11 @@ flowchart LR
 | Tool | What it does | Kind | Minimum role |
 |---|---|---|---|
 | `search_people` | Find people in this group by name and years | read | View |
-| `get_person` | One person's parents, partners, children and sheets | read | View |
+| `get_person` | One person's parents, partners (with their couple and its marriage date), children and sheets | read | View |
 | `add_person` | New person; returns a temporary ID such as `new:1` | proposal | Maintain |
-| `update_person` | Change name, gender or years (for example, record a death year) | proposal | Maintain |
-| `add_marriage` | Join two people as a couple, married or divorced | proposal | Maintain |
+| `update_person` | Change name, gender or dates (for example, record a death year) | proposal | Maintain |
+| `add_marriage` | Join two people as a couple, married or divorced, with the date they married if known | proposal | Maintain |
+| `update_couple` | Set the date an existing couple married | proposal | Maintain |
 | `add_child` | Add a child to a couple or a single parent | proposal | Maintain |
 | `create_sheet` | New sheet rooted at a person (in-laws) | proposal | Maintain |
 | `add_to_sheet` | Show a person on a sheet | proposal | Maintain |
@@ -606,8 +607,8 @@ type Ref = string; // an existing id, or a temporary id like "new:1" created ear
 type Operation =
   | { op: "createPerson"; tempId: string; name: string; gender: "male" | "female"; birthYear?: number; birthMonth?: number; birthDay?: number; deathYear?: number; deathMonth?: number; deathDay?: number }
   | { op: "updatePerson"; personId: Ref; set: { name?: string; gender?: "male" | "female"; birthYear?, birthMonth?, birthDay?, deathYear?, deathMonth?, deathDay?: number | null } }
-  | { op: "createUnion"; tempId?: string; partnerIds: [Ref] | [Ref, Ref]; status: "married" | "divorced" }
-  | { op: "updateUnion"; unionId: Ref; status: "married" | "divorced" }
+  | { op: "createUnion"; tempId?: string; partnerIds: [Ref] | [Ref, Ref]; status: "married" | "divorced"; marriageYear?: number; marriageMonth?: number; marriageDay?: number }
+  | { op: "updateUnion"; unionId: Ref; set: { status?: "married" | "divorced"; marriageYear?, marriageMonth?, marriageDay?: number | null } }
   | { op: "addChild"; unionId: Ref; childId: Ref }
   | { op: "createSheet"; tempId?: string; title: string; rootPersonId: Ref; pinned?: boolean; hideChildrenOf?: Ref } // hideChildrenOf: one of the root's couples (§6)
   | { op: "addToSheet"; sheetId: Ref; personId: Ref }
@@ -622,7 +623,7 @@ type Operation =
 
 How `applyOperations` works (`src/server/operations/`, built in step 3):
 - The batch is validated with zod. Then, inside one transaction, the group's records are loaded and a pure planner (`planOperations`) checks every operation against them before anything is written. Errors name the failing change ("Change 3: …").
-- Rules: references must exist in the same group; a couple has 1–2 different people and can't be created twice; a person has at most one set of parents and can't become their own ancestor; a day and month go together and only with their year, the date must exist (29 February only in leap years), and a death can't be before the birth (`datesProblem` in `src/tree/years.ts`, which the person form uses too). Repeating `addChild` or `addToSheet` changes nothing.
+- Rules: references must exist in the same group; a couple has 1–2 different people and can't be created twice; a person has at most one set of parents and can't become their own ancestor; a day and month go together and only with their year, the date must exist (29 February only in leap years), and a death can't be before the birth (`datesProblem` in `src/tree/years.ts`, which the person form uses too). A marriage date follows a birth date's rules (`marriageProblem`) and only a couple of two can be given one; it isn't compared with the partners' dates. Repeating `addChild` or `addToSheet` changes nothing.
 - Added in step 6: `addPartner` only for a couple with one partner, and the new partner can't be one of the couple's descendants; `reorderSheets` must list every sheet exactly once; a person who is a sheet's root can't be deleted (the sheet would be empty). Tabs show pinned sheets first, then the saved order.
 - Added in step 7: `setPhoto`'s photo must be in the group's folder (`groups/{groupId}/`). The plan lists the photos a batch replaced or removed that nobody in the group uses any more (`unusedPhotoIds`), and `applyChangesAction` deletes them from Cloudinary once the batch is committed.
 - Deleted people stay in their couples (so Undo restores them fully) but count as absent, exactly as the browser shows them (`toGroupTree`): a couple whose partners are all deleted isn't anyone's parents, so its children can be given new parents (they leave the old couple, so restoring the old parents can't give them two sets); and a new partner can take a deleted partner's place (`addPartner`).

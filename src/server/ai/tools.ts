@@ -22,7 +22,7 @@ export const READ_TOOLS: Anthropic.Tool[] = [
     name: { type: "string", description: "A name or part of one, e.g. \"Ravi\" or \"Ravi Kumar\"" },
     year: nullable("integer", "A birth or death year to narrow it down, or null"),
   }),
-  tool("get_person", "One person's details: years, parents, partners (with the couple's id and status), children, and the sheets that show them.", {
+  tool("get_person", "One person's details: years, parents, partners (with the couple's id, status and marriage date), children, and the sheets that show them.", {
     personId: id("The person's id, from the family list or search_people"),
   }),
 ];
@@ -49,10 +49,19 @@ export const PROPOSAL_TOOLS: Anthropic.Tool[] = [
     deathMonth: nullable("integer", "The new month of death (1 to 12), with the day; or null"),
     deathDay: nullable("integer", "The new day of the month of death, with the month; or null"),
   }),
-  tool("add_marriage", "Propose that two people are a couple, married or divorced. Returns the couple's temporary id.", {
+  tool("add_marriage", "Propose that two people are a couple, married or divorced, with the date they married if known. Returns the couple's temporary id.", {
     personId: id("One partner's id (or temporary id)"),
     partnerId: id("The other partner's id (or temporary id)"),
     status: { type: "string", enum: ["married", "divorced"] },
+    marriageYear: nullable("integer", "Year they married, or null if not known"),
+    marriageMonth: nullable("integer", "Month they married, 1 to 12, only with the day and year; or null"),
+    marriageDay: nullable("integer", "Day of the month they married, only with the month and year; or null"),
+  }),
+  tool("update_couple", "Propose the date an existing couple married, or only the year. Null leaves a field as it is.", {
+    coupleId: id("The couple's id, from get_person, or a temporary id from this proposal"),
+    marriageYear: nullable("integer", "The year they married, or null"),
+    marriageMonth: nullable("integer", "The month they married (1 to 12), with the day; or null"),
+    marriageDay: nullable("integer", "The day of the month they married, with the month; or null"),
   }),
   tool("add_child", "Propose a child for a couple, or for a single parent. Give the parents' ids; their couple is found, or proposed if it doesn't exist yet.", {
     parentIds: { type: "array", items: { type: "string" }, description: "One or two parent ids (or temporary ids)" },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { filterRows, LIST_FILTERS, LIST_SORTS, relationSummary, sortRows, type ListFilter, type ListRow, type ListSort } from "@/tree/everyone";
+import { filterRows, LIST_FILTERS, LIST_SORTS, marriageLines, relationSummary, sortRows, type ListFilter, type ListRow, type ListSort } from "@/tree/everyone";
 import { formatDate, formatLife, formatYears } from "@/tree/years";
 import { PersonPhoto } from "./PersonPhoto";
 
@@ -13,7 +13,7 @@ const none = <span className="text-zinc-400 dark:text-zinc-500">–</span>;
  * and the sheets that show them, narrowed by a filter and what was typed in Find someone. One table
  * that fits its own width (container queries, so the panel beside it counts): all six columns when
  * wide, then without the sheets, then (phones) only the person, with their dates and relations in a
- * line. Born (an owner request) holds the full birth date, and sorts the list by it.
+ * line. Born and Married (owner requests) hold the full birth and marriage dates, and sort the list by them.
  */
 export function EveryoneList({
   rows,
@@ -40,8 +40,11 @@ export function EveryoneList({
   onOpenSheet: (sheetId: string, personId: string) => void;
 }) {
   const shown = useMemo(() => sortRows(filterRows(rows, filter, query), sort), [rows, filter, query, sort]);
-  // The Born column's name goes round: oldest first, youngest first, back to A to Z.
-  const nextSort: Record<ListSort, ListSort> = { name: "oldest", oldest: "youngest", youngest: "name" };
+  // A date column's name goes round: oldest (or earliest) first, youngest (or latest) first, back to A to Z.
+  const byBirth = sort === "oldest" || sort === "youngest";
+  const byMarriage = sort === "marriedEarliest" || sort === "marriedLatest";
+  const nextBirthSort: ListSort = sort === "oldest" ? "youngest" : sort === "youngest" ? "name" : "oldest";
+  const nextMarriageSort: ListSort = sort === "marriedEarliest" ? "marriedLatest" : sort === "marriedLatest" ? "name" : "marriedEarliest";
   const counts = useMemo(() => LIST_FILTERS.map((f) => filterRows(rows, f.id).length), [rows]);
   const scroller = useRef<HTMLDivElement>(null);
 
@@ -87,17 +90,23 @@ export function EveryoneList({
           <table aria-label="People" className="w-full table-fixed text-left text-sm">
             <thead className={`sticky top-0 z-10 hidden bg-white text-xs @2xl:table-header-group dark:bg-zinc-900 ${muted}`}>
               <tr className="shadow-[inset_0_-1px_0] shadow-zinc-200 dark:shadow-zinc-800">
-                <th scope="col" className="w-[24%] py-2 pl-4 pr-3 font-medium">Person</th>
-                <th scope="col" aria-sort={sort === "name" ? "none" : sort === "oldest" ? "ascending" : "descending"} className="w-[13%] px-3 py-2 font-medium">
-                  <button type="button" onClick={() => onSort(nextSort[sort])} className="inline-flex items-center gap-1 hover:text-zinc-900 dark:hover:text-zinc-100">
+                <th scope="col" className="w-[22%] py-2 pl-4 pr-3 font-medium">Person</th>
+                <th scope="col" aria-sort={!byBirth ? "none" : sort === "oldest" ? "ascending" : "descending"} className="w-[12%] px-3 py-2 font-medium">
+                  <button type="button" onClick={() => onSort(nextBirthSort)} className="inline-flex items-center gap-1 hover:text-zinc-900 dark:hover:text-zinc-100">
                     Born
-                    <span aria-hidden>{sort === "oldest" ? "↑" : sort === "youngest" ? "↓" : "↕"}</span>
+                    <span aria-hidden>{!byBirth ? "↕" : sort === "oldest" ? "↑" : "↓"}</span>
+                  </button>
+                </th>
+                <th scope="col" aria-sort={!byMarriage ? "none" : sort === "marriedEarliest" ? "ascending" : "descending"} className="w-[12%] px-3 py-2 font-medium">
+                  <button type="button" onClick={() => onSort(nextMarriageSort)} className="inline-flex items-center gap-1 hover:text-zinc-900 dark:hover:text-zinc-100">
+                    Married
+                    <span aria-hidden>{!byMarriage ? "↕" : sort === "marriedEarliest" ? "↑" : "↓"}</span>
                   </button>
                 </th>
                 <th scope="col" className="px-3 py-2 font-medium">Parents</th>
                 <th scope="col" className="px-3 py-2 font-medium">Partners</th>
                 <th scope="col" className="px-3 py-2 font-medium">Children</th>
-                <th scope="col" className="hidden w-[20%] px-3 py-2 font-medium @4xl:table-cell">On sheets</th>
+                <th scope="col" className="hidden w-[18%] px-3 py-2 font-medium @4xl:table-cell">On sheets</th>
               </tr>
             </thead>
             <tbody>
@@ -136,6 +145,7 @@ function Row({
   const years = formatYears(person.birthYear, person.deathYear);
   const life = formatLife(person); // full dates where known, for narrow screens without the Born column
   const summary = relationSummary(row);
+  const married = marriageLines(row);
   return (
     // The whole row chooses the person; the name is its button for keyboards and screen readers (the
     // button's click reaches the row). The scroll margins keep a chosen row clear of the sticky column
@@ -164,6 +174,15 @@ function Row({
       <td className="hidden px-3 py-3 @2xl:table-cell">
         {person.birthYear !== undefined ? formatDate(person.birthYear, person.birthMonth, person.birthDay) : none}
         {person.deathYear !== undefined && <span className={`block text-xs ${muted}`}>Died {formatDate(person.deathYear, person.deathMonth, person.deathDay)}</span>}
+      </td>
+      <td className="hidden px-3 py-3 @2xl:table-cell">
+        {married.length
+          ? married.map((line, i) => (
+              <span key={i} className="block">
+                {line}
+              </span>
+            ))
+          : none}
       </td>
       <td className="hidden px-3 py-3 @2xl:table-cell">{row.parents.length ? row.parents.map((p) => p.name).join(", ") : none}</td>
       <td className="hidden px-3 py-3 @2xl:table-cell">

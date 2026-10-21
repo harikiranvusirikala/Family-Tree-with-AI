@@ -98,6 +98,9 @@ export interface UnionDoc extends Audit {
   groupId: ObjectId;
   partnerIds: ObjectId[]; // 1 or 2
   status: Union["status"];
+  marriageYear?: number;
+  marriageMonth?: number;
+  marriageDay?: number;
   childIds: ObjectId[];
   deletedAt?: Date;
 }

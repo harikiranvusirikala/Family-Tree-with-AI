@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb";
 import type { PersonDoc, SheetDoc, UnionDoc } from "../repositories/documents";
-import { DATE_FIELDS, datesProblem, lifeDates } from "@/tree/years";
+import { DATE_FIELDS, datesProblem, lifeDates, MARRIAGE_FIELDS, marriageDate, marriageProblem } from "@/tree/years";
 import type { Operation } from "./schema";
 
 /**
@@ -115,6 +115,13 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
       const problem = datesProblem(p);
       if (problem) throw fail(`${p.name}: ${problem.charAt(0).toLowerCase()}${problem.slice(1)}`);
     };
+    // A marriage date's rules (a birth date's), and only for a couple of two: a single parent has none.
+    const checkMarriage = (u: UnionDoc, settingDate: boolean) => {
+      const partners = alivePartners(u);
+      if (settingDate && partners.length < 2) throw fail("a single parent has no marriage date");
+      const problem = marriageProblem(u);
+      if (problem) throw fail(`${partners.map((p) => docs.person.get(p.toHexString())!.name).join(" and ")}: ${problem.charAt(0).toLowerCase()}${problem.slice(1)}`);
+    };
     // Deleted people are kept (for Undo) but treated as absent, as the browser shows them (toGroupTree):
     // a couple whose partners are all deleted doesn't count, and a deleted partner's place can be taken.
     const alivePartners = (u: UnionDoc) => u.partnerIds.filter((p) => !docs.person.get(p.toHexString())?.deletedAt);
@@ -179,12 +186,21 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
       case "createUnion": {
         const partners = op.partnerIds.map((ref) => person(ref)._id);
         checkNewCouple(partners);
-        const doc: UnionDoc = { _id: create("union", op.tempId), groupId, partnerIds: partners, status: op.status, childIds: [], ...audit() };
+        const married = marriageDate(op);
+        const doc: UnionDoc = { _id: create("union", op.tempId), groupId, partnerIds: partners, status: op.status, ...married, childIds: [], ...audit() };
+        checkMarriage(doc, Object.keys(married).length > 0);
         docs.union.set(doc._id.toHexString(), doc);
         break;
       }
       case "updateUnion": {
-        edit("union", union(op.unionId)).status = op.status;
+        const u = edit("union", union(op.unionId));
+        if (op.set.status !== undefined) u.status = op.set.status;
+        for (const key of MARRIAGE_FIELDS) {
+          const value = op.set[key];
+          if (value === null) delete u[key];
+          else if (value !== undefined) u[key] = value;
+        }
+        checkMarriage(u, MARRIAGE_FIELDS.some((key) => typeof op.set[key] === "number"));
         break;
       }
       case "addPartner": {

@@ -22,6 +22,10 @@ export interface Union {
   id: string;
   partnerIds: [string] | [string, string];
   status: "married" | "divorced";
+  /** When they married (an owner request after the final check): only couples of two, the day and month only with the year. */
+  marriageYear?: number;
+  marriageMonth?: number;
+  marriageDay?: number;
   childIds: string[];
 }
 

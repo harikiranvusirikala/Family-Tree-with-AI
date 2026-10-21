@@ -1,6 +1,6 @@
 // From a parsed file and the importer's choices to operations (F10). Pure: the browser builds the
 // preview and the batch; the server re-checks the batch on the single write path.
-import { lifeDates } from "@/tree/years";
+import { lifeDates, marriageDate } from "@/tree/years";
 import type { Operation } from "../operations/schema";
 import type { Gender, GroupTree, Person } from "@/tree/types";
 import type { ImportData, ImportPerson } from "./types";
@@ -81,7 +81,7 @@ export function importOperations(data: ImportData, choices: ImportChoices, tree:
     let couple = partners.every((p) => !p.startsWith("new:")) ? coupleIn.get(key(partners)) : undefined;
     if (!couple) {
       couple = `new:u${i}`;
-      ops.push({ op: "createUnion", tempId: couple, partnerIds: partners, status: u.status });
+      ops.push({ op: "createUnion", tempId: couple, partnerIds: partners, status: u.status, ...marriageDate(u) });
     }
     coupleRef.set(u.id, couple);
     for (const c of u.childIds) ops.push({ op: "addChild", unionId: couple, childId: ref(c) });

@@ -8,7 +8,7 @@ import { relationsOf, renameSheetsOps } from "@/tree/edits";
 import { buildSheetView } from "@/tree/sheet-view";
 import type { GroupTree, Person } from "@/tree/types";
 import { OperationError, planOperations, type GroupState } from "../operations/plan";
-import { formatDate, lifeDates } from "@/tree/years";
+import { formatDate, formatMarriage, lifeDates, marriageDate } from "@/tree/years";
 import { day, month, personName, year, type Operation } from "../operations/schema";
 
 export interface ToolContext {
@@ -32,6 +32,8 @@ export interface ToolOutcome {
 const SEARCH_LIMIT = 20;
 // Years, and a full date's month and day (an owner request), each null when not given.
 const dates = { birthYear: year.nullable(), birthMonth: month.nullable(), birthDay: day.nullable(), deathYear: year.nullable(), deathMonth: month.nullable(), deathDay: day.nullable() };
+// When a couple married (an owner request), the same way.
+const married = { marriageYear: year.nullable(), marriageMonth: month.nullable(), marriageDay: day.nullable() };
 const ref = z.string().regex(/^([a-f\d]{24}|new:\d{1,4})$/i, "not an id");
 const inputs = {
   search_people: z.object({ name: z.string().trim().min(1).max(120), year: year.nullable() }),
@@ -43,7 +45,8 @@ const inputs = {
     gender: z.enum(["male", "female"]).nullable(),
     ...dates,
   }),
-  add_marriage: z.object({ personId: ref, partnerId: ref, status: z.enum(["married", "divorced"]) }),
+  add_marriage: z.object({ personId: ref, partnerId: ref, status: z.enum(["married", "divorced"]), ...married }),
+  update_couple: z.object({ coupleId: ref, ...married }),
   add_child: z.object({ parentIds: z.array(ref).min(1).max(2), childId: ref }),
   create_sheet: z.object({ rootPersonId: ref, title: z.string().trim().min(1).max(120) }),
   add_to_sheet: z.object({ sheetId: ref, personId: ref }),
@@ -94,7 +97,9 @@ function getPerson(ctx: ToolContext, { personId }: z.infer<typeof inputs.get_per
     ...brief(person),
     gender: person.gender,
     parents: parents.map(brief),
-    partners: couples.flatMap((c) => (c.partner ? [{ ...brief(c.partner), coupleId: c.union.id, status: c.union.status }] : [])),
+    partners: couples.flatMap((c) =>
+      c.partner ? [{ ...brief(c.partner), coupleId: c.union.id, status: c.union.status, ...(c.union.marriageYear !== undefined && { married: formatMarriage(c.union) }) }] : [],
+    ),
     children: couples.flatMap((c) => c.children.map(brief)),
     sheets: ctx.tree.sheets.filter((s) => buildSheetView(ctx.tree, s).persons.some((p) => p.id === person.id)).map((s) => ({ id: s.id, title: s.title })),
   });
@@ -129,8 +134,16 @@ function propose(ctx: ToolContext, name: Exclude<ToolName, "search_people" | "ge
       return { ops: [{ op: "updatePerson", personId, set }, ...sheets], said: `Added to the proposal: the change to ${personId}.` };
     }
     case "add_marriage": {
-      const { personId, partnerId, status } = input as z.infer<typeof inputs.add_marriage>;
-      return { ops: [{ op: "createUnion", tempId: temp, partnerIds: [personId, partnerId], status }], said: `Added to the proposal: the couple is ${temp}.` };
+      const { personId, partnerId, status, ...given } = input as z.infer<typeof inputs.add_marriage>;
+      const known = Object.fromEntries(Object.entries(given).map(([key, value]) => [key, value ?? undefined]));
+      const op: Operation = { op: "createUnion", tempId: temp, partnerIds: [personId, partnerId], status, ...marriageDate(known) };
+      return { ops: [op], said: `Added to the proposal: the couple is ${temp}.` };
+    }
+    case "update_couple": {
+      const { coupleId, ...fields } = input as z.infer<typeof inputs.update_couple>;
+      const set = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== null));
+      if (Object.keys(set).length === 0) throw new OperationError("nothing to change", -1);
+      return { ops: [{ op: "updateUnion", unionId: coupleId, set }], said: `Added to the proposal: the marriage date of couple ${coupleId}.` };
     }
     case "add_child": {
       const { parentIds, childId } = input as z.infer<typeof inputs.add_child>;
@@ -162,6 +175,7 @@ const ACTIVITY: Record<ToolName, (input: Record<string, unknown>) => string> = {
   add_person: (i) => `Proposing ${String(i.name ?? "a new person")}`,
   update_person: () => "Proposing a change",
   add_marriage: () => "Proposing a couple",
+  update_couple: () => "Proposing a marriage date",
   add_child: () => "Proposing a child",
   create_sheet: (i) => `Proposing the sheet ${String(i.title ?? "")}`.trim(),
   add_to_sheet: () => "Proposing a sheet change",

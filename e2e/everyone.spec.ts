@@ -177,6 +177,7 @@ test("the List: everyone with their relations and sheets; a row opens the panel,
   await expect(steve.getByRole("cell")).toHaveText([
     /^SCSteve Cruz1985/,
     "1985",
+    "2001 · Sammie8 Sep 2008 · Arham",
     "Olivia Cruz, Arjun Patel",
     "Sammie Chang (divorced), Arham Chopra",
     "3 · William Cruz, Anna Cruz, Taylor Cruz",
@@ -424,4 +425,35 @@ test("the List's Born column: full dates, and sorting oldest first, youngest fir
   await expect(page.getByRole("combobox", { name: "Sort" })).toHaveValue("name");
   await page.getByRole("combobox", { name: "Sort" }).selectOption({ label: "Oldest first" });
   await expect(first()).toHaveAccessibleName("Timothy Cruz, 1880 – 1962");
+});
+
+test("the List's Married column: marriage dates, and sorting earliest first, latest first and back; the Tree shows them, the Network doesn't (owner request)", async ({ page, signIn, sampleGroup }) => {
+  const { groupId } = await sampleOwner(page, signIn, sampleGroup);
+  await page.goto(`/g/${groupId}/s/everyone?view=list`);
+  await expect(listRow(page, "Steve Cruz, 1985").getByRole("cell").nth(2)).toHaveText("2001 · Sammie8 Sep 2008 · Arham");
+  await expect(listRow(page, "Marvin Young, 1970").getByRole("cell").nth(2)).toHaveText("–");
+  const first = () => listRows(page).first().getByRole("button").first();
+  const sort = page.getByRole("combobox", { name: "Sort" });
+
+  const married = page.getByRole("table", { name: "People" }).getByRole("button", { name: /^Married/ });
+  await married.click();
+  await expect(first()).toHaveAccessibleName("Amy Harolds, 1885 – 1966");
+  await expect(sort).toHaveValue("marriedEarliest");
+  await married.click();
+  await expect(first()).toHaveAccessibleName("Arham Chopra, 1983");
+  await expect(sort).toHaveValue("marriedLatest");
+  await married.click();
+  await expect(first()).toHaveAccessibleName("Alex Cruz, 2021");
+  await expect(sort).toHaveValue("name");
+  await sort.selectOption({ label: "Married, earliest first" });
+  await expect(first()).toHaveAccessibleName("Amy Harolds, 1885 – 1966");
+
+  await viewButton(page, "Tree").click();
+  await expect(cards(page)).toHaveCount(36);
+  const dates = page.getByRole("tabpanel").getByTestId("marriage-date");
+  await expect(dates).toHaveCount(5);
+  expect((await dates.allTextContents()).sort()).toEqual(["1910", "1972", "1983", "2001", "2008"]);
+  await viewButton(page, "Network").click();
+  await expect(circles(page)).toHaveCount(36);
+  await expect(page.getByRole("tabpanel").getByTestId("marriage-date")).toHaveCount(0);
 });

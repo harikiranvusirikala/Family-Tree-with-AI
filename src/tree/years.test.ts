@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { birthOrder, datesProblem, formatDate, formatLife, formatYears, isRealDate, lifeDates } from "./years";
+import { birthOrder, datesProblem, formatDate, formatLife, formatMarriage, formatYears, isRealDate, lifeDates, marriageDate, marriageOrder, marriageProblem } from "./years";
 
 describe("formatYears", () => {
   test("living person shows only the birth year, never 'Present'", () => {
@@ -47,5 +47,27 @@ describe("full dates (owner request)", () => {
 
   test("the date fields that are set", () => {
     expect(lifeDates({ birthYear: 1985, birthMonth: 3, birthDay: 12, deathYear: undefined })).toEqual({ birthYear: 1985, birthMonth: 3, birthDay: 12 });
+  });
+});
+
+describe("marriage dates (owner request)", () => {
+  test("written like a birth date: 12 Mar 1985, or the year alone", () => {
+    expect(formatMarriage({ marriageYear: 1985, marriageMonth: 3, marriageDay: 12 })).toBe("12 Mar 1985");
+    expect(formatMarriage({ marriageYear: 1985 })).toBe("1985");
+    expect(formatMarriage({})).toBe("");
+  });
+
+  test("the rules of a birth date: the day and month together, with their year, and real", () => {
+    expect(marriageProblem({ marriageYear: 2024, marriageMonth: 2, marriageDay: 29 })).toBeNull();
+    expect(marriageProblem({ marriageYear: 2010 })).toBeNull();
+    expect(marriageProblem({})).toBeNull();
+    expect(marriageProblem({ marriageYear: 2010, marriageMonth: 3 })).toBe("Enter both the day and the month of the marriage, or neither");
+    expect(marriageProblem({ marriageMonth: 3, marriageDay: 12 })).toBe("A marriage day and month need the marriage year");
+    expect(marriageProblem({ marriageYear: 2023, marriageMonth: 2, marriageDay: 29 })).toBe("29 Feb 2023 isn't a real date");
+  });
+
+  test("ordering by marriage, and the fields that are set", () => {
+    expect([{ marriageYear: 1985, marriageMonth: 3, marriageDay: 12 }, { marriageYear: 1985 }, {}].map(marriageOrder)).toEqual([19850312, 19850000, undefined]);
+    expect(marriageDate({ marriageYear: 1985, marriageMonth: undefined, marriageDay: undefined })).toEqual({ marriageYear: 1985 });
   });
 });

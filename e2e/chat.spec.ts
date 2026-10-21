@@ -68,7 +68,7 @@ test("Priya married Ravi: which Ravi? → a proposal → Confirm → Priya and h
 
   const mine = (await stubCalls()).filter((c) => c.notes.some((n) => n.includes(cruzSheet)));
   expect(mine[0]).toMatchObject({ lastQuestion: "Priya Sharma married Ravi", tools: expect.arrayContaining(["add_person", "create_sheet"]) });
-  expect(mine[0].tools).toHaveLength(8);
+  expect(mine[0].tools).toHaveLength(9);
   expect(mine[0].notes[0]).toContain("The user can propose changes");
   expect(mine[0].notes[0]).toContain('"Ravi Kumar" | male | 1980');
   expect(mine.at(-1)!.notes.at(-1)).toMatch(/^The user confirmed the proposal and it was saved\. new:1 is now [a-f\d]{24}/);

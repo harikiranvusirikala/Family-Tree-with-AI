@@ -3,7 +3,7 @@
 import { tabOrder } from "./edits";
 import { buildSheetView } from "./sheet-view";
 import type { GroupTree, NamedSheet, Person, SheetView } from "./types";
-import { birthOrder } from "./years";
+import { birthOrder, formatMarriage, marriageDate, marriageOrder, type MarriageDate } from "./years";
 
 /** ★ Everyone's place in the address, /g/{groupId}/s/everyone. A sheet's id is 24 hex characters. */
 export const EVERYONE = "everyone";
@@ -74,7 +74,8 @@ export function everyoneHref(groupId: string, view: EveryoneViewName, personId?:
 export interface ListRow {
   person: Person;
   parents: Person[];
-  partners: { person: Person; divorced: boolean }[];
+  /** In the order the couples were added; `married` is their marriage date's fields that are set. */
+  partners: { person: Person; divorced: boolean; married: MarriageDate }[];
   children: Person[];
   /** In tab order. */
   sheets: NamedSheet[];
@@ -103,7 +104,9 @@ export function listRows(tree: GroupTree): ListRow[] {
   const hasParents = (id: string) => (parentsOf.get(id)?.length ?? 0) > 0;
   return [...tree.persons].sort(byName).map((person) => {
     const couples = couplesOf.get(person.id) ?? [];
-    const partners = couples.flatMap((u) => people(u.partnerIds.filter((id) => id !== person.id)).map((p) => ({ person: p, divorced: u.status === "divorced" })));
+    const partners = couples.flatMap((u) =>
+      people(u.partnerIds.filter((id) => id !== person.id)).map((p) => ({ person: p, divorced: u.status === "divorced", married: marriageDate(u) })),
+    );
     return {
       person,
       parents: parentsOf.get(person.id) ?? [],
@@ -124,23 +127,34 @@ export const LIST_FILTERS = [
 ] as const;
 export type ListFilter = (typeof LIST_FILTERS)[number]["id"];
 
-/** The List's orders: A to Z (the default), or by birth date (an owner request). */
+/** The List's orders: A to Z (the default), by birth date, or by marriage date (owner requests). */
 export const LIST_SORTS = [
   { id: "name", label: "A to Z" },
   { id: "oldest", label: "Oldest first" },
   { id: "youngest", label: "Youngest first" },
+  { id: "marriedEarliest", label: "Married, earliest first" },
+  { id: "marriedLatest", label: "Married, latest first" },
 ] as const;
 export type ListSort = (typeof LIST_SORTS)[number]["id"];
 
+/** The order of the person's first marriage with a known date (earliest first), or undefined. */
+export function firstMarriage(row: ListRow): number | undefined {
+  const known = row.partners.flatMap((p) => marriageOrder(p.married) ?? []);
+  return known.length ? Math.min(...known) : undefined;
+}
+
 /**
- * Rows in an order. By birth: full dates where known, a year alone before that year's dated days, and
- * people with no birth year last either way; otherwise A to Z, as the rows come.
+ * Rows in an order. By birth, or by the person's first marriage: full dates where known, a year alone
+ * before that year's dated days, and people with no date last either way; otherwise A to Z, as the
+ * rows come (and within the same date).
  */
 export function sortRows(rows: ListRow[], sort: ListSort): ListRow[] {
   if (sort === "name") return rows;
-  const sign = sort === "oldest" ? 1 : -1;
+  const married = sort === "marriedEarliest" || sort === "marriedLatest";
+  const key = (row: ListRow) => (married ? firstMarriage(row) : birthOrder(row.person));
+  const sign = sort === "oldest" || sort === "marriedEarliest" ? 1 : -1;
   return [...rows].sort((a, b) => {
-    const [x, y] = [birthOrder(a.person), birthOrder(b.person)];
+    const [x, y] = [key(a), key(b)];
     if (x === undefined || y === undefined) return Number(x === undefined) - Number(y === undefined);
     return sign * (x - y);
   });
@@ -155,13 +169,28 @@ export function filterRows(rows: ListRow[], filter: ListFilter, query = ""): Lis
 const firstName = (p: Person) => p.name.split(" ")[0];
 
 /**
- * The List's line under a name when it's narrow (phones): "Child of Olivia & Arjun", "♥ Sammie, Arham",
- * "3 children", with first names to fit. Empty for someone with no relations added.
+ * The List's Married cell: one line per marriage with a known date, "12 Mar 1985" or "1985", with the
+ * partner's first name when the person has more than one partner ("1970 · Jake").
+ */
+export function marriageLines(row: ListRow): string[] {
+  return row.partners.flatMap((p) => {
+    const date = formatMarriage(p.married);
+    if (!date) return [];
+    return [row.partners.length > 1 ? `${date} · ${firstName(p.person)}` : date];
+  });
+}
+
+/**
+ * The List's line under a name when it's narrow (phones): "Child of Olivia & Arjun", "♥ Sammie (1985),
+ * Arham" (with the year they married, when known), "3 children", with first names to fit. Empty for
+ * someone with no relations added.
  */
 export function relationSummary(row: ListRow): string[] {
   const parts: string[] = [];
   if (row.parents.length) parts.push(`Child of ${row.parents.map(firstName).join(" & ")}`);
-  if (row.partners.length) parts.push(`♥ ${row.partners.map((p) => firstName(p.person)).join(", ")}`);
+  if (row.partners.length) {
+    parts.push(`♥ ${row.partners.map((p) => `${firstName(p.person)}${p.married.marriageYear !== undefined ? ` (${p.married.marriageYear})` : ""}`).join(", ")}`);
+  }
   if (row.children.length) parts.push(`${row.children.length} ${row.children.length === 1 ? "child" : "children"}`);
   return parts;
 }

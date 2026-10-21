@@ -1,7 +1,7 @@
 // A proposal in plain words, for the chat's proposal card (F7). Pure: it runs in the browser.
 import type { Operation } from "@/server/operations/schema";
 import type { GroupTree, Person } from "./types";
-import { formatDate, formatLife, formatYears } from "./years";
+import { formatDate, formatLife, formatMarriage, formatYears, MARRIAGE_FIELDS } from "./years";
 
 /** One line per change, e.g. "Add Priya Sharma (female)" or "Priya Sharma and Ravi Kumar (1980) are married". */
 export function describeOperations(ops: Operation[], tree: GroupTree): string[] {
@@ -12,6 +12,7 @@ export function describeOperations(ops: Operation[], tree: GroupTree): string[] 
     }),
   );
   const couples = new Map(tree.unions.map((u) => [u.id, u.partnerIds as string[]] as const));
+  const unions = new Map(tree.unions.map((u) => [u.id, u]));
   const byId = new Map<string, Person>(tree.persons.map((p) => [p.id, p]));
   const sheets = new Map(tree.sheets.map((s) => [s.id, s.title] as const));
   for (const op of ops) {
@@ -48,10 +49,25 @@ export function describeOperations(ops: Operation[], tree: GroupTree): string[] 
         ].filter(Boolean);
         return `Change ${who(op.personId)}: ${changes.join(", ")}`;
       }
-      case "createUnion":
-        return op.partnerIds.length === 2 ? `${both(op.partnerIds)} ${op.status === "divorced" ? "were married and are divorced" : "are married"}` : `${who(op.partnerIds[0])} as a single parent`;
-      case "updateUnion":
-        return `Mark ${both(couples.get(op.unionId) ?? [])} as ${op.status}`;
+      case "createUnion": {
+        if (op.partnerIds.length === 1) return `${who(op.partnerIds[0])} as a single parent`;
+        const married = formatMarriage(op);
+        const when = married ? ` (${married})` : "";
+        return `${both(op.partnerIds)} ${op.status === "divorced" ? `were married${when} and are divorced` : `are married${when}`}`;
+      }
+      case "updateUnion": {
+        const names = both(couples.get(op.unionId) ?? []);
+        const saved = unions.get(op.unionId.toLowerCase());
+        const after = (key: (typeof MARRIAGE_FIELDS)[number]) => (op.set[key] === undefined ? saved?.[key] : (op.set[key] ?? undefined));
+        const changes = [
+          op.set.status !== undefined && `Mark ${names} as ${op.set.status}`,
+          MARRIAGE_FIELDS.some((key) => op.set[key] !== undefined) &&
+            (after("marriageYear") === undefined
+              ? `Remove the marriage date of ${names}`
+              : `Set the marriage date of ${names} to ${formatDate(after("marriageYear"), after("marriageMonth"), after("marriageDay"))}`),
+        ].filter(Boolean);
+        return changes.length ? changes.join("; ") : `Change ${names}`;
+      }
       case "addChild":
         return `${who(op.childId)} is the child of ${both(couples.get(op.unionId) ?? [])}`;
       case "addPartner":

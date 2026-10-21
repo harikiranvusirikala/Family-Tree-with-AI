@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import { operationsSchema } from "@/server/operations/schema";
 import { buildSheetView } from "@/tree/sheet-view";
 import type { GroupTree } from "@/tree/types";
+import { formatMarriage } from "@/tree/years";
 import { applyPlan, emptyGroup, sampleState, toGroupTree } from "@test/planning";
 import { dateOf, exportGedcom, parseGedcom, yearOf } from "./gedcom";
 import { defaultUseExisting, findDuplicates, importOperations, type ImportChoices } from "./import-plan";
@@ -25,12 +26,14 @@ function importIntoEmpty(data: ImportData | string, choices: ImportChoices = fre
   return toGroupTree(applyPlan(emptyGroup, batch.operations));
 }
 
-/** People and couples by name, comparable across ids. */
+/** People and couples (with when they married) by name, comparable across ids. */
 function shape(t: GroupTree) {
   const name = new Map(t.persons.map((p) => [p.id, `${p.name} ${p.birthYear ?? ""}`]));
   return {
     persons: t.persons.map((p) => `${p.name}|${p.gender}|${p.birthYear ?? ""}|${p.deathYear ?? ""}`).sort(),
-    unions: t.unions.map((u) => `${u.partnerIds.map((id) => name.get(id)).sort().join(" & ")} ${u.status}: ${u.childIds.map((id) => name.get(id)).sort().join(", ")}`).sort(),
+    unions: t.unions
+      .map((u) => `${u.partnerIds.map((id) => name.get(id)).sort().join(" & ")} ${u.status} ${formatMarriage(u)}: ${u.childIds.map((id) => name.get(id)).sort().join(", ")}`)
+      .sort(),
   };
 }
 
@@ -64,6 +67,8 @@ describe("round trips of the sample family", () => {
   test("GEDCOM gives back the same people and couples, and a sheet for the first person", () => {
     const text = exportGedcom(tree);
     expect(text.startsWith("0 HEAD\n")).toBe(true);
+    expect(text).toContain("1 MARR\n2 DATE 8 SEP 2008"); // the sample's marriage dates (owner request)
+    expect(text).toContain("1 MARR\n2 DATE 2001\n1 DIV Y");
     expect(text).toContain("1 CHAR UTF-8");
     expect(text).toContain("1 NAME Jake /Cruz/");
     expect(text.trimEnd().endsWith("0 TRLR")).toBe(true);
@@ -177,6 +182,36 @@ describe("reading GEDCOM files from other programs", () => {
       "1 child is listed in two families; each stays with the first (or the birth family, where the file says).",
       "1 couple was listed twice and was joined.",
     ]);
+  });
+
+  test("marriage dates (owner request): an exact one kept whole, others as a year; none for a single parent", () => {
+    const people = ["A", "B", "C", "D", "E"].map((x, i) => `0 @I${i + 1}@ INDI\n1 NAME ${x} /Test/\n1 SEX ${i % 2 ? "F" : "M"}\n`).join("");
+    const data = parse(
+      people +
+        "0 @F1@ FAM\n1 HUSB @I1@\n1 WIFE @I2@\n1 MARR\n2 DATE 14 JUN 1972\n2 PLAC Leeds\n" +
+        "0 @F2@ FAM\n1 HUSB @I3@\n1 WIFE @I4@\n1 MARR\n2 DATE ABT 1990\n1 DIV Y\n" +
+        "0 @F3@ FAM\n1 HUSB @I5@\n1 MARR\n2 DATE 1999\n",
+    );
+    expect(data.unions).toEqual([
+      { id: "@F1@", partnerIds: ["@I1@", "@I2@"], status: "married", marriageYear: 1972, marriageMonth: 6, marriageDay: 14, childIds: [] },
+      { id: "@F2@", partnerIds: ["@I3@", "@I4@"], status: "divorced", marriageYear: 1990, childIds: [] },
+      { id: "@F3@", partnerIds: ["@I5@"], status: "married", childIds: [] },
+    ]);
+    expect(data.notKept).toEqual(["places", "dates that aren't exact (only their years are kept)"]); // no longer "other facts"
+    expect(importIntoEmpty(data).unions.map(formatMarriage)).toEqual(["14 Jun 1972", "1990", ""]);
+  });
+
+  test("JSON keeps marriage dates (owner request), and refuses one that doesn't make sense", () => {
+    const people = [
+      { id: "a".repeat(24), name: "Asha Rao", gender: "female" as const },
+      { id: "b".repeat(24), name: "Ravi Rao", gender: "male" as const },
+    ];
+    const couple = { id: "c".repeat(24), partnerIds: [people[0].id, people[1].id] as [string, string], status: "married" as const, marriageYear: 1964, marriageMonth: 2, marriageDay: 29, childIds: [] };
+    const file = exportJson({ persons: people, unions: [couple], sheets: [] }, { id: "g", name: "Raos" });
+    expect((parseJson(file) as ImportData).unions[0]).toMatchObject({ marriageYear: 1964, marriageMonth: 2, marriageDay: 29 });
+    expect(parseJson(file.replace('"marriageDay": 29', '"marriageDay": 30'))).toBe("This file is damaged: a marriage date doesn't make sense.");
+    const alone = exportJson({ persons: people, unions: [{ ...couple, partnerIds: [people[0].id] }], sheets: [] }, { id: "g", name: "Raos" });
+    expect(parseJson(alone)).toBe("This file is damaged: a marriage date doesn't make sense.");
   });
 
   test("files that can't be imported", () => {

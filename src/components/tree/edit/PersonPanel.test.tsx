@@ -276,3 +276,38 @@ describe("the Wheel in the panel (★ Everyone, part 4, owner request)", () => {
     expect(screen.queryByRole("button", { name: "Put in the middle" })).toBeNull();
   });
 });
+
+describe("marriage dates on the partner lines (owner request)", () => {
+  test("each partner with the date they married, where known, and divorced marked", () => {
+    const family: GroupTree = {
+      persons: [
+        { id: "steve", name: "Steve Cruz", gender: "male", birthYear: 1985 },
+        { id: "sammie", name: "Sammie Chang", gender: "female" },
+        { id: "arham", name: "Arham Chopra", gender: "female" },
+        { id: "jo", name: "Jo Lee", gender: "female" },
+      ],
+      unions: [
+        { id: "first", partnerIds: ["steve", "sammie"], status: "divorced", marriageYear: 2001, childIds: [] },
+        { id: "second", partnerIds: ["steve", "arham"], status: "married", marriageYear: 2008, marriageMonth: 9, marriageDay: 8, childIds: [] },
+        { id: "third", partnerIds: ["steve", "jo"], status: "married", childIds: [] },
+      ],
+      sheets: [{ id: "tab", title: "Steve Cruz's family", rootPersonId: "steve", extraPersonIds: [], pinned: true, order: 0 }],
+    };
+    render(
+      <PersonPanel
+        person={family.persons[0]}
+        tree={family}
+        canEdit={false}
+        pending={false}
+        run={vi.fn()}
+        onSelect={() => {}}
+        onClose={() => {}}
+        onDelete={() => {}}
+        currentSheetId="tab"
+        onOpenSheet={() => {}}
+      />,
+    );
+    const partners = screen.getByText("Partners").nextElementSibling!;
+    expect([...partners.children].map((line) => line.textContent)).toEqual(["Sammie Chang, married 2001 (divorced)", "Arham Chopra, married 8 Sep 2008", "Jo Lee"]);
+  });
+});

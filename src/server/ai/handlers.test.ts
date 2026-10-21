@@ -42,7 +42,7 @@ describe("proposal tools", () => {
     const ravi = idOf("Arjun Patel");
     const added = runTool("add_person", { name: "Priya Sharma", gender: "female", birthYear: 1985, deathYear: null, birthMonth: null, birthDay: null, deathMonth: null, deathDay: null }, context());
     expect(added).toMatchObject({ isError: false, content: expect.stringContaining("Priya Sharma is new:1") });
-    const married = runTool("add_marriage", { personId: "new:1", partnerId: ravi, status: "married" }, context(added.pending));
+    const married = runTool("add_marriage", { personId: "new:1", partnerId: ravi, status: "married", marriageYear: null, marriageMonth: null, marriageDay: null }, context(added.pending));
     expect(married.content).toContain("the couple is new:2");
     const sheet = runTool("create_sheet", { rootPersonId: "new:1", title: "Priya Sharma's family" }, context(married.pending));
     expect(sheet.pending.map((op) => op.op)).toEqual(["createPerson", "createUnion", "createSheet"]);
@@ -71,7 +71,7 @@ describe("proposal tools", () => {
     const refused = runTool("add_child", { parentIds: [idOf("Jake Cruz")], childId: idOf("Alexander Cruz") }, context());
     expect(refused).toMatchObject({ isError: true, pending: [] });
     expect(refused.content).toMatch(/^Not added to the proposal: Alexander Cruz (already has parents|is an ancestor)/);
-    expect(runTool("add_marriage", { personId: "new:7", partnerId: idOf("Jake Cruz"), status: "married" }, context())).toMatchObject({
+    expect(runTool("add_marriage", { personId: "new:7", partnerId: idOf("Jake Cruz"), status: "married", marriageYear: null, marriageMonth: null, marriageDay: null }, context())).toMatchObject({
       isError: true,
       content: expect.stringContaining("new:7 is not created earlier"),
     });
@@ -122,10 +122,54 @@ describe("full dates (owner request)", () => {
   });
 });
 
+describe("marriage dates (owner request)", () => {
+  const noDate = { marriageYear: null, marriageMonth: null, marriageDay: null };
+  const coupleOf = (a: string, b: string) => tree.unions.find((u) => u.partnerIds.includes(idOf(a)) && u.partnerIds.includes(idOf(b)))!.id;
+
+  test("add_marriage takes the date they married; the planner checks it", () => {
+    const married = runTool("add_marriage", { personId: idOf("Cullen Cruz"), partnerId: idOf("Maria Young"), status: "married", ...noDate, marriageYear: 2010, marriageMonth: 3, marriageDay: 12 }, context());
+    expect(married.isError).toBeFalsy();
+    expect(married.pending).toEqual([
+      { op: "createUnion", tempId: "new:1", partnerIds: [idOf("Cullen Cruz"), idOf("Maria Young")], status: "married", marriageYear: 2010, marriageMonth: 3, marriageDay: 12 },
+    ]);
+    expect(describeOperations(married.pending, tree)).toEqual(["Cullen Cruz (1975) and Maria Young (1988) are married (12 Mar 2010)"]);
+    const impossible = runTool("add_marriage", { personId: idOf("Cullen Cruz"), partnerId: idOf("Maria Young"), status: "divorced", ...noDate, marriageYear: 2010, marriageMonth: 2, marriageDay: 30 }, context());
+    expect(impossible).toMatchObject({ isError: true, content: expect.stringContaining("30 Feb 2010 isn't a real date") });
+  });
+
+  test("update_couple sets only what is given, on a saved couple or one in this proposal; never a single parent's", () => {
+    const jakeTaylor = coupleOf("Jake Cruz", "Taylor Humes");
+    const update = runTool("update_couple", { coupleId: jakeTaylor, ...noDate, marriageYear: 1973 }, context());
+    expect(update.pending).toEqual([{ op: "updateUnion", unionId: jakeTaylor, set: { marriageYear: 1973 } }]);
+    expect(describeOperations(update.pending, tree)).toEqual(["Set the marriage date of Jake Cruz (1945 – 2022) and Taylor Humes (1955) to 14 Jun 1973"]);
+    expect(runTool("update_couple", { coupleId: jakeTaylor, ...noDate }, context())).toMatchObject({ isError: true, content: expect.stringContaining("nothing to change") });
+
+    const proposed = runTool("add_marriage", { personId: idOf("Cullen Cruz"), partnerId: idOf("Maria Young"), status: "married", ...noDate }, context());
+    expect(runTool("update_couple", { coupleId: "new:1", ...noDate, marriageYear: 2011 }, context(proposed.pending)).isError).toBeFalsy();
+
+    const alone = runTool("add_child", { parentIds: [idOf("Cullen Cruz")], childId: idOf("Alex Cruz") }, context());
+    expect(alone.isError).toBe(true); // Alex already has parents: use a new child instead
+    const baby = runTool("add_person", { name: "Mia Cruz", gender: "female", birthYear: null, deathYear: null, birthMonth: null, birthDay: null, deathMonth: null, deathDay: null }, context());
+    const single = runTool("add_child", { parentIds: [idOf("Cullen Cruz")], childId: "new:1" }, context(baby.pending));
+    const dated = runTool("update_couple", { coupleId: "new:2", ...noDate, marriageYear: 2011 }, context(single.pending));
+    expect(dated).toMatchObject({ isError: true, content: expect.stringContaining("a single parent has no marriage date") });
+  });
+
+  test("get_person and the family list show when a couple married", () => {
+    const jake = JSON.parse(runTool("get_person", { personId: idOf("Jake Cruz") }, context()).content);
+    expect(jake.partners).toMatchObject([{ name: "Taylor Humes", married: "14 Jun 1972" }]);
+    const marvin = JSON.parse(runTool("get_person", { personId: idOf("Marvin Young") }, context()).content);
+    expect(marvin.partners[0]).not.toHaveProperty("married");
+    const note = rosterNote(tree, "maintain");
+    expect(note).toContain(`partners ${idOf("Sammie Chang")} (married 2001, divorced) ${idOf("Arham Chopra")} (married 8 Sep 2008)`);
+    expect(note).toContain(`partners ${idOf("Jazmine Brooke")}`);
+  });
+});
+
 describe("role filtering and the notes", () => {
-  test("Viewers get the read tools only; Maintain and up get all eight, every one strict", () => {
+  test("Viewers get the read tools only; Maintain and up get all nine, every one strict", () => {
     expect(toolsFor("view")).toEqual(READ_TOOLS);
-    for (const role of ["maintain", "admin", "owner"] as const) expect(toolsFor(role)).toHaveLength(8);
+    for (const role of ["maintain", "admin", "owner"] as const) expect(toolsFor(role)).toHaveLength(9);
     for (const tool of toolsFor("owner")) {
       expect(tool).toMatchObject({ strict: true, input_schema: { additionalProperties: false } });
       expect(tool.input_schema.required).toEqual(Object.keys(tool.input_schema.properties as object));

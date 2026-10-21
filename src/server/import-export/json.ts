@@ -1,7 +1,7 @@
 // The app's own file format (F9, F10): lossless, so a group can be exported and imported again.
 import { z } from "zod";
 import type { GroupTree, NamedSheet } from "@/tree/types";
-import { datesProblem } from "@/tree/years";
+import { datesProblem, marriageProblem } from "@/tree/years";
 import { day, month, personName, year } from "../operations/schema";
 import { exportPart, MAX_IMPORT_PEOPLE, type ImportData } from "./types";
 
@@ -54,7 +54,19 @@ const fileSchema = z.object({
       }),
     )
     .max(MAX_IMPORT_PEOPLE, `This file has more than ${MAX_IMPORT_PEOPLE} people. Split it into smaller files.`),
-  unions: z.array(z.object({ id, partnerIds: z.union([z.tuple([id]), z.tuple([id, id])]), status: z.enum(["married", "divorced"]), childIds: z.array(id) })).max(20_000),
+  unions: z
+    .array(
+      z.object({
+        id,
+        partnerIds: z.union([z.tuple([id]), z.tuple([id, id])]),
+        status: z.enum(["married", "divorced"]),
+        marriageYear: year.optional(),
+        marriageMonth: month.optional(),
+        marriageDay: day.optional(),
+        childIds: z.array(id),
+      }),
+    )
+    .max(20_000),
   sheets: z
     .array(z.object({ title: z.string().trim().min(1).max(120), rootPersonId: id, extraPersonIds: z.array(id), pinned: z.boolean(), hideChildrenOf: id.optional() }))
     .max(500),
@@ -80,6 +92,7 @@ export function parseJson(text: string): ImportData | string {
   if (missing) return "This file is damaged: it refers to people it doesn't contain.";
   const badDates = persons.find((p) => datesProblem(p));
   if (badDates) return `This file is damaged: ${badDates.name}'s dates don't make sense.`;
+  if (unions.some((u) => marriageProblem(u) || (u.partnerIds.length === 1 && u.marriageYear !== undefined))) return "This file is damaged: a marriage date doesn't make sense.";
   const couples = new Set(unions.map((u) => u.id));
   if (sheets.some((s) => s.hideChildrenOf !== undefined && !couples.has(s.hideChildrenOf))) return "This file is damaged: it refers to couples it doesn't contain.";
   return { kind: "json", persons, unions, sheets, sourceGroupId: group.id, suggestedName: group.name, warnings: [], notKept: [] };

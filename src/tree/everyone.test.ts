@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, test } from "vitest";
 import { sampleState, toGroupTree } from "@test/planning";
-import { chooseView, EVERYONE, everyoneHref, everyoneView, filterRows, findPeople, listRows, relationSummary } from "./everyone";
+import { chooseView, EVERYONE, everyoneHref, everyoneView, filterRows, findPeople, firstMarriage, listRows, marriageLines, relationSummary, sortRows } from "./everyone";
 import type { GroupTree } from "./types";
 
 const tree = toGroupTree(sampleState());
@@ -106,11 +106,36 @@ describe("the List (★ Everyone, part 2, owner request)", () => {
   });
 
   test("the line under a name when the List is narrow", () => {
-    expect(relationSummary(row("Steve Cruz"))).toEqual(["Child of Olivia & Arjun", "♥ Sammie, Arham", "3 children"]);
-    expect(relationSummary(row("Arjun Patel"))).toEqual(["♥ Olivia", "1 child"]);
+    expect(relationSummary(row("Steve Cruz"))).toEqual(["Child of Olivia & Arjun", "♥ Sammie (2001), Arham (2008)", "3 children"]);
+    expect(relationSummary(row("Arjun Patel"))).toEqual(["♥ Olivia (1983)", "1 child"]);
+    expect(relationSummary(row("Marvin Young"))).toEqual(["Child of Timothy & Emma", "♥ Jazmine", "3 children"]); // no marriage date
     expect(relationSummary(row("Alex Cruz"))).toEqual(["Child of Jane & William"]);
     const alone = listRows({ ...tree, persons: [{ id: "z".repeat(24), name: "Zoë Ávila", gender: "female" }], unions: [] })[0];
     expect(relationSummary(alone)).toEqual([]);
+  });
+
+  test("marriage dates (an owner request): one line per dated marriage, the partner named when there are several", () => {
+    expect(row("Steve Cruz").partners.map((p) => p.married)).toEqual([{ marriageYear: 2001 }, { marriageYear: 2008, marriageMonth: 9, marriageDay: 8 }]);
+    expect(marriageLines(row("Steve Cruz"))).toEqual(["2001 · Sammie", "8 Sep 2008 · Arham"]);
+    expect(marriageLines(row("Taylor Humes"))).toEqual(["14 Jun 1972"]);
+    expect(marriageLines(row("Marvin Young"))).toEqual([]);
+    expect(marriageLines(row("Alex Cruz"))).toEqual([]);
+    expect(firstMarriage(row("Steve Cruz"))).toBe(firstMarriage(row("Sammie Chang"))); // the earlier of his two
+  });
+
+  test("sorting by marriage: by the first marriage, a year alone before that year's dates, nobody without one until the end", () => {
+    const order = (rs: typeof rows, sort: "marriedEarliest" | "marriedLatest") => sortRows(rs, sort).map((r) => r.person.name);
+    const dated = ["Amy Harolds", "Timothy Cruz", "Jake Cruz", "Taylor Humes", "Arjun Patel", "Olivia Cruz", "Sammie Chang", "Steve Cruz", "Arham Chopra"];
+    expect(order(rows, "marriedEarliest").slice(0, 9)).toEqual(dated);
+    expect(order(rows, "marriedLatest").slice(0, 9)).toEqual(["Arham Chopra", "Sammie Chang", "Steve Cruz", "Arjun Patel", "Olivia Cruz", "Jake Cruz", "Taylor Humes", "Amy Harolds", "Timothy Cruz"]);
+    // Everyone else keeps A to Z after them, either way (Timothy Cruz, 1940, has no marriage date).
+    const rest = rows.filter((r) => firstMarriage(r) === undefined).map((r) => r.person.name);
+    expect(rest).toHaveLength(36 - 9);
+    expect(order(rows, "marriedEarliest").slice(9)).toEqual(rest);
+    expect(order(rows, "marriedLatest").slice(9)).toEqual(rest);
+    // Olivia and Arjun married in 1972 too, with no day known: before Jake and Taylor's 14 June.
+    const sameYear = listRows({ ...tree, unions: tree.unions.map((u) => (u.partnerIds.includes(idOf(tree, "Arjun Patel")) ? { ...u, marriageYear: 1972 } : u)) });
+    expect(order(sameYear, "marriedEarliest").slice(2, 6)).toEqual(["Arjun Patel", "Olivia Cruz", "Jake Cruz", "Taylor Humes"]);
   });
 
   test("2,000 people make their rows quickly", () => {

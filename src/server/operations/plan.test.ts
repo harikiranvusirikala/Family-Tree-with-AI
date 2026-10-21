@@ -132,7 +132,7 @@ describe("planOperations: rejected batches", () => {
   test("unknown people, couples and sheets", () => {
     const missing = new ObjectId().toHexString();
     expectRejected(sample, [{ op: "updatePerson", personId: missing, set: { name: "X" } }], /person .* not found/);
-    expectRejected(sample, [{ op: "updateUnion", unionId: missing, status: "divorced" }], /couple .* not found/);
+    expectRejected(sample, [{ op: "updateUnion", unionId: missing, set: { status: "divorced" } }], /couple .* not found/);
     expectRejected(sample, [{ op: "addToSheet", sheetId: missing, personId: idOf("Steve Cruz") }], /sheet .* not found/);
   });
 
@@ -179,6 +179,32 @@ describe("planOperations: rejected batches", () => {
     expectRejected(sample, [{ op: "updatePerson", personId: idOf("Steve Cruz"), set: { birthMonth: 2 } }], /both the day and the month/);
     expectRejected(empty, [{ op: "createPerson", tempId: "new:1", name: "A", gender: "male", birthMonth: 2, birthDay: 3 }], /need the birth year/);
     expectRejected(after(sample, set), [{ op: "updatePerson", personId: idOf("Steve Cruz"), set: { birthYear: null } }], /need the birth year/); // the date goes with it
+  });
+
+  test("marriage dates (owner request): saved with a new couple, changed and cleared; the rules of a birth date; never a single parent's", () => {
+    const created = plan(sample, [
+      { op: "createUnion", tempId: "new:c", partnerIds: [idOf("Cullen Cruz"), idOf("Maria Young")], status: "married", marriageYear: 2010, marriageMonth: 3, marriageDay: 12 },
+    ]);
+    expect(created.unions.inserted[0]).toMatchObject({ marriageYear: 2010, marriageMonth: 3, marriageDay: 12 });
+    const couple = created.unions.inserted[0]._id.toHexString();
+    const state = after(sample, created);
+    expect(plan(state, [{ op: "updateUnion", unionId: couple, set: { marriageYear: 2011 } }]).unions.updated[0]).toMatchObject({ marriageYear: 2011, marriageMonth: 3, marriageDay: 12 });
+    const cleared = plan(state, [{ op: "updateUnion", unionId: couple, set: { marriageYear: null, marriageMonth: null, marriageDay: null } }]).unions.updated[0];
+    expect([cleared.marriageYear, cleared.marriageMonth, cleared.marriageDay]).toEqual([undefined, undefined, undefined]);
+    expect(plan(state, [{ op: "updateUnion", unionId: couple, set: { status: "divorced" } }]).unions.updated[0]).toMatchObject({ status: "divorced", marriageYear: 2010 }); // the date stays
+    expectRejected(state, [{ op: "updateUnion", unionId: couple, set: { marriageMonth: 2, marriageDay: 30 } }], /Cullen Cruz and Maria Young: 30 Feb 2010 isn't a real date/);
+    expectRejected(state, [{ op: "updateUnion", unionId: couple, set: { marriageDay: null } }], /both the day and the month of the marriage/);
+    expectRejected(state, [{ op: "updateUnion", unionId: couple, set: { marriageYear: null } }], /need the marriage year/); // the day and month go with it
+    expectRejected(sample, [{ op: "createUnion", partnerIds: [idOf("Cullen Cruz")], status: "married", marriageYear: 2000 }], /a single parent has no marriage date/);
+  });
+
+  test("a couple whose partner was deleted keeps its date for Undo; its status can change, but it can't be given a date", () => {
+    const arham = idOf("Arham Chopra");
+    const couple = sample.unions.find((u) => u.partnerIds.some((p) => p.toHexString() === arham))!._id.toHexString();
+    const deleted = after(sample, plan(sample, [{ op: "deletePerson", personId: arham }]));
+    expect(deleted.unions.find((u) => u._id.toHexString() === couple)).toMatchObject({ marriageYear: 2008 });
+    expect(() => plan(deleted, [{ op: "updateUnion", unionId: couple, set: { status: "divorced" } }])).not.toThrow();
+    expectRejected(deleted, [{ op: "updateUnion", unionId: couple, set: { marriageYear: 2009 } }], /a single parent has no marriage date/);
   });
 
   test("a death year can't be before the birth year", () => {

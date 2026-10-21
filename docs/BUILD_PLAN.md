@@ -37,6 +37,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Full birth and death dates (owner request) | Done 2026-10-21 (unit tests: 400 passed; e2e: 75 passed). See its section at the end |
 | – | Database indexes (owner request) | Done 2026-10-21 (unit: 400 passed; database: 42 passed; e2e: 75 passed); `db:setup` to run on all three databases. See its section at the end |
 | – | A mother's side stays on her own sheet (owner request) | Done 2026-10-21 (unit tests: 409 passed; e2e: 76 passed). See its section at the end |
+| – | Marriage dates (owner request) | Done 2026-10-21 (unit tests: 433 passed; database: 42 passed; e2e: 78 passed). See its section at the end |
 
 ## How we work
 
@@ -1263,3 +1264,63 @@ The app is built in small steps. Each step ends with its tests passing, a check 
     - The mother's sheet test: the box starts checked, and Arham Chopra's father alone gets no sheet.
     - "Add parents, delete both, and add parents again" unchecks the box: a sheet's root can't be deleted, so a mother given her sheet by default now needs it deleted first (as a partner who married in does).
     - New: on the Cruz family, Timothy Cruz (1880) gets Henry Cruz and Rose Bell, and "Rose Bell's family" appears. Rose's parents, added from the Cruz family, bring the message. Saving opens Rose's sheet with the four of them, her panel still open, and "Ida Bell's family" created. Back to the Cruz family: 38 cards, Rose without her parents.
+
+## After the final check: marriage dates (owner request)
+- **Why:** the family wants to record when a couple married: the full date where it's known, otherwise just the year, as with birth dates.
+- **Build:**
+  - **Stored:** optional `marriageYear`, `marriageMonth` and `marriageDay` on a couple, following the birth date's rules: a day and month only together and only with their year, and only a real date.
+    - Divorced couples keep theirs (the date they married).
+    - Only couples of two have a date. A single parent has no heart, and the planner refuses a date there.
+    - Not compared with the partners' births or deaths. Otherwise a birth edit could be refused because of a marriage, and files from other programs often have rough dates.
+    - No database change: existing couples simply have no date, and backups pick the new fields up.
+    - Operations: `createUnion` and `updateUnion` get the three fields (null clears them, as in `updatePerson`), and `updateUnion`'s status becomes optional.
+  - **Editing** (the owner's instruction): selecting the heart opens the couple panel, which gets "Married on": Day, Month and Year below Married/Divorced, with Save. Emptying all three removes the date. Viewers see it as text. Add partner's form doesn't change: the date is added from the heart afterwards.
+  - **Where it shows:**
+    - **Above the heart, in the tree views** (every sheet and ★ Everyone's Tree): only the year, small and grey, in the gap between the two cards.
+      - Not on the Network or the Wheel.
+      - Exported pictures of a sheet show it, because they show the tree.
+      - The heart's button name stays "Steve Cruz and Arham Chopra, married".
+    - **The full date while selected**: when either partner's card or the heart is selected, the year above that heart becomes the full date ("12 Mar 1985"), as a selected card's own dates do. Someone with two couples shows the full date over both hearts.
+    - **The person panel**: each partner's line adds the date, "Arham Chopra, married 12 Mar 1985" (or "married 1985"), with "(divorced)" as now.
+    - **★ Everyone's List:** a new "Married" column right after Born.
+      - Each of the person's marriages with a known date, full or just the year, one per line. Someone with more than one couple gets the partner's first name on each line ("1970 · Jake"). "–" when no date is known.
+      - The column's name sorts the list like Born: earliest first, then latest first, then back to A to Z. It sorts by the person's first marriage. Within a year, a year alone comes first, and people with no marriage date come last either way.
+      - The Sort choice gets the same two orders: "Married, earliest first" and "Married, latest first".
+      - On narrow screens (no columns), the relations line under the name adds each partner's year, "♥ Arham (1985)".
+  - **The assistant** can record and read marriage dates:
+    - `add_marriage` gets a nullable marriage year, month and day.
+    - A new `update_couple` tool proposes the marriage date of an existing couple (from `get_person`'s couple id).
+    - `get_person`'s partners and the family list show the date.
+    - The proposal card says "Steve Cruz and Arham Chopra are married (12 Mar 1985)" or "Set the marriage date of Steve Cruz and Arham Chopra to 12 Mar 1985".
+  - **Import and export:**
+    - JSON carries the new fields (round trip).
+    - GEDCOM writes `1 MARR` with `2 DATE 12 MAR 1985` in the family's record. Imports keep an exact marriage date whole and only the year of an approximate one (counted among the "dates that aren't exact"), as for births. Today `MARR` counts among the "other facts" left out.
+  - **The sample family:** a few couples get marriage dates (some full, some only the year), so the seed, the e2e tests and the screenshots show them. The README screenshots are copied again.
+- **Tests:**
+  - Unit:
+    - The date rules, shared with births.
+    - The planner refusing impossible dates, a lone day and a date on a single parent, and clearing a date.
+    - The couple panel reading and saving the date.
+    - The heart showing the year, then the full date when a partner or the heart is selected. Nothing on the Network.
+    - The List's Married column and its sort, both ways.
+    - The proposal lines, the assistant's tools, and the JSON and GEDCOM round trips (`MARR` exact and approximate).
+  - E2E:
+    - On a sheet, select a heart, enter a marriage date and save: the year shows above the heart. Selecting a partner shows the full date. Clearing the date removes it.
+    - The List's Married column sorts both ways and back.
+    - The night screenshots, checked by eye.
+- **Decisions (owner, 2026-10-21):**
+  1. The full date shows when either partner's card or the heart is selected (the proposal).
+  2. The person panel's partner lines show the marriage date (the proposal).
+  3. On phones, the List's relations line adds the marriage year beside each partner (the proposal).
+  4. The assistant reads and proposes marriage dates (the proposal).
+  5. Editing happens in the couple panel, opened from the heart (the owner's instruction).
+- **Notes (2026-10-21):**
+  - `updateUnion` now takes a `set`, like `updatePerson`, so a status change and a date change are the same operation (`coupleStatusOps` sends `set: { status }`, `marriageDateOps` only the fields that changed).
+  - One set of date rules: `dateProblem` in `years.ts` checks any single date, and both `datesProblem` (births and deaths) and `marriageProblem` use it. The couple panel reuses the person form's `DateFields` ("Married on") with `readMarriage`.
+  - The couple panel shows the date as text, and "Add marriage date" or "Change marriage date" opens the fields, as Add child does, instead of showing them all the time. The panel stays short on phones, and a Viewer sees the same text.
+  - A couple with a deleted partner keeps its date for Undo. `toGroupTree` leaves it out while the browser draws a single parent, and the planner refuses a new date there but still allows a status change.
+  - JSON imports refuse a marriage date that doesn't make sense, or one on a single parent ("This file is damaged: a marriage date doesn't make sense."). GEDCOM imports ignore a single parent's `MARR`.
+  - The sample family has five dated couples: Timothy and Amy (1910), Jake and Taylor (14 Jun 1972), Olivia and Arjun (1983), Steve and Sammie (2001, divorced) and Steve and Arham (8 Sep 2008). The checks of Steve's List row (desktop and phone) and the chat's tool count changed with them.
+  - The year sits in the gap above the heart. A full date is a little wider than the gap and reaches a few pixels over the cards' empty edges, never their photos. It ignores the pointer, so clicks still reach the cards and the heart.
+  - The assistant's system prompt and tools changed (a new tool and new fields). A chat left open while this deploys may need New chat, because its earlier turns were made with the old ones.
+  - README pictures made again: the three sheet screenshots, and `everyone-views.png`, whose List now has Born and Married (it was last laid out before the full dates). The Tree's and the List's captions mention the dates. A new e2e screenshot, `marriage-date.png`, shows a full date above a heart.

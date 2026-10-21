@@ -1,7 +1,7 @@
 // GEDCOM 5.5.1 (F9, F10): the family file format Ancestry, FamilySearch and MyHeritage read and write.
 // Persons are INDI records, couples FAM records. Pure: the browser parses imported files.
 import type { Gender, GroupTree, NamedSheet, Union } from "@/tree/types";
-import { datesProblem, isRealDate, lifeDates, type LifeDates } from "@/tree/years";
+import { datesProblem, isRealDate, lifeDates, marriageDate, type LifeDates } from "@/tree/years";
 import { exportPart, MAX_IMPORT_PEOPLE, type ImportData, type ImportPerson } from "./types";
 
 const GEDCOM_MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -40,6 +40,7 @@ export function exportGedcom(tree: GroupTree, sheet?: NamedSheet, now = new Date
     // Men as HUSB and women as WIFE; a same-sex couple gets two of one, which the major programs read.
     for (const partner of u.partnerIds) lines.push(`1 ${gender.get(partner) === "male" ? "HUSB" : "WIFE"} ${xref.get(partner)}`);
     for (const child of u.childIds) lines.push(`1 CHIL ${xref.get(child)}`);
+    if (u.marriageYear) lines.push("1 MARR", `2 DATE ${gedcomDate(u.marriageYear, u.marriageMonth, u.marriageDay)}`);
     if (u.status === "divorced") lines.push("1 DIV Y");
   }
   lines.push("0 TRLR");
@@ -110,7 +111,7 @@ function nameOf(indi: Node): string {
   return parts.slice(0, 120);
 }
 
-const KEPT = new Set(["NAME", "SEX", "BIRT", "DEAT", "FAMC", "FAMS", "HUSB", "WIFE", "CHIL", "DIV", "DATE", "GIVN", "SURN", "_UID", "RIN", "CHAN", "PEDI", "NPFX", "NSFX", "SPFX", "NICK"]);
+const KEPT = new Set(["NAME", "SEX", "BIRT", "DEAT", "FAMC", "FAMS", "HUSB", "WIFE", "CHIL", "MARR", "DIV", "DATE", "GIVN", "SURN", "_UID", "RIN", "CHAN", "PEDI", "NPFX", "NSFX", "SPFX", "NICK"]);
 
 const NOT_KEPT = {
   places: "places",
@@ -198,7 +199,11 @@ export function parseGedcom(text: string, fileName = ""): ImportData | string {
     const key = [...partners].sort().join("+");
     const existing = byCouple.get(key);
     if (existing) sameCouple++;
-    const union: Union = existing ?? { id: fam.xref!, partnerIds: partners as Union["partnerIds"], status: child(fam, "DIV") ? "divorced" : "married", childIds: [] };
+    // When they married: an exact date whole, or only the year of an approximate one (as for births).
+    const marriage = child(fam, "MARR");
+    const on = partners.length === 2 ? dateOf(marriage && child(marriage, "DATE")?.value) : {};
+    const married = marriageDate({ marriageYear: on.year, marriageMonth: on.month, marriageDay: on.day });
+    const union: Union = existing ?? { id: fam.xref!, partnerIds: partners as Union["partnerIds"], status: child(fam, "DIV") ? "divorced" : "married", ...married, childIds: [] };
     for (const c of children) {
       const preferred = birthFamily.get(c);
       if (parentsOf.has(c) || (preferred && preferred !== fam.xref)) {

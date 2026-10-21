@@ -274,7 +274,7 @@ test("★ Everyone is the first choice in the sheet picker; a phone opens it on 
   // Only the person, with their relations in one line.
   const steve = rows.filter({ has: page.getByRole("button", { name: "Steve Cruz, 1985", exact: true }) });
   await expect(steve.getByRole("cell")).toHaveCount(1);
-  await expect(steve.getByText("Child of Olivia & Arjun · ♥ Sammie, Arham · 3 children")).toBeVisible();
+  await expect(steve.getByText("Child of Olivia & Arjun · ♥ Sammie (2001), Arham (2008) · 3 children")).toBeVisible();
   await fitsWidth(page);
   expect(await page.getByRole("table", { name: "People" }).evaluate((table) => table.scrollWidth - table.parentElement!.clientWidth)).toBeLessThanOrEqual(0);
   // Sorting by birth without column names (an owner request): the Sort choice.

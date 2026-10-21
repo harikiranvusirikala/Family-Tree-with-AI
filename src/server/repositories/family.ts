@@ -1,7 +1,7 @@
 import type { Db } from "mongodb";
 import type { GroupTree, Person, Union } from "@/tree/types";
 import type { GroupState } from "../operations/plan";
-import { lifeDates } from "@/tree/years";
+import { lifeDates, marriageDate } from "@/tree/years";
 import { toObjectId } from "../ids";
 import { collections, type PersonDoc, type SheetDoc, type UnionDoc } from "./documents";
 
@@ -56,7 +56,9 @@ export function toGroupTree(docs: { persons: PersonDoc[]; unions: UnionDoc[]; sh
       if (u.deletedAt) return [];
       const partnerIds = keep(u.partnerIds);
       if (partnerIds.length === 0) return [];
-      return [{ id: u._id.toHexString(), partnerIds: partnerIds as Union["partnerIds"], status: u.status, childIds: keep(u.childIds) }];
+      // A marriage date belongs to a couple of two: with a partner deleted, it waits for Undo.
+      const married = partnerIds.length === 2 ? marriageDate(u) : {};
+      return [{ id: u._id.toHexString(), partnerIds: partnerIds as Union["partnerIds"], status: u.status, ...married, childIds: keep(u.childIds) }];
     }),
     sheets: docs.sheets
       .filter((s) => !s.deletedAt)

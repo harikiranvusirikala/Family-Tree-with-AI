@@ -1,8 +1,10 @@
 // The family from samples/Sample Family Tree.png: 36 people over 6 generations.
 // Invented data. It covers a same-sex couple (Alexander Cruz + Jerry Willow), a divorce and
 // remarriage (Steve Cruz with Sammie Chang, then Arham Chopra) and in-law parents
-// (Cynthia Willow + Fred Lambert, Margaret Yap + Nick Young).
+// (Cynthia Willow + Fred Lambert, Margaret Yap + Nick Young). Some couples have a marriage date: a
+// full one (Jake and Taylor, Steve and Arham) or only the year.
 import type { FamilyData, Person, Sheet, Union } from "@/tree/types";
+import type { MarriageDate } from "@/tree/years";
 
 const m = (id: string, name: string, birthYear: number, deathYear?: number): Person => ({
   id, name, gender: "male", birthYear, ...(deathYear ? { deathYear } : {}),
@@ -61,19 +63,20 @@ const union = (
   partnerIds: Union["partnerIds"],
   childIds: string[],
   status: Union["status"] = "married",
-): Union => ({ id, partnerIds, status, childIds });
+  married: MarriageDate = {},
+): Union => ({ id, partnerIds, status, ...married, childIds });
 
 export const unions: Union[] = [
-  union("u-timothy-amy", ["timothy-cruz-1880", "amy-harolds"], ["alexander-cruz"]),
+  union("u-timothy-amy", ["timothy-cruz-1880", "amy-harolds"], ["alexander-cruz"], "married", { marriageYear: 1910 }),
   union("u-cynthia-fred", ["cynthia-willow", "fred-lambert"], ["jerry-willow"]),
   union("u-margaret-nick", ["margaret-yap", "nick-young"], ["emma-young"]),
   union("u-alexander-jerry", ["alexander-cruz", "jerry-willow"], ["jake-cruz", "olivia-cruz", "timothy-cruz-1940"]),
-  union("u-jake-taylor", ["jake-cruz", "taylor-humes"], ["christina-cruz", "cullen-cruz", "marie-cruz"]),
-  union("u-olivia-arjun", ["olivia-cruz", "arjun-patel"], ["steve-cruz"]),
+  union("u-jake-taylor", ["jake-cruz", "taylor-humes"], ["christina-cruz", "cullen-cruz", "marie-cruz"], "married", { marriageYear: 1972, marriageMonth: 6, marriageDay: 14 }),
+  union("u-olivia-arjun", ["olivia-cruz", "arjun-patel"], ["steve-cruz"], "married", { marriageYear: 1983 }),
   union("u-timothy-emma", ["timothy-cruz-1940", "emma-young"], ["maria-young", "marvin-young"]),
   union("u-christina-timothy", ["christina-cruz", "timothy-young-1970"], ["carrie-young", "carlo-young", "tay-young"]),
-  union("u-sammie-steve", ["sammie-chang", "steve-cruz"], ["william-cruz-2002"], "divorced"),
-  union("u-steve-arham", ["steve-cruz", "arham-chopra"], ["anna-cruz", "taylor-cruz"]),
+  union("u-sammie-steve", ["sammie-chang", "steve-cruz"], ["william-cruz-2002"], "divorced", { marriageYear: 2001 }),
+  union("u-steve-arham", ["steve-cruz", "arham-chopra"], ["anna-cruz", "taylor-cruz"], "married", { marriageYear: 2008, marriageMonth: 9, marriageDay: 8 }),
   union("u-marvin-jazmine", ["marvin-young", "jazmine-brooke"], ["amelia-young", "jake-young", "timothy-young-2010"]),
   union("u-jane-william", ["jane-howell", "william-cruz-2002"], ["william-cruz-2021", "alex-cruz"]),
 ];

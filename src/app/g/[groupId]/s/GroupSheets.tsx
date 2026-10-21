@@ -84,7 +84,7 @@ export function GroupSheets({
   const rows = useMemo(() => (listShown ? listRows(tree) : []), [listShown, tree]);
   const [listFilter, setListFilter] = useState<ListFilter>("everyone");
   const [listQuery, setListQuery] = useState("");
-  const [listSort, setListSort] = useState<ListSort>("name"); // A to Z until birth dates are chosen
+  const [listSort, setListSort] = useState<ListSort>("name"); // A to Z until a date order is chosen
 
   const [selection, setSelection] = useState<Selection>(() => {
     const id = everyone ? searchParams.get("person") : null;

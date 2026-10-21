@@ -6,7 +6,7 @@ import { addChildOps, addParentsOps, addPartnerOps, editPersonOps, newSheetOps, 
 import { EVERYONE } from "@/tree/everyone";
 import { buildSheetView, showsNewParentsOf } from "@/tree/sheet-view";
 import type { Gender, GroupTree, Person } from "@/tree/types";
-import { formatLife, formatYears } from "@/tree/years";
+import { formatLife, formatMarriage, formatYears } from "@/tree/years";
 import { PersonPhoto } from "../PersonPhoto";
 import { detailsPanel } from "./panel";
 import { input, PersonFields, readPerson, SubmitRow } from "./person-form";
@@ -195,7 +195,15 @@ export function PersonPanel({
               <dd className="flex flex-col">
                 {couples.some((c) => c.partner)
                   ? couples.flatMap((c) =>
-                      c.partner ? [<span key={c.union.id}><PersonLink p={c.partner} onSelect={onSelect} />{c.union.status === "divorced" && " (divorced)"}</span>] : [],
+                      c.partner
+                        ? [
+                            <span key={c.union.id}>
+                              <PersonLink p={c.partner} onSelect={onSelect} />
+                              {formatMarriage(c.union) && `, married ${formatMarriage(c.union)}`}
+                              {c.union.status === "divorced" && " (divorced)"}
+                            </span>,
+                          ]
+                        : [],
                     )
                   : "None"}
               </dd>

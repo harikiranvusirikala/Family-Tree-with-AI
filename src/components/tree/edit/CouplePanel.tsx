@@ -1,16 +1,21 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { addChildOps, coupleStatusOps } from "@/tree/edits";
+import { addChildOps, coupleStatusOps, marriageDateOps } from "@/tree/edits";
 import type { Union } from "@/tree/types";
+import { formatMarriage } from "@/tree/years";
 import type { PanelProps } from "./PersonPanel";
 import { detailsPanel } from "./panel";
-import { PersonFields, readPerson, SubmitRow } from "./person-form";
+import { DateFields, PersonFields, readMarriage, readPerson, SubmitRow } from "./person-form";
 
-/** F6: a couple (the heart). Married or divorced, their children, and adding a child. */
+/**
+ * F6: a couple (the heart). Married or divorced, when they married (an owner request after the final
+ * check), their children, and adding a child.
+ */
 export function CouplePanel({ union, tree, canEdit, pending, run, onSelect, onClose }: PanelProps & { union: Union }) {
-  const [adding, setAdding] = useState(false);
+  const [mode, setMode] = useState<"details" | "child" | "date">("details");
   const [formError, setFormError] = useState<string | null>(null);
+  const married = formatMarriage(union);
   const byId = new Map(tree.persons.map((p) => [p.id, p]));
   const partners = union.partnerIds.flatMap((id) => byId.get(id) ?? []);
   const children = union.childIds.flatMap((id) => byId.get(id) ?? []);
@@ -20,11 +25,25 @@ export function CouplePanel({ union, tree, canEdit, pending, run, onSelect, onCl
     const read = readPerson(new FormData(event.currentTarget));
     if (typeof read === "string") return setFormError(read);
     setFormError(null);
-    if (await run(addChildOps(tree, union.partnerIds[0], union.id, read))) setAdding(false);
+    if (await run(addChildOps(tree, union.partnerIds[0], union.id, read))) setMode("details");
+  }
+
+  async function saveDate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const read = readMarriage(new FormData(event.currentTarget));
+    if (typeof read === "string") return setFormError(read);
+    setFormError(null);
+    const ops = marriageDateOps(union, read);
+    if (ops.length === 0 || (await run(ops))) setMode("details");
+  }
+
+  function open(next: typeof mode) {
+    setFormError(null);
+    setMode(next);
   }
 
   return (
-    <aside aria-label="Couple details" className={detailsPanel(adding)}>
+    <aside aria-label="Couple details" className={detailsPanel(mode !== "details")}>
       <div className="flex items-start justify-between gap-2">
         <h2 className="text-lg font-semibold">{partners.map((p) => p.name).join(" & ")}</h2>
         <button type="button" onClick={onClose} className="rounded px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100 pointer-coarse:min-h-11 dark:text-zinc-400 dark:hover:bg-zinc-800">
@@ -47,6 +66,24 @@ export function CouplePanel({ union, tree, canEdit, pending, run, onSelect, onCl
         ))}
       </div>
 
+      {mode === "date" ? (
+        <form aria-label="Marriage date" onSubmit={saveDate} className="flex flex-col gap-3">
+          <DateFields what="marriage" defaults={union} />
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">The day and month only if known. Empty the year to remove the date.</p>
+          <SubmitRow label="Save" pending={pending} onCancel={() => open("details")} />
+        </form>
+      ) : (
+        <div className="text-sm">
+          <p className="text-zinc-500 dark:text-zinc-400">Married on</p>
+          <p>{married || "Not added"}</p>
+          {canEdit && mode === "details" && (
+            <button type="button" onClick={() => open("date")} disabled={pending} className="-ml-2 mt-1 rounded px-2 py-1 hover:bg-zinc-100 pointer-coarse:min-h-11 dark:hover:bg-zinc-800">
+              {married ? "Change marriage date" : "Add marriage date"}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="text-sm">
         <p className="text-zinc-500 dark:text-zinc-400">Children</p>
         {children.length ? (
@@ -64,18 +101,18 @@ export function CouplePanel({ union, tree, canEdit, pending, run, onSelect, onCl
         )}
       </div>
 
-      {canEdit &&
-        (adding ? (
-          <form aria-label="Add child" onSubmit={addChild} className="flex flex-col gap-3">
-            <h3 className="font-medium">Their child</h3>
-            <PersonFields />
-            <SubmitRow label="Add child" pending={pending} onCancel={() => setAdding(false)} />
-          </form>
-        ) : (
-          <button type="button" onClick={() => setAdding(true)} disabled={pending} className="self-start rounded px-2 py-1 text-sm hover:bg-zinc-100 pointer-coarse:min-h-11 dark:hover:bg-zinc-800">
-            Add child
-          </button>
-        ))}
+      {canEdit && mode === "child" && (
+        <form aria-label="Add child" onSubmit={addChild} className="flex flex-col gap-3">
+          <h3 className="font-medium">Their child</h3>
+          <PersonFields />
+          <SubmitRow label="Add child" pending={pending} onCancel={() => open("details")} />
+        </form>
+      )}
+      {canEdit && mode === "details" && (
+        <button type="button" onClick={() => open("child")} disabled={pending} className="self-start rounded px-2 py-1 text-sm hover:bg-zinc-100 pointer-coarse:min-h-11 dark:hover:bg-zinc-800">
+          Add child
+        </button>
+      )}
 
       {formError && (
         <p role="alert" className="text-sm text-red-700 dark:text-red-400">

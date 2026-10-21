@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { NewPerson } from "@/tree/edits";
-import { PersonFields, readPerson } from "./person-form";
+import { DateFields, PersonFields, readMarriage, readPerson } from "./person-form";
 
 afterEach(cleanup);
 
@@ -74,5 +74,39 @@ describe("full dates in the person form (owner requests)", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Mother's name" }), { target: { value: "Lakshmi" } });
     set("Mother's birth month", "5");
     expect(read()).toBe("Mother: Enter both the day and the month of the birth, or neither.");
+  });
+});
+
+describe("the marriage date's fields (owner request)", () => {
+  function marriage(defaults = {}) {
+    render(
+      <form aria-label="Marriage">
+        <DateFields what="marriage" defaults={defaults} />
+      </form>,
+    );
+    const set = (name: string, value: string) => fireEvent.change(screen.getByRole(name.endsWith("month") ? "combobox" : "spinbutton", { name }), { target: { value } });
+    return { set, read: () => readMarriage(new FormData(screen.getByRole("form", { name: "Marriage" }) as HTMLFormElement)) };
+  }
+
+  test("Married on: a day, month and year, read like a birth date; empty is no date", () => {
+    const { set, read } = marriage();
+    expect(screen.getByRole("group", { name: "Married on" })).toBeDefined();
+    expect(read()).toEqual({});
+    set("Marriage year", "1985");
+    expect(read()).toEqual({ marriageYear: 1985 });
+    set("Marriage day", "12");
+    set("Marriage month", "3");
+    expect(read()).toEqual({ marriageYear: 1985, marriageMonth: 3, marriageDay: 12 });
+  });
+
+  test("the server's rules, with the field named", () => {
+    const { set, read } = marriage({ marriageYear: 2023, marriageMonth: 2 });
+    expect((screen.getByRole("combobox", { name: "Marriage month" }) as HTMLSelectElement).value).toBe("2");
+    set("Marriage day", "29");
+    expect(read()).toBe("29 Feb 2023 isn't a real date.");
+    set("Marriage year", "999");
+    expect(read()).toBe("Marriage year: Enter a year from 1000 on.");
+    set("Marriage year", "");
+    expect(read()).toBe("A marriage day and month need the marriage year.");
   });
 });

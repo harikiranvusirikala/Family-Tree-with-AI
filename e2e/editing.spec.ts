@@ -415,6 +415,50 @@ test("a Viewer sees the tree but no edit controls", async ({ browser, page, sign
   }
 });
 
+test("a marriage date: the year above the heart, the full date while the heart or a partner is selected; added and cleared from the heart (owner request)", async ({ page, signIn, sampleGroup }) => {
+  await openSampleGroup(page, signIn, sampleGroup);
+  /** The date above a couple's heart. */
+  const dateOf = (couple: string) => page.locator(".react-flow__node-union").filter({ has: page.getByRole("button", { name: `${couple}, married` }) }).getByTestId("marriage-date");
+
+  // The sample's own: Steve and Arham married on 8 Sep 2008.
+  await expect(dateOf("Steve Cruz and Arham Chopra")).toHaveText("2008");
+  await card(page, "Arham Chopra").click();
+  await expect(dateOf("Steve Cruz and Arham Chopra")).toHaveText("8 Sep 2008");
+  await expect(personPanel(page)).toContainText("Steve Cruz, married 8 Sep 2008");
+  await personPanel(page).getByRole("button", { name: "Close" }).click();
+  await expect(dateOf("Steve Cruz and Arham Chopra")).toHaveText("2008");
+
+  // Marvin and Jazmine have none until it's added from their heart.
+  await expect(dateOf("Marvin Young and Jazmine Brooke")).toHaveCount(0);
+  await page.getByRole("button", { name: "Marvin Young and Jazmine Brooke, married" }).click();
+  const couple = page.getByRole("complementary", { name: "Couple details" });
+  await expect(couple).toContainText("Not added");
+  await couple.getByRole("button", { name: "Add marriage date" }).click();
+  const date = form(page, "Marriage date");
+  await date.getByRole("spinbutton", { name: "Marriage day" }).fill("4");
+  await date.getByRole("combobox", { name: "Marriage month" }).selectOption({ label: "Jul" });
+  await date.getByRole("spinbutton", { name: "Marriage year" }).fill("1999");
+  await date.getByRole("button", { name: "Save" }).click();
+  await expect(couple).toContainText("4 Jul 1999");
+  await expect(dateOf("Marvin Young and Jazmine Brooke")).toHaveText("4 Jul 1999"); // the heart is selected
+  await couple.getByRole("button", { name: "Close" }).click();
+  await expect(dateOf("Marvin Young and Jazmine Brooke")).toHaveText("1999");
+  await card(page, "Jazmine Brooke").click();
+  await expect(dateOf("Marvin Young and Jazmine Brooke")).toHaveText("4 Jul 1999");
+  await expect(personPanel(page)).toContainText("Marvin Young, married 4 Jul 1999");
+  await page.screenshot({ path: "test-results/screenshots/marriage-date.png" });
+
+  // Emptying the fields removes it.
+  await page.getByRole("button", { name: "Marvin Young and Jazmine Brooke, married" }).click();
+  await couple.getByRole("button", { name: "Change marriage date" }).click();
+  await date.getByRole("spinbutton", { name: "Marriage day" }).fill("");
+  await date.getByRole("combobox", { name: "Marriage month" }).selectOption({ label: "–" });
+  await date.getByRole("spinbutton", { name: "Marriage year" }).fill("");
+  await date.getByRole("button", { name: "Save" }).click();
+  await expect(couple).toContainText("Not added");
+  await expect(dateOf("Marvin Young and Jazmine Brooke")).toHaveCount(0);
+});
+
 test("a full birth date: the card shows the year, and the full date while selected; the panel too; clearing it keeps the year (owner request)", async ({ page, signIn, sampleGroup }) => {
   await openSampleGroup(page, signIn, sampleGroup);
   const steve = cards(page).filter({ has: page.getByRole("button", { name: "Steve Cruz, 1985" }) });

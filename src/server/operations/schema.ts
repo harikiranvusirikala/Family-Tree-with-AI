@@ -50,8 +50,21 @@ export const operationSchema = z.discriminatedUnion("op", [
     tempId: tempId.optional(),
     partnerIds: z.union([z.tuple([ref]), z.tuple([ref, ref])]),
     status: unionStatus,
+    // When they married (an owner request after the final check); the planner checks the whole date.
+    marriageYear: year.optional(),
+    marriageMonth: month.optional(),
+    marriageDay: day.optional(),
   }),
-  z.strictObject({ op: z.literal("updateUnion"), unionId: ref, status: unionStatus }),
+  z.strictObject({
+    op: z.literal("updateUnion"),
+    unionId: ref,
+    set: z.strictObject({
+      status: unionStatus.optional(),
+      marriageYear: year.nullable().optional(), // null clears it
+      marriageMonth: month.nullable().optional(),
+      marriageDay: day.nullable().optional(),
+    }),
+  }),
   z.strictObject({ op: z.literal("addChild"), unionId: ref, childId: ref }),
   z.strictObject({
     op: z.literal("createSheet"),

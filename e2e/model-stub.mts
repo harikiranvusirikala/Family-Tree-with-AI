@@ -66,7 +66,7 @@ function reply(messages: Message[]): Block[] {
       const temp = /is (new:\d+)/.exec(results[0])?.[1] ?? "new:1";
       const ravi = searched(messages).find((p) => p.born === 1980);
       return [
-        { type: "tool_use", name: "add_marriage", input: { personId: temp, partnerId: ravi?.id ?? "unknown", status: "married" } },
+        { type: "tool_use", name: "add_marriage", input: { personId: temp, partnerId: ravi?.id ?? "unknown", status: "married", marriageYear: null, marriageMonth: null, marriageDay: null } },
         { type: "tool_use", name: "create_sheet", input: { rootPersonId: temp, title: "Priya Sharma's family" } },
       ];
     }

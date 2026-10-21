@@ -5,7 +5,7 @@ import { z } from "zod";
 import { day, month, personName, year } from "@/server/operations/schema";
 import type { NewPerson } from "@/tree/edits";
 import type { Gender } from "@/tree/types";
-import { datesProblem, MONTHS } from "@/tree/years";
+import { datesProblem, marriageDate, marriageProblem, MONTHS, type LifeDates, type MarriageDate } from "@/tree/years";
 
 // The server's own rules (schema.ts), so a form shows the same limits applyOperations enforces.
 const personFields = z.strictObject({
@@ -28,6 +28,17 @@ const LABELS: Record<string, string> = {
   deathYear: "Death year",
   deathMonth: "Death month",
   deathDay: "Death day",
+  marriageYear: "Marriage year",
+  marriageMonth: "Marriage month",
+  marriageDay: "Marriage day",
+};
+
+const marriageFields = z.strictObject({ marriageYear: year.optional(), marriageMonth: month.optional(), marriageDay: day.optional() });
+
+/** The number typed in a field, or undefined when it's empty. */
+const numberIn = (form: FormData, key: string) => {
+  const text = String(form.get(key) ?? "").trim();
+  return text === "" ? undefined : Number(text);
 };
 
 /**
@@ -36,7 +47,7 @@ const LABELS: Record<string, string> = {
  */
 export function readPerson(form: FormData, prefix = "", who = ""): NewPerson | string {
   const text = (key: string) => String(form.get(prefix + key) ?? "").trim();
-  const numberOf = (key: string) => (text(key) === "" ? undefined : Number(text(key)));
+  const numberOf = (key: string) => numberIn(form, prefix + key);
   // The death fields count only while "Has died" is checked (unchecked, saving clears them).
   const died = form.get(`${prefix}died`) === "on";
   const dateKeys = ["birthYear", "birthMonth", "birthDay", ...(died ? ["deathYear", "deathMonth", "deathDay"] : [])];
@@ -54,15 +65,42 @@ export function readPerson(form: FormData, prefix = "", who = ""): NewPerson | s
   return problem ? say(problem) : parsed.data;
 }
 
+/** Reads the fields written by <DateFields what="marriage">: the couple's marriage date (empty clears it), or an error message. */
+export function readMarriage(form: FormData): MarriageDate | string {
+  const parsed = marriageFields.safeParse({
+    marriageYear: numberIn(form, "marriageYear"),
+    marriageMonth: numberIn(form, "marriageMonth"),
+    marriageDay: numberIn(form, "marriageDay"),
+  });
+  if (!parsed.success) {
+    const { path, message } = parsed.error.issues[0];
+    return `${LABELS[String(path[0])]}: ${message}.`;
+  }
+  const problem = marriageProblem(parsed.data); // the planner's own rules
+  return problem ? `${problem}.` : marriageDate(parsed.data);
+}
+
 export const input = "w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900";
 
-/** Day, month and year of a birth or death; the day and month only when known. */
-function DateFields({ what, prefix, label, defaults }: { what: "birth" | "death"; prefix: string; label: (text: string) => string; defaults?: Partial<NewPerson> }) {
-  const word = what === "birth" ? "Birth" : "Death";
+const WORDS = { birth: ["Birth", "Born"], death: ["Death", "Died"], marriage: ["Marriage", "Married on"] } as const;
+
+/** Day, month and year of a birth, death or marriage; the day and month only when known. */
+export function DateFields({
+  what,
+  prefix = "",
+  label = (text) => text,
+  defaults,
+}: {
+  what: "birth" | "death" | "marriage";
+  prefix?: string;
+  label?: (text: string) => string;
+  defaults?: LifeDates & MarriageDate;
+}) {
+  const [word, legend] = WORDS[what];
   const caption = "flex flex-col gap-0.5 text-xs text-zinc-500 dark:text-zinc-400";
   return (
     <fieldset className="flex flex-col gap-1">
-      <legend className="mb-1 text-sm font-medium">{label(what === "birth" ? "Born" : "Died")}</legend>
+      <legend className="mb-1 text-sm font-medium">{label(legend)}</legend>
       <div className="grid grid-cols-[4.5rem_1fr_6rem] gap-2">
         <label className={caption}>
           Day

@@ -11,6 +11,7 @@ import {
   deletePersonOps,
   deleteSheetOps,
   editPersonOps,
+  marriageDateOps,
   moveSheetOps,
   newSheetOps,
   relationsOf,
@@ -194,6 +195,24 @@ describe("edits against the sample family", () => {
     const deleted = applyPlan(start, deletePersonOps(alex));
     expect(sheetCounts(toGroupTree(deleted))["Cruz family"]).toBe(35);
     expect(sheetCounts(toGroupTree(applyPlan(deleted, restorePersonOps(alex))))["Cruz family"]).toBe(36);
+  });
+
+  test("a couple's marriage date (owner request): only what changed; an empty year clears it; the browser shows it while both partners are there", () => {
+    const steve = idOf(tree, "Steve Cruz");
+    const arham = relationsOf(tree, steve).couples.find((c) => c.partner?.name === "Arham Chopra")!.union;
+    expect(marriageDateOps(arham, { marriageYear: 2008, marriageMonth: 9, marriageDay: 8 })).toEqual([]);
+    expect(marriageDateOps(arham, { marriageYear: 2008 })).toEqual([{ op: "updateUnion", unionId: arham.id, set: { marriageMonth: null, marriageDay: null } }]);
+    const cleared = apply(marriageDateOps(arham, {}));
+    expect(cleared.unions.find((u) => u.id === arham.id)).not.toHaveProperty("marriageYear");
+
+    const marvin = relationsOf(tree, idOf(tree, "Marvin Young")).couples[0].union;
+    const dated = apply(marriageDateOps(marvin, { marriageYear: 1999, marriageMonth: 7, marriageDay: 4 }));
+    expect(dated.unions.find((u) => u.id === marvin.id)).toMatchObject({ marriageYear: 1999, marriageMonth: 7, marriageDay: 4 });
+
+    // With Arham deleted, the couple is drawn as Steve alone, without the date; Undo brings both back.
+    const deleted = applyPlan(start, deletePersonOps(idOf(tree, "Arham Chopra")));
+    expect(toGroupTree(deleted).unions.find((u) => u.id === arham.id)).not.toHaveProperty("marriageYear");
+    expect(toGroupTree(applyPlan(deleted, restorePersonOps(idOf(tree, "Arham Chopra")))).unions.find((u) => u.id === arham.id)).toMatchObject({ marriageYear: 2008 });
   });
 
   test("add parents, delete them both, then add parents again; then replace one (found in the owner's check)", () => {

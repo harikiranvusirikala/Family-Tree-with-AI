@@ -1,5 +1,5 @@
 import type { FamilyData } from "@/tree/types";
-import { lifeDates } from "@/tree/years";
+import { lifeDates, marriageDate } from "@/tree/years";
 import type { Operation } from "./schema";
 
 export interface SheetSpec {
@@ -26,7 +26,7 @@ export function operationsFromFamily(data: FamilyData, sheets: SheetSpec[] = [])
       }),
     ),
     ...data.unions.flatMap((u): Operation[] => [
-      { op: "createUnion", tempId: t(u.id), partnerIds: u.partnerIds.map(t) as [string] | [string, string], status: u.status },
+      { op: "createUnion", tempId: t(u.id), partnerIds: u.partnerIds.map(t) as [string] | [string, string], status: u.status, ...marriageDate(u) },
       ...u.childIds.map((c): Operation => ({ op: "addChild", unionId: t(u.id), childId: t(c) })),
     ]),
     ...sheets.flatMap((s, i): Operation[] => [

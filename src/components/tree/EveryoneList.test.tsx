@@ -24,19 +24,22 @@ const rowOf = (name: string) => bodyRows().find((r) => within(r).queryByRole("bu
 describe("★ Everyone's List (owner request)", () => {
   test("everyone A to Z, with parents, partners, children and the sheets that show them", () => {
     list();
-    expect(within(table()).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Person", "Born↕", "Parents", "Partners", "Children", "On sheets"]);
+    expect(within(table()).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Person", "Born↕", "Married↕", "Parents", "Partners", "Children", "On sheets"]);
     expect(bodyRows()).toHaveLength(36);
     const steve = within(rowOf("Steve Cruz")).getAllByRole("cell").map((c) => c.textContent);
     expect(steve).toEqual([
-      "SCSteve Cruz19851985Child of Olivia & Arjun · ♥ Sammie, Arham · 3 children", // the years wide, the dates narrow
+      "SCSteve Cruz19851985Child of Olivia & Arjun · ♥ Sammie (2001), Arham (2008) · 3 children", // the years wide, the dates narrow
       "1985",
+      "2001 · Sammie8 Sep 2008 · Arham",
       "Olivia Cruz, Arjun Patel",
       "Sammie Chang (divorced), Arham Chopra",
       "3 · William Cruz, Anna Cruz, Taylor Cruz",
       "Cruz familyJerry Willow's family",
     ]);
     expect(within(rowOf("Amy Harolds")).getAllByRole("cell")[1].textContent).toBe("1885Died 1966");
-    expect(within(rowOf("Amy Harolds")).getAllByRole("cell")[2].textContent).toBe("–");
+    expect(within(rowOf("Amy Harolds")).getAllByRole("cell")[2].textContent).toBe("1910");
+    expect(within(rowOf("Amy Harolds")).getAllByRole("cell")[3].textContent).toBe("–");
+    expect(within(rowOf("Marvin Young")).getAllByRole("cell")[2].textContent).toBe("–");
   });
 
   test("the name is a button named like the person's card; a row chooses the person, a sheet opens that sheet", () => {
@@ -132,7 +135,37 @@ describe("Born, with full dates, and sorting by it (owner request)", () => {
     expect(onSort).toHaveBeenLastCalledWith("oldest");
     fireEvent.change(screen.getByRole("combobox", { name: "Sort" }), { target: { value: "youngest" } });
     expect(onSort).toHaveBeenLastCalledWith("youngest");
-    expect([...(screen.getByRole("combobox", { name: "Sort" }) as HTMLSelectElement).options].map((o) => o.textContent)).toEqual(["A to Z", "Oldest first", "Youngest first"]);
+    expect([...(screen.getByRole("combobox", { name: "Sort" }) as HTMLSelectElement).options].map((o) => o.textContent)).toEqual([
+      "A to Z",
+      "Oldest first",
+      "Youngest first",
+      "Married, earliest first",
+      "Married, latest first",
+    ]);
+  });
+});
+
+describe("Married, and sorting by it (owner request)", () => {
+  const header = (name: string) => within(table()).getAllByRole("columnheader").find((h) => h.textContent?.startsWith(name))!;
+  const nextAfter = (sort: ListSort, column: string) => {
+    const { onSort } = list({ sort });
+    fireEvent.click(within(header(column)).getByRole("button"));
+    cleanup();
+    return onSort.mock.lastCall?.[0];
+  };
+
+  test("each column's name goes round its own orders, and starts them from any other", () => {
+    expect(["name", "marriedEarliest", "marriedLatest", "oldest"].map((s) => nextAfter(s as ListSort, "Married"))).toEqual(["marriedEarliest", "marriedLatest", "name", "marriedEarliest"]);
+    expect(["name", "oldest", "youngest", "marriedEarliest"].map((s) => nextAfter(s as ListSort, "Born"))).toEqual(["oldest", "youngest", "name", "oldest"]);
+  });
+
+  test("only the column sorting the list says so", () => {
+    list({ sort: "marriedLatest" });
+    expect([header("Born"), header("Married")].map((h) => [h.textContent, h.getAttribute("aria-sort")])).toEqual([["Born↕", "none"], ["Married↓", "descending"]]);
+    expect(bodyRows().map((r) => within(r).getAllByRole("button")[0].getAttribute("aria-label")).slice(0, 2)).toEqual(["Arham Chopra, 1983", "Sammie Chang, 1985"]);
+    cleanup();
+    list({ sort: "marriedEarliest" });
+    expect(header("Married").getAttribute("aria-sort")).toBe("ascending");
   });
 });
 

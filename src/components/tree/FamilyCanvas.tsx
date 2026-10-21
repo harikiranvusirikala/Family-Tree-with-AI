@@ -17,6 +17,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { CARD_HEIGHT, CARD_WIDTH, HEART_GAP, ROW_GAP, layoutEngine } from "@/tree/layout";
 import type { SheetView } from "@/tree/types";
+import { marriageDate } from "@/tree/years";
 import { isPhone, isTabletOrPhone, PHONE_PANEL_SHARE } from "../screen";
 import { useTheme } from "../theme";
 import { CanvasActionsContext, type CanvasActions } from "./canvas-actions";
@@ -100,6 +101,8 @@ function Canvas({ view, sheetId, focus, captureRef }: { view: SheetView; sheetId
               couple: union.partnerIds.length === 2,
               divorced: union.status === "divorced",
               label: union.partnerIds.map((id) => personById.get(id)?.name).join(" and "),
+              partnerIds: union.partnerIds,
+              married: marriageDate(union),
             },
           };
         }),
