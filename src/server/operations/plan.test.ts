@@ -167,6 +167,20 @@ describe("planOperations: rejected batches", () => {
     );
   });
 
+  test("full dates (owner request): saved and cleared; a day and month only together, with their year, and real", () => {
+    const born = plan(empty, [{ op: "createPerson", tempId: "new:1", name: "A", gender: "female", birthYear: 1985, birthMonth: 3, birthDay: 12, deathYear: 2020, deathMonth: 6, deathDay: 3 }]);
+    expect(born.persons.inserted[0]).toMatchObject({ birthYear: 1985, birthMonth: 3, birthDay: 12, deathYear: 2020, deathMonth: 6, deathDay: 3 });
+    const set = plan(sample, [{ op: "updatePerson", personId: idOf("Steve Cruz"), set: { birthMonth: 2, birthDay: 28 } }]);
+    expect(set.persons.updated[0]).toMatchObject({ birthYear: 1985, birthMonth: 2, birthDay: 28 });
+    const cleared = plan(after(sample, set), [{ op: "updatePerson", personId: idOf("Steve Cruz"), set: { birthMonth: null, birthDay: null } }]);
+    expect(cleared.persons.updated[0].birthMonth).toBeUndefined();
+    expect(cleared.persons.updated[0].birthYear).toBe(1985);
+    expectRejected(sample, [{ op: "updatePerson", personId: idOf("Steve Cruz"), set: { birthMonth: 2, birthDay: 29 } }], /29 Feb 1985 isn't a real date/);
+    expectRejected(sample, [{ op: "updatePerson", personId: idOf("Steve Cruz"), set: { birthMonth: 2 } }], /both the day and the month/);
+    expectRejected(empty, [{ op: "createPerson", tempId: "new:1", name: "A", gender: "male", birthMonth: 2, birthDay: 3 }], /need the birth year/);
+    expectRejected(after(sample, set), [{ op: "updatePerson", personId: idOf("Steve Cruz"), set: { birthYear: null } }], /need the birth year/); // the date goes with it
+  });
+
   test("a death year can't be before the birth year", () => {
     expectRejected(empty, [{ op: "createPerson", tempId: "new:1", name: "A", gender: "male", birthYear: 1950, deathYear: 1940 }], /death year/);
     expectRejected(sample, [{ op: "updatePerson", personId: idOf("Jake Cruz"), set: { birthYear: 2030 } }], /death year/);

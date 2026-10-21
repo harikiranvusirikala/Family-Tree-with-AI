@@ -32,14 +32,22 @@ export const PROPOSAL_TOOLS: Anthropic.Tool[] = [
     name: { type: "string" },
     gender,
     birthYear: nullable("integer", "Year of birth, or null if not known"),
+    birthMonth: nullable("integer", "Month of birth, 1 to 12, only with the day and year; or null"),
+    birthDay: nullable("integer", "Day of the month of birth, only with the month and year; or null"),
     deathYear: nullable("integer", "Year of death, or null if living or not known"),
+    deathMonth: nullable("integer", "Month of death, 1 to 12, only with the day and year; or null"),
+    deathDay: nullable("integer", "Day of the month of death, only with the month and year; or null"),
   }),
-  tool("update_person", "Propose changes to someone's name, gender or years, e.g. recording a death year. Null leaves a field as it is.", {
+  tool("update_person", "Propose changes to someone's name, gender or dates, e.g. recording a death year or a full birth date. Null leaves a field as it is.", {
     personId: id("The person's id, or a temporary id from this proposal"),
     name: nullable("string", "The new name, or null"),
     gender: { type: ["string", "null"], enum: ["male", "female", null] },
     birthYear: nullable("integer", "The new year of birth, or null"),
+    birthMonth: nullable("integer", "The new month of birth (1 to 12), with the day; or null"),
+    birthDay: nullable("integer", "The new day of the month of birth, with the month; or null"),
     deathYear: nullable("integer", "The new year of death, or null"),
+    deathMonth: nullable("integer", "The new month of death (1 to 12), with the day; or null"),
+    deathDay: nullable("integer", "The new day of the month of death, with the month; or null"),
   }),
   tool("add_marriage", "Propose that two people are a couple, married or divorced. Returns the couple's temporary id.", {
     personId: id("One partner's id (or temporary id)"),

@@ -9,6 +9,11 @@ export interface Person {
   gender: Gender;
   birthYear?: number;
   deathYear?: number; // absent = living
+  /** A full date's day and month, only with its year (an owner request after the final check). */
+  birthMonth?: number;
+  birthDay?: number;
+  deathMonth?: number;
+  deathDay?: number;
   photoId?: string; // Cloudinary public ID
 }
 

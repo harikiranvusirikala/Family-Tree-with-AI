@@ -5,7 +5,7 @@ import { operationsSchema } from "@/server/operations/schema";
 import { buildSheetView } from "@/tree/sheet-view";
 import type { GroupTree } from "@/tree/types";
 import { applyPlan, emptyGroup, sampleState, toGroupTree } from "@test/planning";
-import { exportGedcom, parseGedcom, yearOf } from "./gedcom";
+import { dateOf, exportGedcom, parseGedcom, yearOf } from "./gedcom";
 import { defaultUseExisting, findDuplicates, importOperations, type ImportChoices } from "./import-plan";
 import { exportJson, parseJson } from "./json";
 import { exportPart, fileName, MAX_IMPORT_PEOPLE, type ImportData } from "./types";
@@ -114,15 +114,47 @@ describe("reading GEDCOM files from other programs", () => {
         "0 @I3@ INDI\r\n1 NAME Bartholomew Alexander /Fitz\r\n2 CONC william/\r\n1 SEX U\r\n1 BIRT\r\n2 DATE 0985\r\n1 OCCU Farmer\r\n",
     );
     expect(data.persons).toEqual([
-      { id: "@I1@", name: "Ravi Kumar", gender: "male", birthYear: 1980 },
+      { id: "@I1@", name: "Ravi Kumar", gender: "male", birthYear: 1980, birthMonth: 3, birthDay: 12 }, // an exact date is kept whole
       { id: "@I2@", name: "Anaïs Dubois", gender: "female", birthYear: 1902, deathYear: 1970 },
       { id: "@I3@", name: "Bartholomew Alexander Fitzwilliam", gender: null },
     ]);
-    expect(data.notKept).toEqual(["places", "full dates (only years are kept)", "notes", "other facts (such as occupations, burials and residences)"]); // always in this order
+    expect(data.notKept).toEqual(["places", "dates that aren't exact (only their years are kept)", "notes", "other facts (such as occupations, burials and residences)"]); // always in this order
   });
 
   test("dates", () => {
     expect([yearOf("12 MAR 1985"), yearOf("ABT 1900"), yearOf("BET 1900 AND 1910"), yearOf("1985"), yearOf("JUN 0099"), yearOf("2500"), yearOf(undefined)]).toEqual([1985, 1900, 1900, 1985, undefined, undefined, undefined]);
+  });
+
+  test("full dates (owner request): exact dates kept whole, others as a year; impossible days as a year", () => {
+    expect([dateOf("12 MAR 1985"), dateOf("02 feb 2000"), dateOf("MAR 1985"), dateOf("ABT 12 MAR 1985"), dateOf("30 FEB 1985"), dateOf(undefined)]).toEqual([
+      { year: 1985, month: 3, day: 12 },
+      { year: 2000, month: 2, day: 2 },
+      { year: 1985 },
+      { year: 1985 },
+      { year: 1985 },
+      {},
+    ]);
+  });
+
+  test("JSON keeps full dates (owner request), and refuses a file whose dates don't make sense", () => {
+    const asha = { id: "a".repeat(24), name: "Asha Rao", gender: "female" as const, birthYear: 1940, birthMonth: 2, birthDay: 29, deathYear: 2020, deathMonth: 12, deathDay: 1 };
+    const file = exportJson({ persons: [asha], unions: [], sheets: [] }, { id: "g", name: "Raos" });
+    expect((parseJson(file) as ImportData).persons[0]).toMatchObject({ birthYear: 1940, birthMonth: 2, birthDay: 29, deathYear: 2020, deathMonth: 12, deathDay: 1 });
+    expect(parseJson(file.replace('"birthDay": 29', '"birthDay": 30'))).toBe("This file is damaged: Asha Rao's dates don't make sense.");
+  });
+
+  test("full dates go out as 12 MAR 1985 and come back the same, for birth and death", () => {
+    const tree: GroupTree = {
+      persons: [{ id: "a".repeat(24), name: "Asha Rao", gender: "female", birthYear: 1940, birthMonth: 2, birthDay: 29, deathYear: 2020, deathMonth: 12, deathDay: 1 }],
+      unions: [],
+      sheets: [],
+    };
+    const file = exportGedcom(tree);
+    expect(file).toContain("1 BIRT\n2 DATE 29 FEB 1940");
+    expect(file).toContain("1 DEAT\n2 DATE 1 DEC 2020");
+    const back = parseGedcom(file) as ImportData;
+    expect(back.persons[0]).toMatchObject({ birthYear: 1940, birthMonth: 2, birthDay: 29, deathYear: 2020, deathMonth: 12, deathDay: 1 });
+    expect(back.notKept).toEqual([]);
   });
 
   test("families: divorce, a family with no partners, a child in two families, the same couple twice", () => {

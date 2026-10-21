@@ -179,6 +179,22 @@ describe("the Wheel's relations: Telugu names that depend on age, side and gende
     expect(hers["Sister's daughter"]).toBe("Kuthuru | Daughter"); // her own daughter
   });
 
+  test("brothers born the same year: elder or younger by their full dates (owner request), else both names", () => {
+    const twins: GroupTree = {
+      persons: [
+        { id: "mum", name: "Mum", gender: "female", birthYear: 1960 },
+        { id: "me", name: "Me", gender: "male", birthYear: 1990, birthMonth: 6, birthDay: 1 },
+        { id: "may", name: "Born in May", gender: "male", birthYear: 1990, birthMonth: 5, birthDay: 20 },
+        { id: "july", name: "Born in July", gender: "male", birthYear: 1990, birthMonth: 7, birthDay: 2 },
+        { id: "year", name: "Year only", gender: "male", birthYear: 1990 },
+      ],
+      unions: [{ id: "u", partnerIds: ["mum"], status: "married", childIds: ["me", "may", "july", "year"] }],
+      sheets: [],
+    };
+    const brothers = names(kinship(twins, "me"));
+    expect([brothers["Born in May"], brothers["Born in July"], brothers["Year only"]]).toEqual(["Annayya | Brother", "Thammudu | Brother", "Annayya/Thammudu | Brother"]);
+  });
+
   test("a chain longer than three names is a relative", () => {
     const person = (id: string, gender: Gender): Person => ({ id, name: id, gender });
     const path: Step[] = ["P", "U", "P", "U", "P", "U", "P"].map((move, i) => ({ move: move as Step["move"], person: person(`p${i}`, i % 2 ? "male" : "female") }));

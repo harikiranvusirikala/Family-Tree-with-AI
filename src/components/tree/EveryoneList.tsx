@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { filterRows, LIST_FILTERS, relationSummary, type ListFilter, type ListRow } from "@/tree/everyone";
-import { formatYears } from "@/tree/years";
+import { filterRows, LIST_FILTERS, LIST_SORTS, relationSummary, sortRows, type ListFilter, type ListRow, type ListSort } from "@/tree/everyone";
+import { formatDate, formatLife, formatYears } from "@/tree/years";
 import { PersonPhoto } from "./PersonPhoto";
 
 const muted = "text-zinc-500 dark:text-zinc-400";
@@ -11,15 +11,18 @@ const none = <span className="text-zinc-400 dark:text-zinc-500">–</span>;
 /**
  * ★ Everyone's List (part 2 of an owner request after the final check): everyone with their relations
  * and the sheets that show them, narrowed by a filter and what was typed in Find someone. One table
- * that fits its own width (container queries, so the panel beside it counts): all five columns when
- * wide, then without the sheets, then (phones) only the person, with their relations in one line.
+ * that fits its own width (container queries, so the panel beside it counts): all six columns when
+ * wide, then without the sheets, then (phones) only the person, with their dates and relations in a
+ * line. Born (an owner request) holds the full birth date, and sorts the list by it.
  */
 export function EveryoneList({
   rows,
   filter,
   query,
+  sort,
   selectedId,
   onFilter,
+  onSort,
   onShowAll,
   onPerson,
   onOpenSheet,
@@ -27,14 +30,18 @@ export function EveryoneList({
   rows: ListRow[];
   filter: ListFilter;
   query: string;
+  sort: ListSort;
   selectedId?: string;
   onFilter: (filter: ListFilter) => void;
+  onSort: (sort: ListSort) => void;
   /** Back to everyone, with nothing typed. */
   onShowAll: () => void;
   onPerson: (personId: string) => void;
   onOpenSheet: (sheetId: string, personId: string) => void;
 }) {
-  const shown = useMemo(() => filterRows(rows, filter, query), [rows, filter, query]);
+  const shown = useMemo(() => sortRows(filterRows(rows, filter, query), sort), [rows, filter, query, sort]);
+  // The Born column's name goes round: oldest first, youngest first, back to A to Z.
+  const nextSort: Record<ListSort, ListSort> = { name: "oldest", oldest: "youngest", youngest: "name" };
   const counts = useMemo(() => LIST_FILTERS.map((f) => filterRows(rows, f.id).length), [rows]);
   const scroller = useRef<HTMLDivElement>(null);
 
@@ -47,18 +54,32 @@ export function EveryoneList({
 
   return (
     <div className="absolute inset-0 flex flex-col">
-      <div role="group" aria-label="Show" className="flex shrink-0 gap-2 overflow-x-auto border-b border-zinc-200 px-3 py-2 scrollbar-none md:px-4 dark:border-zinc-800">
-        {LIST_FILTERS.map((f, i) => (
-          <button
-            key={f.id}
-            type="button"
-            aria-pressed={filter === f.id}
-            onClick={() => onFilter(f.id)}
-            className="shrink-0 whitespace-nowrap rounded-full border border-zinc-300 px-3 py-1 text-sm hover:bg-zinc-100 aria-pressed:border-zinc-900 aria-pressed:bg-zinc-900 aria-pressed:text-white pointer-coarse:min-h-11 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:aria-pressed:border-white dark:aria-pressed:bg-white dark:aria-pressed:text-zinc-900"
-          >
-            {f.label} ({counts[i]})
-          </button>
-        ))}
+      <div className="flex shrink-0 items-center gap-2 border-b border-zinc-200 pr-3 md:pr-4 dark:border-zinc-800">
+        <div role="group" aria-label="Show" className="flex min-w-0 flex-1 gap-2 overflow-x-auto px-3 py-2 scrollbar-none md:px-4">
+          {LIST_FILTERS.map((f, i) => (
+            <button
+              key={f.id}
+              type="button"
+              aria-pressed={filter === f.id}
+              onClick={() => onFilter(f.id)}
+              className="shrink-0 whitespace-nowrap rounded-full border border-zinc-300 px-3 py-1 text-sm hover:bg-zinc-100 aria-pressed:border-zinc-900 aria-pressed:bg-zinc-900 aria-pressed:text-white pointer-coarse:min-h-11 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:aria-pressed:border-white dark:aria-pressed:bg-white dark:aria-pressed:text-zinc-900"
+            >
+              {f.label} ({counts[i]})
+            </button>
+          ))}
+        </div>
+        <select
+          aria-label="Sort"
+          value={sort}
+          onChange={(event) => onSort(event.target.value as ListSort)}
+          className="shrink-0 rounded-full border border-zinc-300 bg-white px-3 py-1 text-sm pointer-coarse:min-h-11 dark:border-zinc-700 dark:bg-zinc-900"
+        >
+          {LIST_SORTS.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label}
+            </option>
+          ))}
+        </select>
       </div>
       <div ref={scroller} className="@container min-h-0 flex-1 overflow-y-auto">
         {shown.length > 0 ? (
@@ -66,11 +87,17 @@ export function EveryoneList({
           <table aria-label="People" className="w-full table-fixed text-left text-sm">
             <thead className={`sticky top-0 z-10 hidden bg-white text-xs @2xl:table-header-group dark:bg-zinc-900 ${muted}`}>
               <tr className="shadow-[inset_0_-1px_0] shadow-zinc-200 dark:shadow-zinc-800">
-                <th scope="col" className="w-[26%] py-2 pl-4 pr-3 font-medium">Person</th>
+                <th scope="col" className="w-[24%] py-2 pl-4 pr-3 font-medium">Person</th>
+                <th scope="col" aria-sort={sort === "name" ? "none" : sort === "oldest" ? "ascending" : "descending"} className="w-[13%] px-3 py-2 font-medium">
+                  <button type="button" onClick={() => onSort(nextSort[sort])} className="inline-flex items-center gap-1 hover:text-zinc-900 dark:hover:text-zinc-100">
+                    Born
+                    <span aria-hidden>{sort === "oldest" ? "↑" : sort === "youngest" ? "↓" : "↕"}</span>
+                  </button>
+                </th>
                 <th scope="col" className="px-3 py-2 font-medium">Parents</th>
                 <th scope="col" className="px-3 py-2 font-medium">Partners</th>
                 <th scope="col" className="px-3 py-2 font-medium">Children</th>
-                <th scope="col" className="hidden w-[22%] px-3 py-2 font-medium @4xl:table-cell">On sheets</th>
+                <th scope="col" className="hidden w-[20%] px-3 py-2 font-medium @4xl:table-cell">On sheets</th>
               </tr>
             </thead>
             <tbody>
@@ -107,6 +134,7 @@ function Row({
 }) {
   const { person } = row;
   const years = formatYears(person.birthYear, person.deathYear);
+  const life = formatLife(person); // full dates where known, for narrow screens without the Born column
   const summary = relationSummary(row);
   return (
     // The whole row chooses the person; the name is its button for keyboards and screen readers (the
@@ -126,11 +154,16 @@ function Row({
           <div className="min-w-0">
             <button type="button" aria-label={years ? `${person.name}, ${years}` : person.name} className="text-left">
               <span className="font-medium">{person.name}</span>
-              {years && <span className={`ml-1.5 text-xs @2xl:ml-0 @2xl:block ${muted}`}>{years}</span>}
+              {years && <span className={`hidden text-xs @2xl:block ${muted}`}>{years}</span>}
+              {life && <span className={`ml-1.5 text-xs @2xl:hidden ${muted}`}>{life}</span>}
             </button>
             {summary.length > 0 && <p className={`truncate text-xs @2xl:hidden ${muted}`}>{summary.join(" · ")}</p>}
           </div>
         </div>
+      </td>
+      <td className="hidden px-3 py-3 @2xl:table-cell">
+        {person.birthYear !== undefined ? formatDate(person.birthYear, person.birthMonth, person.birthDay) : none}
+        {person.deathYear !== undefined && <span className={`block text-xs ${muted}`}>Died {formatDate(person.deathYear, person.deathMonth, person.deathDay)}</span>}
       </td>
       <td className="hidden px-3 py-3 @2xl:table-cell">{row.parents.length ? row.parents.map((p) => p.name).join(", ") : none}</td>
       <td className="hidden px-3 py-3 @2xl:table-cell">

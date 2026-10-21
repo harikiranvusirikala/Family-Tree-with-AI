@@ -1,7 +1,8 @@
 // The app's own file format (F9, F10): lossless, so a group can be exported and imported again.
 import { z } from "zod";
 import type { GroupTree, NamedSheet } from "@/tree/types";
-import { personName, year } from "../operations/schema";
+import { datesProblem } from "@/tree/years";
+import { day, month, personName, year } from "../operations/schema";
 import { exportPart, MAX_IMPORT_PEOPLE, type ImportData } from "./types";
 
 export const FORMAT = "family-tree-with-ai";
@@ -44,7 +45,11 @@ const fileSchema = z.object({
         name: personName,
         gender: z.enum(["male", "female"]),
         birthYear: year.optional(),
+        birthMonth: month.optional(),
+        birthDay: day.optional(),
         deathYear: year.optional(),
+        deathMonth: month.optional(),
+        deathDay: day.optional(),
         photoId: z.string().max(200).optional(),
       }),
     )
@@ -73,6 +78,8 @@ export function parseJson(text: string): ImportData | string {
   const known = new Set(persons.map((p) => p.id));
   const missing = [...unions.flatMap((u) => [...u.partnerIds, ...u.childIds]), ...sheets.flatMap((s) => [s.rootPersonId, ...s.extraPersonIds])].some((p) => !known.has(p));
   if (missing) return "This file is damaged: it refers to people it doesn't contain.";
+  const badDates = persons.find((p) => datesProblem(p));
+  if (badDates) return `This file is damaged: ${badDates.name}'s dates don't make sense.`;
   const couples = new Set(unions.map((u) => u.id));
   if (sheets.some((s) => s.hideChildrenOf !== undefined && !couples.has(s.hideChildrenOf))) return "This file is damaged: it refers to couples it doesn't contain.";
   return { kind: "json", persons, unions, sheets, sourceGroupId: group.id, suggestedName: group.name, warnings: [], notKept: [] };

@@ -40,7 +40,7 @@ describe("read tools", () => {
 describe("proposal tools", () => {
   test("temporary ids chain: a new person, her marriage and her own sheet, all checked by the planner", () => {
     const ravi = idOf("Arjun Patel");
-    const added = runTool("add_person", { name: "Priya Sharma", gender: "female", birthYear: 1985, deathYear: null }, context());
+    const added = runTool("add_person", { name: "Priya Sharma", gender: "female", birthYear: 1985, deathYear: null, birthMonth: null, birthDay: null, deathMonth: null, deathDay: null }, context());
     expect(added).toMatchObject({ isError: false, content: expect.stringContaining("Priya Sharma is new:1") });
     const married = runTool("add_marriage", { personId: "new:1", partnerId: ravi, status: "married" }, context(added.pending));
     expect(married.content).toContain("the couple is new:2");
@@ -57,7 +57,7 @@ describe("proposal tools", () => {
   });
 
   test("add_child uses the parents' couple, or proposes one first", () => {
-    const baby = runTool("add_person", { name: "Mia Cruz", gender: "female", birthYear: null, deathYear: null }, context());
+    const baby = runTool("add_person", { name: "Mia Cruz", gender: "female", birthYear: null, deathYear: null, birthMonth: null, birthDay: null, deathMonth: null, deathDay: null }, context());
     const child = runTool("add_child", { parentIds: [idOf("Taylor Humes"), idOf("Jake Cruz")], childId: "new:1" }, context(baby.pending));
     expect(child.pending.at(-1)).toMatchObject({ op: "addChild", childId: "new:1" });
     expect(child.pending).toHaveLength(2); // their couple exists
@@ -79,20 +79,46 @@ describe("proposal tools", () => {
 
   test("update_person changes only what is given, e.g. a death year", () => {
     const taylor = idOf("Taylor Humes");
-    const update = runTool("update_person", { personId: taylor, name: null, gender: null, birthYear: null, deathYear: 2024 }, context());
+    const update = runTool("update_person", { personId: taylor, name: null, gender: null, birthYear: null, deathYear: 2024, birthMonth: null, birthDay: null, deathMonth: null, deathDay: null }, context());
     expect(update.pending).toEqual([{ op: "updatePerson", personId: taylor, set: { deathYear: 2024 } }]);
     expect(describeOperations(update.pending, tree)).toEqual(["Change Taylor Humes (1955): death year to 2024"]);
-    expect(runTool("update_person", { personId: taylor, name: null, gender: null, birthYear: null, deathYear: null }, context()).isError).toBe(true);
+    expect(runTool("update_person", { personId: taylor, name: null, gender: null, birthYear: null, deathYear: null, birthMonth: null, birthDay: null, deathMonth: null, deathDay: null }, context()).isError).toBe(true);
   });
 
   test("update_person with a new name also renames their sheet, as the edit form does", () => {
     const jerry = idOf("Jerry Willow");
-    const update = runTool("update_person", { personId: jerry, name: "Jerry Willow-Cruz", gender: null, birthYear: null, deathYear: null }, context());
+    const update = runTool("update_person", { personId: jerry, name: "Jerry Willow-Cruz", gender: null, birthYear: null, deathYear: null, birthMonth: null, birthDay: null, deathMonth: null, deathDay: null }, context());
     expect(update.isError).toBeFalsy();
     expect(describeOperations(update.pending, tree)).toEqual([
       "Change Jerry Willow (1920 – 1989): name to Jerry Willow-Cruz",
       `Rename the sheet "Jerry Willow's family" to "Jerry Willow-Cruz's family"`,
     ]);
+  });
+});
+
+describe("full dates (owner request)", () => {
+  const none = { birthYear: null, birthMonth: null, birthDay: null, deathYear: null, deathMonth: null, deathDay: null };
+
+  test("add_person and update_person take a day and month with the year; the planner checks the date", () => {
+    const asha = runTool("add_person", { name: "Asha Rao", gender: "female", ...none, birthYear: 1990, birthMonth: 3, birthDay: 12 }, context());
+    expect(asha.isError).toBeFalsy();
+    expect(asha.pending).toEqual([{ op: "createPerson", tempId: "new:1", name: "Asha Rao", gender: "female", birthYear: 1990, birthMonth: 3, birthDay: 12 }]);
+    expect(describeOperations(asha.pending, tree)).toEqual(["Add Asha Rao (female, 12 Mar 1990)"]);
+    const steve = idOf("Steve Cruz");
+    const update = runTool("update_person", { personId: steve, name: null, gender: null, ...none, birthMonth: 2, birthDay: 28 }, context());
+    expect(update.pending).toEqual([{ op: "updatePerson", personId: steve, set: { birthMonth: 2, birthDay: 28 } }]);
+    expect(describeOperations(update.pending, tree)).toEqual(["Change Steve Cruz (1985): birth date to 28 Feb 1985"]);
+    const impossible = runTool("update_person", { personId: steve, name: null, gender: null, ...none, birthMonth: 2, birthDay: 30 }, context());
+    expect(impossible.isError).toBe(true);
+    expect(impossible.content).toContain("30 Feb 1985 isn't a real date");
+  });
+
+  test("get_person and the family list show full dates where known", () => {
+    const withDate = applyPlan(state, [{ op: "updatePerson", personId: idOf("Steve Cruz"), set: { birthMonth: 3, birthDay: 12 } }]);
+    const dated = toGroupTree(withDate);
+    const ctx: ToolContext = { groupId: withDate.persons[0].groupId, state: withDate, tree: dated, pending: [] };
+    expect(JSON.parse(runTool("get_person", { personId: idOf("Steve Cruz") }, ctx).content)).toMatchObject({ born: 1985, birthDate: "12 Mar 1985" });
+    expect(rosterNote(dated, "maintain")).toContain('"Steve Cruz" | male | 12 Mar 1985');
   });
 });
 

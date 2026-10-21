@@ -76,7 +76,7 @@ function reply(messages: Message[]): Block[] {
   const question = [...messages].reverse().find((m) => m.role === "user" && typeof m.content === "string");
   const text = question ? textOf(question) : "";
   if (/married Ravi/i.test(text)) return [{ type: "tool_use", name: "search_people", input: { name: "Ravi", year: null } }];
-  if (/^1980$/.test(text.trim())) return [{ type: "tool_use", name: "add_person", input: { name: "Priya Sharma", gender: "female", birthYear: null, deathYear: null } }];
+  if (/^1980$/.test(text.trim())) return [{ type: "tool_use", name: "add_person", input: { name: "Priya Sharma", gender: "female", birthYear: null, birthMonth: null, birthDay: null, deathYear: null, deathMonth: null, deathDay: null } }];
   if (/^who is/i.test(text)) return [{ type: "text", text: "Jake Cruz was born in 1945." }];
   return [{ type: "text", text: "I can help with your family tree." }];
 }

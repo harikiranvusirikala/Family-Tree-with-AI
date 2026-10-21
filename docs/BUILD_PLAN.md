@@ -34,6 +34,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | ★ Everyone, part 3: the Network view (owner request) | Done 2026-10-21 (unit tests: 352 passed; e2e: 71 passed). See its section at the end |
 | – | ★ Everyone, part 4: the Wheel view (owner request) | Done 2026-10-21 (unit tests: 378 passed; e2e: 73 passed). See its section at the end |
 | – | ★ Everyone: real screenshots in the README (owner request) | Done 2026-10-21. See its section at the end |
+| – | Full birth and death dates (owner request) | Done 2026-10-21 (unit tests: 400 passed; e2e: 75 passed). See its section at the end |
 
 ## How we work
 
@@ -1156,3 +1157,53 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - The mockup's drawn tab row is gone; the screenshots show the real one.
   - It's made by a temporary e2e spec that lays copies of the screenshots out in a page and saves a 2160 px wide picture (the method is in CLAUDE.md); the spec is deleted afterwards.
 - **Notes (2026-10-21):** the e2e run that made it had one failure, "the main controls are big enough to tap" (the phone's sheet picker at 40 px instead of 44). That's the third time the flaky touch emulation has struck one phone test, which then saw a mouse instead of a touch screen. It's worth a look of its own, for example a check that the page sees a touch screen before measuring.
+
+## After the final check: full birth and death dates (owner request)
+- **Why:** for people whose birthday is known, the family wants to save the full date; for others, only the year, as now. The same for death dates (the owner's answer).
+- **Build:**
+  - **Stored:** optional fields beside the years: `birthMonth` (1–12) and `birthDay` (1–31), and `deathMonth` and `deathDay`. A day and month go together, and only with their year. A death date can't be before the birth date.
+    - The year stays what sorting, generations and the layout use.
+    - The planner refuses dates that don't exist (31 April; 29 February outside leap years), as the form does.
+    - No database change: new fields are simply absent on existing people, and backups pick them up.
+  - **Where the full dates show,** written "12 Mar 1985":
+    - **A card, while it's selected** (on any sheet and ★ Everyone's Tree): the full dates in place of the years ("12 Mar 1945 – 3 Jun 2022"). Not selected, cards keep only the years.
+    - **The person panel:** the full dates under the name.
+    - **★ Everyone's List:** a new "Born" column right after the person, with the full birth date, or just the year when that's all that's known; for someone who has died, a second line "Died 3 Jun 2022".
+      - The column's name sorts the list: oldest first, then youngest first, then back to A to Z. It isn't sorted by date by default.
+      - Within a year, someone with only the year comes first; people with no birth year come last either way.
+      - The same order is also a "Sort" choice in the List on every screen (A to Z, Oldest first, Youngest first), for phones, where there are no column names to click.
+      - On narrow screens (no columns), the full date replaces the year beside the name.
+  - **Everywhere else** (the Network, the Wheel, Find someone's matches, exported pictures) keeps showing the year.
+  - **Editing:** the person form gets Day and Month beside Birth year and beside Death year, both or neither, saved through the usual operations. Only the birth's fields show at first: the death's appear once "Has died" is checked (an owner request during the build). It starts checked for someone with a death year, and unchecking it clears the death's dates when saved.
+  - **The assistant** can record and read full dates ("born on 12 March 1990"). Its add and update tools get a nullable month and day for birth and for death, the roster shows full dates, and the proposal card says "born 12 Mar 1990".
+  - **Import and export:**
+    - JSON carries the new fields (round trip).
+    - GEDCOM writes "2 DATE 12 MAR 1985", and imports keep the day and month of an exact birth or death date. Approximate dates ("ABT 1900", "BET … AND …") still keep only the year, and the import's warning names what was left out.
+  - **Small gains from full dates:**
+    - Brothers and sisters born in the same year are ordered by date: in the tree's eldest-first order, and for the Wheel's Telugu elder/younger names (Annayya or Thammudu), where today the same year shows both.
+- **Tests:**
+  - Unit:
+    - The date's format and its checks, including leap years.
+    - The form reading Day and Month.
+    - The planner refusing impossible dates and clearing a date.
+    - The List's Born column and its sort: dates, years only, no year.
+    - The card showing the full date only when selected, and the panel.
+    - JSON and GEDCOM round trips.
+    - The assistant's tools and proposal lines.
+    - Kinship elder/younger and sibling order within a year.
+  - E2E:
+    - Add a birth date in the panel: the card shows the year, then the full date when selected.
+    - The List's Born column sorts both ways and back.
+    - Clearing the date keeps the year.
+- **Decisions (owner, 2026-10-21):**
+  1. Written "12 Mar 1985" (the proposal).
+  2. A day and month only together with their year (the proposal).
+  3. Death dates too, the same way (not the proposal). The List's Born cell adds "Died 3 Jun 2022", and sorting stays by birth date.
+  4. A Sort choice in the List on every screen, as well as the Born column's name (the proposal).
+  5. During the build: the death's fields stay hidden until "Has died" is checked, so adding someone shows only the birth's.
+- **Notes (2026-10-21):**
+  - The fields are `birthMonth`/`birthDay` and `deathMonth`/`deathDay`, numbers beside the years. Shared helpers keep the copies and rules in one place (`DATE_FIELDS`, `lifeDates`, `datesProblem` in `src/tree/years.ts`): the planner and the person form use the same rules, and the import, the export and the browser's copy of the group carry all six fields.
+  - The planner's message for a death before the birth now comes from those rules ("A: the death year can't be before the birth year").
+  - GEDCOM imports keep an exact date ("12 MAR 1985") whole. Approximate ones ("ABT", "BET … AND", "MAR 1985") keep their year, and the import says "dates that aren't exact (only their years are kept)". Before, any full date was reported as not kept: the e2e import test's file has one, and now only "places" is.
+  - The assistant's add and update tools have the four new fields, nullable like the others (the e2e stand-in sends them as null). `get_person` adds `birthDate`/`deathDate` when full dates are known, and the family list shows them.
+  - A selected card's dates can be wider than the card ("12 Mar 1945 – 3 Jun 2022"); they stay on one line and may run a little past its edges, only while it's selected.

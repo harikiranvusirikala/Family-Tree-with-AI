@@ -152,7 +152,7 @@ erDiagram
 | `memberships` | `groupId`, `userId` (Better Auth's `users._id`), `role` (`owner` · `admin` · `maintain` · `view`), `addedBy`, `createdAt` | unique `{groupId, userId}` · `{userId}` |
 | `invites` | `groupId`, `email`, `emailNormalized`, `role`, `token`, `invitedBy`, `status` (`pending` · `accepted` · `declined` · `revoked`), `expiresAt`, `createdAt`, `decidedBy?`, `decidedAt?` | unique `{token}` · unique `{groupId, emailNormalized}` where `status = pending` · `{emailNormalized, status}` · `{groupId, status}` |
 | `accessRequests` | `groupId` (not always a real group, see F4), `userId`, `email`, `message?`, `status` (`pending` · `approved` · `denied`), `decidedBy?`, `decidedAt?`, `createdAt` | unique `{groupId, userId}`: one per person per group · `{groupId, status}` · `{userId, status}` |
-| `persons` | `groupId`, `name`, `gender` (`male` · `female`), `birthYear?`, `deathYear?`, `photoId?`, `notes?`, audit fields, `deletedAt?` | `{groupId}` |
+| `persons` | `groupId`, `name`, `gender` (`male` · `female`), `birthYear?`, `birthMonth?`, `birthDay?`, `deathYear?`, `deathMonth?`, `deathDay?` (a day and month only together and with their year), `photoId?`, `notes?`, audit fields, `deletedAt?` | `{groupId}` |
 | `unions` | `groupId`, `partnerIds` (1 or 2), `status` (`married` · `divorced`), `childIds`, audit fields, `deletedAt?` | `{groupId}` · `{groupId, partnerIds}` · `{groupId, childIds}` |
 | `sheets` | `groupId`, `title`, `rootPersonId`, `pinned`, `order`, `extraPersonIds`, `hideChildrenOf?` (one of the root's couples, [§6](#6-sheets-views-not-copies)), `deletedAt?`, audit fields | `{groupId}` |
 | `chatUsage` | `userId`, `day` (`YYYY-MM-DD`, UTC), `count`, `expiresAt` | unique `{userId, day}` · TTL on `expiresAt` (30 days) |
@@ -602,8 +602,8 @@ Operations shared by manual edits, AI proposals and imports:
 type Ref = string; // an existing id, or a temporary id like "new:1" created earlier in the same batch
 
 type Operation =
-  | { op: "createPerson"; tempId: string; name: string; gender: "male" | "female"; birthYear?: number; deathYear?: number }
-  | { op: "updatePerson"; personId: Ref; set: { name?: string; gender?: "male" | "female"; birthYear?: number | null; deathYear?: number | null } }
+  | { op: "createPerson"; tempId: string; name: string; gender: "male" | "female"; birthYear?: number; birthMonth?: number; birthDay?: number; deathYear?: number; deathMonth?: number; deathDay?: number }
+  | { op: "updatePerson"; personId: Ref; set: { name?: string; gender?: "male" | "female"; birthYear?, birthMonth?, birthDay?, deathYear?, deathMonth?, deathDay?: number | null } }
   | { op: "createUnion"; tempId?: string; partnerIds: [Ref] | [Ref, Ref]; status: "married" | "divorced" }
   | { op: "updateUnion"; unionId: Ref; status: "married" | "divorced" }
   | { op: "addChild"; unionId: Ref; childId: Ref }
@@ -620,7 +620,7 @@ type Operation =
 
 How `applyOperations` works (`src/server/operations/`, built in step 3):
 - The batch is validated with zod. Then, inside one transaction, the group's records are loaded and a pure planner (`planOperations`) checks every operation against them before anything is written. Errors name the failing change ("Change 3: …").
-- Rules: references must exist in the same group; a couple has 1–2 different people and can't be created twice; a person has at most one set of parents and can't become their own ancestor; a death year can't be before the birth year. Repeating `addChild` or `addToSheet` changes nothing.
+- Rules: references must exist in the same group; a couple has 1–2 different people and can't be created twice; a person has at most one set of parents and can't become their own ancestor; a day and month go together and only with their year, the date must exist (29 February only in leap years), and a death can't be before the birth (`datesProblem` in `src/tree/years.ts`, which the person form uses too). Repeating `addChild` or `addToSheet` changes nothing.
 - Added in step 6: `addPartner` only for a couple with one partner, and the new partner can't be one of the couple's descendants; `reorderSheets` must list every sheet exactly once; a person who is a sheet's root can't be deleted (the sheet would be empty). Tabs show pinned sheets first, then the saved order.
 - Added in step 7: `setPhoto`'s photo must be in the group's folder (`groups/{groupId}/`). The plan lists the photos a batch replaced or removed that nobody in the group uses any more (`unusedPhotoIds`), and `applyChangesAction` deletes them from Cloudinary once the batch is committed.
 - Deleted people stay in their couples (so Undo restores them fully) but count as absent, exactly as the browser shows them (`toGroupTree`): a couple whose partners are all deleted isn't anyone's parents, so its children can be given new parents (they leave the old couple, so restoring the old parents can't give them two sets); and a new partner can take a deleted partner's place (`addPartner`).

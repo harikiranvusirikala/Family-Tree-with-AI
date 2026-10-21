@@ -1,5 +1,6 @@
 // What an imported file becomes before it turns into operations (F10). Pure, so the browser parses
 // files and shows the preview, and the server re-checks the operations on the single write path.
+import type { LifeDates } from "@/tree/years";
 import { buildSheetView } from "@/tree/sheet-view";
 import type { Gender, GroupTree, NamedSheet, Person, Union } from "@/tree/types";
 
@@ -7,12 +8,10 @@ import type { Gender, GroupTree, NamedSheet, Person, Union } from "@/tree/types"
 export const MAX_IMPORT_PEOPLE = 2000;
 
 /** As in the file; `gender` is null when the file doesn't say (GEDCOM's `SEX U` or none). */
-export interface ImportPerson {
+export interface ImportPerson extends LifeDates {
   id: string;
   name: string;
   gender: Gender | null;
-  birthYear?: number;
-  deathYear?: number;
   photoId?: string;
 }
 

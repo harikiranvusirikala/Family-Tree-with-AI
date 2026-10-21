@@ -2,7 +2,7 @@
 // cached - and the group's people arrive as an operator (system) message after the first question.
 // The conversation is append-only: Claude Haiku 5.5's thinking stays valid only while everything
 // before it is unchanged, so later changes come as new notes, never as edits.
-import { formatYears } from "@/tree/years";
+import { formatLife } from "@/tree/years";
 import type { GroupTree } from "@/tree/types";
 import { hasRole, type Role } from "../roles";
 
@@ -34,7 +34,7 @@ const line = (tree: GroupTree, personId: string) => {
   const p = tree.persons.find((x) => x.id === personId)!;
   const parents = tree.unions.find((u) => u.childIds.includes(personId))?.partnerIds ?? [];
   const partners = tree.unions.filter((u) => u.partnerIds.includes(personId) && u.partnerIds.length === 2).map((u) => `${u.partnerIds.find((x) => x !== personId)}${u.status === "divorced" ? " (divorced)" : ""}`);
-  const years = formatYears(p.birthYear, p.deathYear);
+  const years = formatLife(p); // full dates where known
   return [p.id, JSON.stringify(p.name), p.gender, years || "-", parents.length ? `parents ${parents.join(" ")}` : "", partners.length ? `partners ${partners.join(" ")}` : ""]
     .filter(Boolean)
     .join(" | ");

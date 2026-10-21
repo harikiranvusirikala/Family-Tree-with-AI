@@ -83,6 +83,11 @@ export interface PersonDoc extends Audit {
   gender: Gender;
   birthYear?: number;
   deathYear?: number;
+  /** A full date's day and month, only with its year. */
+  birthMonth?: number;
+  birthDay?: number;
+  deathMonth?: number;
+  deathDay?: number;
   photoId?: string;
   notes?: string;
   deletedAt?: Date;

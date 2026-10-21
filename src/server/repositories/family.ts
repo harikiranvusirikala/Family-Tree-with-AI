@@ -1,6 +1,7 @@
 import type { Db } from "mongodb";
 import type { GroupTree, Person, Union } from "@/tree/types";
 import type { GroupState } from "../operations/plan";
+import { lifeDates } from "@/tree/years";
 import { toObjectId } from "../ids";
 import { collections, type PersonDoc, type SheetDoc, type UnionDoc } from "./documents";
 
@@ -47,8 +48,7 @@ export function toGroupTree(docs: { persons: PersonDoc[]; unions: UnionDoc[]; sh
         id: p._id.toHexString(),
         name: p.name,
         gender: p.gender,
-        ...(p.birthYear !== undefined && { birthYear: p.birthYear }),
-        ...(p.deathYear !== undefined && { deathYear: p.deathYear }),
+        ...lifeDates(p),
         ...(p.photoId !== undefined && { photoId: p.photoId }),
       }),
     ),

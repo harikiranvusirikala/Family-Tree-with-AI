@@ -23,7 +23,7 @@ import { HidePhotosButton } from "@/components/tree/HidePhotosButton";
 import { CloudNameContext, PhotosHiddenContext } from "@/components/tree/photo";
 import type { Operation } from "@/server/operations/schema";
 import { deletePersonOps, restorePersonOps, tabOrder } from "@/tree/edits";
-import { chooseView, EVERYONE, everyoneHref, everyoneView, isEveryoneView, listRows, type EveryoneViewName, type ListFilter } from "@/tree/everyone";
+import { chooseView, EVERYONE, everyoneHref, everyoneView, isEveryoneView, listRows, type EveryoneViewName, type ListFilter, type ListSort } from "@/tree/everyone";
 import { kinship, relationName, relationPath } from "@/tree/kinship";
 import { buildSheetView } from "@/tree/sheet-view";
 import type { GroupTree, Person } from "@/tree/types";
@@ -84,6 +84,7 @@ export function GroupSheets({
   const rows = useMemo(() => (listShown ? listRows(tree) : []), [listShown, tree]);
   const [listFilter, setListFilter] = useState<ListFilter>("everyone");
   const [listQuery, setListQuery] = useState("");
+  const [listSort, setListSort] = useState<ListSort>("name"); // A to Z until birth dates are chosen
 
   const [selection, setSelection] = useState<Selection>(() => {
     const id = everyone ? searchParams.get("person") : null;
@@ -377,8 +378,10 @@ export function GroupSheets({
                 rows={rows}
                 filter={listFilter}
                 query={listQuery}
+                sort={listSort}
                 selectedId={selectedPerson}
                 onFilter={setListFilter}
+                onSort={setListSort}
                 onShowAll={() => {
                   setListFilter("everyone");
                   setListQuery("");

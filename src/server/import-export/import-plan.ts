@@ -1,5 +1,6 @@
 // From a parsed file and the importer's choices to operations (F10). Pure: the browser builds the
 // preview and the batch; the server re-checks the batch on the single write path.
+import { lifeDates } from "@/tree/years";
 import type { Operation } from "../operations/schema";
 import type { Gender, GroupTree, Person } from "@/tree/types";
 import type { ImportData, ImportPerson } from "./types";
@@ -67,7 +68,7 @@ export function importOperations(data: ImportData, choices: ImportChoices, tree:
     const gender = p.gender ?? choices.genders[p.id];
     if (!gender) return `Choose male or female for ${p.name}.`;
     const tempId = ref(p.id);
-    ops.push({ op: "createPerson", tempId, name: p.name, gender, ...(p.birthYear !== undefined && { birthYear: p.birthYear }), ...(p.deathYear !== undefined && { deathYear: p.deathYear }) });
+    ops.push({ op: "createPerson", tempId, name: p.name, gender, ...lifeDates(p) });
     if (keepPhotos && p.photoId) ops.push({ op: "setPhoto", personId: tempId, photoId: p.photoId });
   }
 

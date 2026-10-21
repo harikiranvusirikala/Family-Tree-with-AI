@@ -100,7 +100,7 @@ test("import into this group: duplicates linked with Use existing, and a sex cho
     ),
   });
   await expect(panel.getByRole("status")).toHaveText("3 people, 1 couple");
-  await expect(panel).toContainText("Not kept: places, full dates (only years are kept).");
+  await expect(panel).toContainText("Not kept: places."); // exact dates are kept whole (an owner request)
 
   await panel.getByRole("button", { name: "Import" }).click();
   await expect(panel.getByRole("alert")).toHaveText("Choose male or female for Mia Cruz.");

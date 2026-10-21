@@ -204,6 +204,8 @@ test("edit details, delete with Undo, and a sheet's root can't be deleted", asyn
 
   await card(page, "Taylor Humes").click();
   await personPanel(page).getByRole("button", { name: "Edit details" }).click();
+  await expect(form(page, "Edit details").getByRole("spinbutton", { name: "Death year" })).toHaveCount(0); // living: no death fields until checked
+  await form(page, "Edit details").getByRole("checkbox", { name: "Has died" }).check();
   await form(page, "Edit details").getByRole("spinbutton", { name: "Death year" }).fill("2024");
   await form(page, "Edit details").getByRole("button", { name: "Save" }).click();
   await expect(card(page, "Taylor Humes")).toHaveAccessibleName("Taylor Humes, 1955 – 2024");
@@ -377,4 +379,39 @@ test("a Viewer sees the tree but no edit controls", async ({ browser, page, sign
   } finally {
     await viewerPage.context().close();
   }
+});
+
+test("a full birth date: the card shows the year, and the full date while selected; the panel too; clearing it keeps the year (owner request)", async ({ page, signIn, sampleGroup }) => {
+  await openSampleGroup(page, signIn, sampleGroup);
+  const steve = cards(page).filter({ has: page.getByRole("button", { name: "Steve Cruz, 1985" }) });
+
+  await card(page, "Steve Cruz").click();
+  await personPanel(page).getByRole("button", { name: "Edit details" }).click();
+  const edit = form(page, "Edit details");
+  await expect(edit.getByRole("checkbox", { name: "Has died" })).not.toBeChecked();
+  await edit.getByRole("spinbutton", { name: "Birth day" }).fill("12");
+  await edit.getByRole("combobox", { name: "Birth month" }).selectOption({ label: "Mar" });
+  await edit.getByRole("button", { name: "Save" }).click();
+  await expect(personPanel(page).getByText("12 Mar 1985", { exact: true })).toBeVisible();
+  await expect(steve).toContainText("12 Mar 1985"); // selected: the full date
+  await expect(card(page, "Steve Cruz")).toHaveAccessibleName("Steve Cruz, 1985");
+
+  await personPanel(page).getByRole("button", { name: "Close" }).click();
+  await expect(steve).not.toContainText("12 Mar"); // not selected: the year only
+  await expect(steve).toContainText("1985");
+
+  // A date that doesn't exist is refused in the form, before saving.
+  await card(page, "Steve Cruz").click();
+  await personPanel(page).getByRole("button", { name: "Edit details" }).click();
+  await edit.getByRole("spinbutton", { name: "Birth day" }).fill("31");
+  await edit.getByRole("combobox", { name: "Birth month" }).selectOption({ label: "Feb" });
+  await edit.getByRole("button", { name: "Save" }).click();
+  await expect(personPanel(page).getByRole("alert")).toHaveText("31 Feb 1985 isn't a real date.");
+
+  // Clearing the day and month keeps the year.
+  await edit.getByRole("spinbutton", { name: "Birth day" }).fill("");
+  await edit.getByRole("combobox", { name: "Birth month" }).selectOption({ label: "–" });
+  await edit.getByRole("button", { name: "Save" }).click();
+  await expect(personPanel(page).getByText("1985", { exact: true })).toBeVisible();
+  await expect(steve).not.toContainText("Mar");
 });

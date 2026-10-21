@@ -146,6 +146,22 @@ describe(`layout engine: ${engine.name}`, () => {
     expect(xs).toEqual([...xs].sort((a, b) => a - b));
   });
 
+  test("siblings born the same year are ordered by their full dates (owner request)", async () => {
+    const family: FamilyData = {
+      persons: [
+        { id: "dad", name: "Dad", gender: "male", birthYear: 1950 },
+        { id: "mum", name: "Mum", gender: "female", birthYear: 1952 },
+        { id: "c-dec", name: "December", gender: "male", birthYear: 1980, birthMonth: 12, birthDay: 30 },
+        { id: "c-jan", name: "January", gender: "female", birthYear: 1980, birthMonth: 1, birthDay: 5 },
+        { id: "c-jun", name: "June", gender: "male", birthYear: 1980, birthMonth: 6, birthDay: 15 },
+      ],
+      unions: [{ id: "u", partnerIds: ["dad", "mum"], status: "married", childIds: ["c-dec", "c-jan", "c-jun"] }],
+    };
+    const r = await engine.layout(buildSheetView(family, { rootPersonId: "dad", extraPersonIds: [] }));
+    const xs = ["c-jan", "c-jun", "c-dec"].map((id) => at(r, id).x);
+    expect(xs).toEqual([...xs].sort((a, b) => a - b));
+  });
+
   // A regression guard, not a benchmark: about 250 ms on a recent laptop, slower on CI runners.
   const limit = process.env.CI ? 1500 : 400;
   test(`a 300-person family lays out in under ${limit} ms`, async () => {

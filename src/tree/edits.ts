@@ -2,12 +2,12 @@
 // browser and in tests. The server validates every batch again in applyOperations.
 import type { Operation } from "@/server/operations/schema";
 import type { FamilyData, Gender, NamedSheet, Person, Union } from "./types";
+import { DATE_FIELDS, lifeDates, type LifeDates } from "./years";
 
-export interface NewPerson {
+/** A person to add or the details to save: the name, gender, and years with full dates where known. */
+export interface NewPerson extends LifeDates {
   name: string;
   gender: Gender;
-  birthYear?: number;
-  deathYear?: number;
 }
 
 const createPerson = (tempId: string, p: NewPerson): Operation => ({
@@ -15,8 +15,7 @@ const createPerson = (tempId: string, p: NewPerson): Operation => ({
   tempId,
   name: p.name,
   gender: p.gender,
-  ...(p.birthYear !== undefined && { birthYear: p.birthYear }),
-  ...(p.deathYear !== undefined && { deathYear: p.deathYear }),
+  ...lifeDates(p),
 });
 
 /** A person's parents' couple, their own couples, and the people in them. */
@@ -107,7 +106,7 @@ export function editPersonOps(person: Person, next: NewPerson, sheets: NamedShee
   const set: Extract<Operation, { op: "updatePerson" }>["set"] = {};
   if (next.name !== person.name) set.name = next.name;
   if (next.gender !== person.gender) set.gender = next.gender;
-  for (const key of ["birthYear", "deathYear"] as const) {
+  for (const key of DATE_FIELDS) {
     if (next[key] !== person[key]) set[key] = next[key] ?? null;
   }
   if (!Object.keys(set).length) return [];

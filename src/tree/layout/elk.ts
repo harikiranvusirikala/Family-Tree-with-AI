@@ -1,7 +1,11 @@
 import ELK from "elkjs/lib/elk.bundled.js";
 import type { ElkExtendedEdge, ElkNode, ElkPort } from "elkjs/lib/elk-api";
 import type { Person, SheetView, Union } from "../types";
+import { birthOrder } from "../years";
 import { finishLayout } from "./shared";
+
+/** For eldest-first orders: by birth, full dates where known (an owner request); unknown last. */
+const eldest = (p: Person | undefined) => (p && birthOrder(p)) ?? Infinity;
 import { CARD_HEIGHT, CARD_WIDTH, HEART_GAP, ROW_GAP, type LayoutEngine, type PositionedPerson } from "./types";
 
 const elk = new ELK();
@@ -117,9 +121,9 @@ function orderFreeSiblings(
   }
 }
 
-function byBirthYear(persons: Map<string, Person>) {
+function byBirth(persons: Map<string, Person>) {
   return (a: string, b: string) =>
-    (persons.get(a)?.birthYear ?? Infinity) - (persons.get(b)?.birthYear ?? Infinity);
+    eldest(persons.get(a)) - eldest(persons.get(b));
 }
 
 export const elkEngine: LayoutEngine = {
@@ -131,9 +135,8 @@ export const elkEngine: LayoutEngine = {
 
     const hasParents = new Set(parentUnionOf.keys());
     // Input order in birth order nudges ELK towards eldest-first; orderFreeSiblings() finishes the job.
-    const birthYearOf = (b: Block) =>
-      personById.get(b.members.find((m) => hasParents.has(m)) ?? b.members[0])?.birthYear ?? Infinity;
-    const blocks = buildBlocks(view, hasParents).sort((a, b) => birthYearOf(a) - birthYearOf(b));
+    const birthOf = (b: Block) => eldest(personById.get(b.members.find((m) => hasParents.has(m)) ?? b.members[0]));
+    const blocks = buildBlocks(view, hasParents).sort((a, b) => birthOf(a) - birthOf(b));
     const blockOf = new Map<string, Block>();
     const offsetOf = new Map<string, number>();
     for (const b of blocks) b.members.forEach((m, i) => (blockOf.set(m, b), offsetOf.set(m, i * STEP)));
@@ -156,7 +159,7 @@ export const elkEngine: LayoutEngine = {
         id: `out:${u.id}`, x: (Math.min(...xs) + Math.max(...xs)) / 2, y: CARD_HEIGHT, width: 0, height: 0,
         layoutOptions: { "elk.port.side": "SOUTH" },
       });
-      for (const c of [...u.childIds].sort(byBirthYear(personById))) {
+      for (const c of [...u.childIds].sort(byBirth(personById))) {
         if (blockOf.get(c) === block) continue; // never happens in real families; avoid a self-loop
         edges.push({ id: `e:${u.id}:${c}`, sources: [`out:${u.id}`], targets: [`in:${c}`] });
       }
@@ -182,7 +185,7 @@ export const elkEngine: LayoutEngine = {
       x.set(n.id, n.x ?? 0);
       y.set(n.id, n.y ?? 0);
     }
-    orderFreeSiblings(view, blocks, blockOf, x, y, (id) => personById.get(id)?.birthYear ?? Infinity);
+    orderFreeSiblings(view, blocks, blockOf, x, y, (id) => eldest(personById.get(id)));
 
     const persons: PositionedPerson[] = view.persons.map((p) => {
       const block = blockOf.get(p.id)!;

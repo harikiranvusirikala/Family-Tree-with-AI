@@ -3,6 +3,7 @@
 import { tabOrder } from "./edits";
 import { buildSheetView } from "./sheet-view";
 import type { GroupTree, NamedSheet, Person, SheetView } from "./types";
+import { birthOrder } from "./years";
 
 /** ★ Everyone's place in the address, /g/{groupId}/s/everyone. A sheet's id is 24 hex characters. */
 export const EVERYONE = "everyone";
@@ -122,6 +123,28 @@ export const LIST_FILTERS = [
   { id: "noSheet", label: "On no sheet", keep: (row: ListRow) => row.sheets.length === 0 },
 ] as const;
 export type ListFilter = (typeof LIST_FILTERS)[number]["id"];
+
+/** The List's orders: A to Z (the default), or by birth date (an owner request). */
+export const LIST_SORTS = [
+  { id: "name", label: "A to Z" },
+  { id: "oldest", label: "Oldest first" },
+  { id: "youngest", label: "Youngest first" },
+] as const;
+export type ListSort = (typeof LIST_SORTS)[number]["id"];
+
+/**
+ * Rows in an order. By birth: full dates where known, a year alone before that year's dated days, and
+ * people with no birth year last either way; otherwise A to Z, as the rows come.
+ */
+export function sortRows(rows: ListRow[], sort: ListSort): ListRow[] {
+  if (sort === "name") return rows;
+  const sign = sort === "oldest" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const [x, y] = [birthOrder(a.person), birthOrder(b.person)];
+    if (x === undefined || y === undefined) return Number(x === undefined) - Number(y === undefined);
+    return sign * (x - y);
+  });
+}
 
 /** The rows a filter keeps, narrowed to names containing what was typed. */
 export function filterRows(rows: ListRow[], filter: ListFilter, query = ""): ListRow[] {

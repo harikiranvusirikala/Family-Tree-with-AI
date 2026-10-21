@@ -1,5 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 import { applyOperations } from "@/server/operations/apply";
+import { loadGroupTree } from "@/server/repositories/family";
 import { expect, test, type SampleGroup, type SignIn } from "./fixtures";
 
 // ★ Everyone (an owner request after the final check): part 1, the tab and the Tree view; part 2, the
@@ -175,6 +176,7 @@ test("the List: everyone with their relations and sheets; a row opens the panel,
   const steve = listRow(page, "Steve Cruz, 1985");
   await expect(steve.getByRole("cell")).toHaveText([
     /^SCSteve Cruz1985/,
+    "1985",
     "Olivia Cruz, Arjun Patel",
     "Sammie Chang (divorced), Arham Chopra",
     "3 · William Cruz, Anna Cruz, Taylor Cruz",
@@ -398,4 +400,28 @@ test("Relatives wheel from a sheet, and Find someone in the Wheel, move the midd
   await expect(relationOf(page, "Tay Young, 2005")).toHaveText("2005");
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`/s/${cruzSheet}$`));
+});
+
+test("the List's Born column: full dates, and sorting oldest first, youngest first and back (owner request)", async ({ page, signIn, sampleGroup, database }) => {
+  const { owner, groupId } = await sampleOwner(page, signIn, sampleGroup);
+  const tree = await loadGroupTree(database.db, groupId);
+  const steveId = tree.persons.find((p) => p.name === "Steve Cruz")!.id;
+  await applyOperations(database, groupId, [{ op: "updatePerson", personId: steveId, set: { birthMonth: 3, birthDay: 12 } }], owner.id);
+  await page.goto(`/g/${groupId}/s/everyone?view=list`);
+  await expect(listRow(page, "Steve Cruz, 1985").getByRole("cell").nth(1)).toHaveText("12 Mar 1985");
+  await expect(listRow(page, "Jake Cruz, 1945 – 2022").getByRole("cell").nth(1)).toHaveText("1945Died 2022");
+  const first = () => listRows(page).first().getByRole("button").first();
+  await expect(first()).toHaveAccessibleName("Alex Cruz, 2021"); // A to Z by default
+
+  const born = page.getByRole("table", { name: "People" }).getByRole("button", { name: /^Born/ });
+  await born.click();
+  await expect(first()).toHaveAccessibleName("Timothy Cruz, 1880 – 1962");
+  await expect(page.getByRole("combobox", { name: "Sort" })).toHaveValue("oldest");
+  await born.click();
+  await expect(first()).toHaveAccessibleName("Alex Cruz, 2021");
+  await expect(page.getByRole("combobox", { name: "Sort" })).toHaveValue("youngest");
+  await born.click();
+  await expect(page.getByRole("combobox", { name: "Sort" })).toHaveValue("name");
+  await page.getByRole("combobox", { name: "Sort" }).selectOption({ label: "Oldest first" });
+  await expect(first()).toHaveAccessibleName("Timothy Cruz, 1880 – 1962");
 });

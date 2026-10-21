@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import type { PersonDoc, SheetDoc, UnionDoc } from "../repositories/documents";
+import { DATE_FIELDS, datesProblem, lifeDates } from "@/tree/years";
 import type { Operation } from "./schema";
 
 /**
@@ -108,10 +109,11 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
       return s;
     };
     const liveSheets = () => [...docs.sheet.values()].filter((s) => !s.deletedAt);
-    const checkYears = (p: Pick<PersonDoc, "birthYear" | "deathYear" | "name">) => {
-      if (p.birthYear !== undefined && p.deathYear !== undefined && p.deathYear < p.birthYear) {
-        throw fail(`${p.name}'s death year is before their birth year`);
-      }
+    // The dates' rules, the form's too: a day and month together and with their year, real dates, no
+    // death before the birth.
+    const checkDates = (p: PersonDoc) => {
+      const problem = datesProblem(p);
+      if (problem) throw fail(`${p.name}: ${problem.charAt(0).toLowerCase()}${problem.slice(1)}`);
     };
     // Deleted people are kept (for Undo) but treated as absent, as the browser shows them (toGroupTree):
     // a couple whose partners are all deleted doesn't count, and a deleted partner's place can be taken.
@@ -155,11 +157,10 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
           groupId,
           name: op.name,
           gender: op.gender,
-          ...(op.birthYear !== undefined && { birthYear: op.birthYear }),
-          ...(op.deathYear !== undefined && { deathYear: op.deathYear }),
+          ...lifeDates(op),
           ...audit(),
         };
-        checkYears(doc);
+        checkDates(doc);
         docs.person.set(doc._id.toHexString(), doc);
         break;
       }
@@ -167,12 +168,12 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
         const p = edit("person", person(op.personId));
         if (op.set.name !== undefined) p.name = op.set.name;
         if (op.set.gender !== undefined) p.gender = op.set.gender;
-        for (const key of ["birthYear", "deathYear"] as const) {
+        for (const key of DATE_FIELDS) {
           const value = op.set[key];
           if (value === null) delete p[key];
           else if (value !== undefined) p[key] = value;
         }
-        checkYears(p);
+        checkDates(p);
         break;
       }
       case "createUnion": {

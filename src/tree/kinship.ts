@@ -3,6 +3,7 @@
 // name for it: Telugu relationship names written in English letters (the owner's choice, the default),
 // or English names. Pure: the browser draws it, and unit tests check it.
 import type { GroupTree, Person, Union } from "./types";
+import { birthOrder } from "./years";
 
 /** A family step: to a parent (U, up), a child (D, down), a brother or sister (S) or a partner (P). */
 export type Move = "U" | "D" | "S" | "P";
@@ -115,10 +116,16 @@ export function kinship(tree: GroupTree, centreId: string): Kinship {
 
 const pattern = (steps: Step[]) => steps.map((s) => s.move).join("");
 const male = (p: Person) => p.gender === "male";
-/** True when `a` is older than `b`, false when younger, null when a birth year is missing or the same. */
+/**
+ * True when `a` is older than `b`, false when younger, null when it can't be told: a birth year missing,
+ * or the same year without both full dates (or with the same date).
+ */
 function elder(a: Person, b: Person): boolean | null {
-  if (a.birthYear === undefined || b.birthYear === undefined || a.birthYear === b.birthYear) return null;
-  return a.birthYear < b.birthYear;
+  if (a.birthYear === undefined || b.birthYear === undefined) return null;
+  if (a.birthYear !== b.birthYear) return a.birthYear < b.birthYear;
+  if (a.birthMonth === undefined || b.birthMonth === undefined) return null;
+  const [x, y] = [birthOrder(a)!, birthOrder(b)!];
+  return x === y ? null : x < y;
 }
 /** The elder or younger name; both ("Annayya/Thammudu") when the birth years don't tell. */
 function byAge(a: Person, b: Person, elderName: string, youngerName: string) {

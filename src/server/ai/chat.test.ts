@@ -67,7 +67,7 @@ describe("a chat turn", () => {
 
   test("proposals stream as they grow and come back with the turn", async () => {
     const { events, done } = await turn([
-      { content: [call("t1", "add_person", { name: "Mia Cruz", gender: "female", birthYear: null, deathYear: null })], stop_reason: "tool_use" },
+      { content: [call("t1", "add_person", { name: "Mia Cruz", gender: "female", birthYear: null, deathYear: null, birthMonth: null, birthDay: null, deathMonth: null, deathDay: null })], stop_reason: "tool_use" },
       { content: [call("t2", "add_child", { parentIds: [jake], childId: "new:1" })], stop_reason: "tool_use" },
       { content: [text("Shall I add Mia?")], stop_reason: "end_turn" },
     ]);

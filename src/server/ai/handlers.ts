@@ -8,7 +8,8 @@ import { relationsOf, renameSheetsOps } from "@/tree/edits";
 import { buildSheetView } from "@/tree/sheet-view";
 import type { GroupTree, Person } from "@/tree/types";
 import { OperationError, planOperations, type GroupState } from "../operations/plan";
-import { personName, year, type Operation } from "../operations/schema";
+import { formatDate, lifeDates } from "@/tree/years";
+import { day, month, personName, year, type Operation } from "../operations/schema";
 
 export interface ToolContext {
   groupId: ObjectId;
@@ -29,17 +30,18 @@ export interface ToolOutcome {
 }
 
 const SEARCH_LIMIT = 20;
+// Years, and a full date's month and day (an owner request), each null when not given.
+const dates = { birthYear: year.nullable(), birthMonth: month.nullable(), birthDay: day.nullable(), deathYear: year.nullable(), deathMonth: month.nullable(), deathDay: day.nullable() };
 const ref = z.string().regex(/^([a-f\d]{24}|new:\d{1,4})$/i, "not an id");
 const inputs = {
   search_people: z.object({ name: z.string().trim().min(1).max(120), year: year.nullable() }),
   get_person: z.object({ personId: ref }),
-  add_person: z.object({ name: personName, gender: z.enum(["male", "female"]), birthYear: year.nullable(), deathYear: year.nullable() }),
+  add_person: z.object({ name: personName, gender: z.enum(["male", "female"]), ...dates }),
   update_person: z.object({
     personId: ref,
     name: personName.nullable(),
     gender: z.enum(["male", "female"]).nullable(),
-    birthYear: year.nullable(),
-    deathYear: year.nullable(),
+    ...dates,
   }),
   add_marriage: z.object({ personId: ref, partnerId: ref, status: z.enum(["married", "divorced"]) }),
   add_child: z.object({ parentIds: z.array(ref).min(1).max(2), childId: ref }),
@@ -49,7 +51,12 @@ const inputs = {
 type ToolName = keyof typeof inputs;
 
 const fold = (text: string) => text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-const yearsOf = (p: Person) => ({ born: p.birthYear ?? null, died: p.deathYear ?? null });
+const yearsOf = (p: Person) => ({
+  born: p.birthYear ?? null,
+  died: p.deathYear ?? null,
+  ...(p.birthMonth !== undefined && { birthDate: formatDate(p.birthYear, p.birthMonth, p.birthDay) }),
+  ...(p.deathMonth !== undefined && { deathDate: formatDate(p.deathYear, p.deathMonth, p.deathDay) }),
+});
 
 /** The next free temporary id in the proposal: new:1, new:2, … */
 function nextTempId(pending: Operation[]): string {
@@ -108,8 +115,9 @@ function propose(ctx: ToolContext, name: Exclude<ToolName, "search_people" | "ge
   const temp = nextTempId(ctx.pending);
   switch (name) {
     case "add_person": {
-      const { name: person, gender, birthYear, deathYear } = input as z.infer<typeof inputs.add_person>;
-      const op: Operation = { op: "createPerson", tempId: temp, name: person, gender, ...(birthYear !== null && { birthYear }), ...(deathYear !== null && { deathYear }) };
+      const { name: person, gender, ...given } = input as z.infer<typeof inputs.add_person>;
+      const known = Object.fromEntries(Object.entries(given).map(([key, value]) => [key, value ?? undefined]));
+      const op: Operation = { op: "createPerson", tempId: temp, name: person, gender, ...lifeDates(known) };
       return { ops: [op], said: `Added to the proposal: ${person} is ${temp}.` };
     }
     case "update_person": {

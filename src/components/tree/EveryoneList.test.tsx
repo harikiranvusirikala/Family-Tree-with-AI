@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { sampleState, toGroupTree } from "@test/planning";
-import { listRows, type ListFilter } from "@/tree/everyone";
+import { listRows, type ListFilter, type ListSort } from "@/tree/everyone";
 import { ExportItems } from "../import-export/ExportMenu";
 import { EveryoneList } from "./EveryoneList";
 
@@ -12,9 +12,9 @@ const tree = toGroupTree(sampleState());
 const rows = listRows(tree);
 const idOf = (name: string) => tree.persons.find((p) => p.name === name)!.id;
 
-function list({ filter = "everyone", query = "", selectedId }: { filter?: ListFilter; query?: string; selectedId?: string } = {}) {
-  const calls = { onFilter: vi.fn(), onShowAll: vi.fn(), onPerson: vi.fn(), onOpenSheet: vi.fn() };
-  render(<EveryoneList rows={rows} filter={filter} query={query} selectedId={selectedId} {...calls} />);
+function list({ filter = "everyone", query = "", sort = "name", selectedId }: { filter?: ListFilter; query?: string; sort?: ListSort; selectedId?: string } = {}) {
+  const calls = { onFilter: vi.fn(), onSort: vi.fn(), onShowAll: vi.fn(), onPerson: vi.fn(), onOpenSheet: vi.fn() };
+  render(<EveryoneList rows={rows} filter={filter} query={query} sort={sort} selectedId={selectedId} {...calls} />);
   return calls;
 }
 const table = () => screen.getByRole("table", { name: "People" });
@@ -24,17 +24,19 @@ const rowOf = (name: string) => bodyRows().find((r) => within(r).queryByRole("bu
 describe("★ Everyone's List (owner request)", () => {
   test("everyone A to Z, with parents, partners, children and the sheets that show them", () => {
     list();
-    expect(within(table()).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Person", "Parents", "Partners", "Children", "On sheets"]);
+    expect(within(table()).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Person", "Born↕", "Parents", "Partners", "Children", "On sheets"]);
     expect(bodyRows()).toHaveLength(36);
     const steve = within(rowOf("Steve Cruz")).getAllByRole("cell").map((c) => c.textContent);
     expect(steve).toEqual([
-      "SCSteve Cruz1985Child of Olivia & Arjun · ♥ Sammie, Arham · 3 children",
+      "SCSteve Cruz19851985Child of Olivia & Arjun · ♥ Sammie, Arham · 3 children", // the years wide, the dates narrow
+      "1985",
       "Olivia Cruz, Arjun Patel",
       "Sammie Chang (divorced), Arham Chopra",
       "3 · William Cruz, Anna Cruz, Taylor Cruz",
       "Cruz familyJerry Willow's family",
     ]);
-    expect(within(rowOf("Amy Harolds")).getAllByRole("cell")[1].textContent).toBe("–");
+    expect(within(rowOf("Amy Harolds")).getAllByRole("cell")[1].textContent).toBe("1885Died 1966");
+    expect(within(rowOf("Amy Harolds")).getAllByRole("cell")[2].textContent).toBe("–");
   });
 
   test("the name is a button named like the person's card; a row chooses the person, a sheet opens that sheet", () => {
@@ -86,6 +88,51 @@ describe("★ Everyone's List (owner request)", () => {
     } finally {
       delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
     }
+  });
+});
+
+describe("Born, with full dates, and sorting by it (owner request)", () => {
+  // Steve Cruz with his full birth date; Taylor Cruz with no birth year.
+  const dated = rows.map((r) =>
+    r.person.name === "Steve Cruz" ? { ...r, person: { ...r.person, birthMonth: 3, birthDay: 12 } } : r.person.name === "Taylor Cruz" ? { ...r, person: { ...r.person, birthYear: undefined } } : r,
+  );
+  const order = () => bodyRows().map((r) => within(r).getAllByRole("button")[0].getAttribute("aria-label"));
+
+  function sorted(sort: ListSort) {
+    const calls = { onFilter: vi.fn(), onSort: vi.fn(), onShowAll: vi.fn(), onPerson: vi.fn(), onOpenSheet: vi.fn() };
+    render(<EveryoneList rows={dated} filter="everyone" query="" sort={sort} {...calls} />);
+    return calls;
+  }
+
+  test("the Born column holds the full date where known, and the death's", () => {
+    sorted("name");
+    expect(within(rowOf("Steve Cruz")).getAllByRole("cell")[1].textContent).toBe("12 Mar 1985");
+    expect(within(rowOf("Jake Cruz")).getAllByRole("cell")[1].textContent).toBe("1945Died 2022");
+    expect(within(rowOf("Taylor Cruz")).getAllByRole("cell")[1].textContent).toBe("–");
+    expect(within(rowOf("Steve Cruz")).getAllByRole("cell")[0].textContent).toContain("12 Mar 1985"); // narrow screens
+  });
+
+  test("A to Z by default; oldest first and youngest first by birth, nobody without a year until the end", () => {
+    sorted("name");
+    expect(order().slice(0, 2)).toEqual(["Alex Cruz, 2021", "Alexander Cruz, 1918 – 2003"]);
+    cleanup();
+    sorted("oldest");
+    expect(order().slice(0, 2)).toEqual(["Timothy Cruz, 1880 – 1962", "Amy Harolds, 1885 – 1966"]);
+    expect(order().at(-1)).toBe("Taylor Cruz");
+    cleanup();
+    sorted("youngest");
+    expect(order()[0]).toBe("Alex Cruz, 2021");
+    expect(order().at(-1)).toBe("Taylor Cruz");
+    expect(within(table()).getAllByRole("columnheader")[1].getAttribute("aria-sort")).toBe("descending");
+  });
+
+  test("the Born column's name goes round the orders; the Sort choice picks one", () => {
+    const { onSort } = sorted("name");
+    fireEvent.click(within(table()).getByRole("button", { name: /^Born/ }));
+    expect(onSort).toHaveBeenLastCalledWith("oldest");
+    fireEvent.change(screen.getByRole("combobox", { name: "Sort" }), { target: { value: "youngest" } });
+    expect(onSort).toHaveBeenLastCalledWith("youngest");
+    expect([...(screen.getByRole("combobox", { name: "Sort" }) as HTMLSelectElement).options].map((o) => o.textContent)).toEqual(["A to Z", "Oldest first", "Youngest first"]);
   });
 });
 

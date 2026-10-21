@@ -1,7 +1,15 @@
 // GEDCOM 5.5.1 (F9, F10): the family file format Ancestry, FamilySearch and MyHeritage read and write.
 // Persons are INDI records, couples FAM records. Pure: the browser parses imported files.
 import type { Gender, GroupTree, NamedSheet, Union } from "@/tree/types";
+import { datesProblem, isRealDate, lifeDates, type LifeDates } from "@/tree/years";
 import { exportPart, MAX_IMPORT_PEOPLE, type ImportData, type ImportPerson } from "./types";
+
+const GEDCOM_MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+/** A GEDCOM date: "12 MAR 1985" when the day and month are known (an owner request), else the year. */
+function gedcomDate(year: number, month?: number, day?: number): string {
+  return month !== undefined && day !== undefined ? `${day} ${GEDCOM_MONTHS[month - 1]} ${year}` : String(year);
+}
 
 const MIN_YEAR = 1000;
 const MAX_YEAR = 2200;
@@ -22,8 +30,8 @@ export function exportGedcom(tree: GroupTree, sheet?: NamedSheet, now = new Date
 
   for (const p of persons) {
     lines.push(`0 ${xref.get(p.id)} INDI`, `1 NAME ${gedcomName(p.name)}`, `1 SEX ${p.gender === "male" ? "M" : "F"}`);
-    if (p.birthYear) lines.push("1 BIRT", `2 DATE ${p.birthYear}`);
-    if (p.deathYear) lines.push("1 DEAT", `2 DATE ${p.deathYear}`);
+    if (p.birthYear) lines.push("1 BIRT", `2 DATE ${gedcomDate(p.birthYear, p.birthMonth, p.birthDay)}`);
+    if (p.deathYear) lines.push("1 DEAT", `2 DATE ${gedcomDate(p.deathYear, p.deathMonth, p.deathDay)}`);
     for (const u of unions) if (u.childIds.includes(p.id)) lines.push(`1 FAMC ${xref.get(u.id)}`);
     for (const u of unions) if (u.partnerIds.includes(p.id)) lines.push(`1 FAMS ${xref.get(u.id)}`);
   }
@@ -77,6 +85,23 @@ export function yearOf(date: string | undefined): number | undefined {
   return undefined;
 }
 
+/**
+ * A GEDCOM date as a year, with the day and month when it's an exact date ("12 MAR 1985"). Approximate
+ * dates ("ABT 1900", "BET 1900 AND 1910", "MAR 1985") give only their year.
+ */
+export function dateOf(date: string | undefined): { year?: number; month?: number; day?: number } {
+  const exact = (date ?? "").trim().toUpperCase().match(/^(\d{1,2})\s+([A-Z]{3})\s+(\d{3,4})$/);
+  if (exact) {
+    const [day, month, year] = [Number(exact[1]), GEDCOM_MONTHS.indexOf(exact[2]) + 1, Number(exact[3])];
+    if (month > 0 && year >= MIN_YEAR && year <= MAX_YEAR && isRealDate(year, month, day)) return { year, month, day };
+  }
+  const year = yearOf(date);
+  return year === undefined ? {} : { year };
+}
+
+/** A date's value is kept whole: a year alone, or an exact day, month and year. */
+const keptWhole = (value: string) => /^\s*\d{3,4}\s*$/.test(value) || dateOf(value).day !== undefined;
+
 function nameOf(indi: Node): string {
   const name = child(indi, "NAME");
   const fromValue = (name?.value ?? "").replaceAll("/", " ").replace(/\s+/g, " ").trim();
@@ -89,7 +114,7 @@ const KEPT = new Set(["NAME", "SEX", "BIRT", "DEAT", "FAMC", "FAMS", "HUSB", "WI
 
 const NOT_KEPT = {
   places: "places",
-  dates: "full dates (only years are kept)",
+  dates: "dates that aren't exact (only their years are kept)",
   notes: "notes",
   sources: "sources",
   media: "photos and other media",
@@ -101,7 +126,7 @@ function notKept(nodes: Node[]): string[] {
   const found = new Set<keyof typeof NOT_KEPT>();
   const walk = (node: Node) => {
     if (node.tag === "PLAC" || node.tag === "ADDR") found.add("places");
-    else if (node.tag === "DATE" && !/^\s*\d{3,4}\s*$/.test(node.value)) found.add("dates");
+    else if (node.tag === "DATE" && !keptWhole(node.value)) found.add("dates");
     else if (node.tag === "NOTE") found.add("notes");
     else if (node.tag === "SOUR") found.add("sources");
     else if (node.tag === "OBJE") found.add("media");
@@ -131,10 +156,12 @@ export function parseGedcom(text: string, fileName = ""): ImportData | string {
     const gender: Gender | null = sex === "M" ? "male" : sex === "F" ? "female" : null;
     const birth = child(indi, "BIRT");
     const death = child(indi, "DEAT");
-    const birthYear = yearOf(birth && child(birth, "DATE")?.value);
-    let deathYear = yearOf(death && child(death, "DATE")?.value);
-    if (birthYear !== undefined && deathYear !== undefined && deathYear < birthYear) {
-      deathYear = undefined;
+    const born = dateOf(birth && child(birth, "DATE")?.value);
+    const died = dateOf(death && child(death, "DATE")?.value);
+    let dates: LifeDates = lifeDates({ birthYear: born.year, birthMonth: born.month, birthDay: born.day, deathYear: died.year, deathMonth: died.month, deathDay: died.day });
+    if (datesProblem(dates)) {
+      // A death before the birth: the death is left out.
+      dates = lifeDates({ birthYear: born.year, birthMonth: born.month, birthDay: born.day });
       badDeath++;
     }
     let name = nameOf(indi);
@@ -142,10 +169,10 @@ export function parseGedcom(text: string, fileName = ""): ImportData | string {
       name = "Unknown";
       unnamed++;
     }
-    return { id: indi.xref!, name, gender, ...(birthYear !== undefined && { birthYear }), ...(deathYear !== undefined && { deathYear }) };
+    return { id: indi.xref!, name, gender, ...dates };
   });
   if (unnamed) warnings.push(`${unnamed} ${unnamed === 1 ? "person has" : "people have"} no name and ${unnamed === 1 ? "is" : "are"} imported as "Unknown".`);
-  if (badDeath) warnings.push(`${badDeath} death ${badDeath === 1 ? "year was" : "years were"} before the birth year and ${badDeath === 1 ? "was" : "were"} left out.`);
+  if (badDeath) warnings.push(`${badDeath} death ${badDeath === 1 ? "date was" : "dates were"} before the birth and ${badDeath === 1 ? "was" : "were"} left out.`);
 
   // A child in two families stays with their birth family if the file says which, otherwise the first.
   const known = new Set(persons.map((p) => p.id));

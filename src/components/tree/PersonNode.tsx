@@ -3,7 +3,7 @@
 import { useContext } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { CARD_HEIGHT, CARD_WIDTH, PHOTO_SIZE, PHOTO_TOP } from "@/tree/layout";
-import { formatYears } from "@/tree/years";
+import { formatLife, formatYears } from "@/tree/years";
 import type { Person } from "@/tree/types";
 import { CanvasActionsContext } from "./canvas-actions";
 import { PersonPhoto } from "./PersonPhoto";
@@ -14,6 +14,9 @@ export function PersonNode({ data }: NodeProps<PersonNodeType>) {
   const { person } = data;
   const { onPerson, selectedId } = useContext(CanvasActionsContext);
   const years = formatYears(person.birthYear, person.deathYear);
+  const selected = selectedId === person.id;
+  // Full dates only while the card is selected (an owner request): otherwise just the years.
+  const shown = selected ? formatLife(person) : years;
   return (
     <div
       data-testid="person-card"
@@ -34,7 +37,7 @@ export function PersonNode({ data }: NodeProps<PersonNodeType>) {
         <PersonPhoto person={person} size={PHOTO_SIZE} />
       </div>
       <div className="mt-2 text-[15px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-zinc-100">{person.name}</div>
-      {years && <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{years}</div>}
+      {shown && <div className="mt-0.5 whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">{shown}</div>}
       <Handle type="target" position={Position.Top} isConnectable={false} className="!opacity-0" />
     </div>
   );

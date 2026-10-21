@@ -277,6 +277,10 @@ test("★ Everyone is the first choice in the sheet picker; a phone opens it on 
   await expect(steve.getByText("Child of Olivia & Arjun · ♥ Sammie, Arham · 3 children")).toBeVisible();
   await fitsWidth(page);
   expect(await page.getByRole("table", { name: "People" }).evaluate((table) => table.scrollWidth - table.parentElement!.clientWidth)).toBeLessThanOrEqual(0);
+  // Sorting by birth without column names (an owner request): the Sort choice.
+  await page.getByRole("combobox", { name: "Sort" }).selectOption({ label: "Oldest first" });
+  await expect(rows.first().getByRole("button").first()).toHaveAccessibleName("Timothy Cruz, 1880 – 1962");
+  await page.getByRole("combobox", { name: "Sort" }).selectOption({ label: "A to Z" });
   await shot(page, "phone-everyone-list");
 
   // A row low on the screen opens the panel over the bottom, and moves up above it.

@@ -7,9 +7,12 @@ const tempId = z.string().regex(/^new:[\w-]{1,64}$/, 'Temporary ids look like "n
 /** An existing id, or a temporary id created earlier in the same batch. */
 const ref = z.union([id, tempId]);
 const name = z.string().trim().min(1, "Name is required").max(120);
-export { name as personName, year };
+export { name as personName, year, month, day };
 const gender = z.enum(["male", "female"]);
 const year = z.number().int("Enter a whole year").min(1000, "Enter a year from 1000 on").max(2200, "Enter a year up to 2200");
+// A full date's month and day (an owner request after the final check); the planner checks the whole date.
+const month = z.number().int("Choose a month").min(1, "Choose a month").max(12, "Choose a month");
+const day = z.number().int("Enter a day from 1 to 31").min(1, "Enter a day from 1 to 31").max(31, "Enter a day from 1 to 31");
 const unionStatus = z.enum(["married", "divorced"]);
 const sheetTitle = z.string().trim().min(1, "Title is required").max(120);
 /** A Cloudinary public ID in a group's folder (F8): groups/<group id>/<random part>. */
@@ -22,7 +25,11 @@ export const operationSchema = z.discriminatedUnion("op", [
     name,
     gender,
     birthYear: year.optional(),
+    birthMonth: month.optional(),
+    birthDay: day.optional(),
     deathYear: year.optional(),
+    deathMonth: month.optional(),
+    deathDay: day.optional(),
   }),
   z.strictObject({
     op: z.literal("updatePerson"),
@@ -31,7 +38,11 @@ export const operationSchema = z.discriminatedUnion("op", [
       name: name.optional(),
       gender: gender.optional(),
       birthYear: year.nullable().optional(), // null clears it
+      birthMonth: month.nullable().optional(),
+      birthDay: day.nullable().optional(),
       deathYear: year.nullable().optional(),
+      deathMonth: month.nullable().optional(),
+      deathDay: day.nullable().optional(),
     }),
   }),
   z.strictObject({

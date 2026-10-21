@@ -1,4 +1,5 @@
 import type { FamilyData } from "@/tree/types";
+import { lifeDates } from "@/tree/years";
 import type { Operation } from "./schema";
 
 export interface SheetSpec {
@@ -21,8 +22,7 @@ export function operationsFromFamily(data: FamilyData, sheets: SheetSpec[] = [])
         tempId: t(p.id),
         name: p.name,
         gender: p.gender,
-        ...(p.birthYear !== undefined && { birthYear: p.birthYear }),
-        ...(p.deathYear !== undefined && { deathYear: p.deathYear }),
+        ...lifeDates(p),
       }),
     ),
     ...data.unions.flatMap((u): Operation[] => [
