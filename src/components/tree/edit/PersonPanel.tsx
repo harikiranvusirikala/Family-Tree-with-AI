@@ -6,7 +6,9 @@ import { addChildOps, addParentsOps, addPartnerOps, editPersonOps, newSheetOps, 
 import { EVERYONE } from "@/tree/everyone";
 import { buildSheetView, showsNewParentsOf } from "@/tree/sheet-view";
 import type { Gender, GroupTree, Person } from "@/tree/types";
+import { ageText } from "@/tree/upcoming";
 import { formatLife, formatMarriage, formatYears } from "@/tree/years";
+import { useToday } from "../../today";
 import { PersonPhoto } from "../PersonPhoto";
 import { detailsPanel } from "./panel";
 import { input, PersonFields, readPerson, SubmitRow } from "./person-form";
@@ -104,6 +106,8 @@ export function PersonPanel({
   const [otherGender, setOtherGender] = useState<Gender | null>(null);
   const otherIsMother = parents.length === 1 && (otherGender ?? opposite(parents[0].gender)) === "female";
   const dates = formatLife(person); // full dates where known (an owner request)
+  const today = useToday();
+  const age = today ? ageText(person, today) : ""; // on the device's day (birthdays and anniversaries, an owner request)
 
   /** Reads a form, builds its operations, and goes back to the details once saved (then `onSaved`). */
   const submit = (build: (form: FormData) => Operation[] | string, onSaved?: () => void) => async (event: FormEvent<HTMLFormElement>) => {
@@ -156,6 +160,7 @@ export function PersonPanel({
           <div>
             <h2 className="text-lg font-semibold">{person.name}</h2>
             {dates && <p className="text-sm text-zinc-500 dark:text-zinc-400">{dates}</p>}
+            {age && <p className="text-sm text-zinc-500 dark:text-zinc-400">{age}</p>}
           </div>
         </div>
         <button type="button" onClick={onClose} className="rounded px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100 pointer-coarse:min-h-11 dark:text-zinc-400 dark:hover:bg-zinc-800">

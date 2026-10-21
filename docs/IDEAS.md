@@ -13,7 +13,7 @@ They are weighted toward what builds on the app as it is (★ Everyone's Wheel, 
 
 FEATURES.md already names this as "could come later", and the Wheel's kinship engine does most of the work. It's the suggested first pick: small, and it makes the Wheel personal.
 
-**2. Birthdays and anniversaries (M).** This follows on from full dates.
+**2. Birthdays and anniversaries (M).** This follows on from full dates. *Built 2026-10-21 without the reminders: marriage dates, then ★ Everyone's Upcoming, the dashboard's next 30 days and ages (BUILD_PLAN.md).*
 - An "Upcoming" list on the dashboard and in ★ Everyone: birthdays this month, with ages ("turns 40").
 - An age in the panel ("39 years", "would have been 80").
 - Marriage dates on couples, so wedding anniversaries show too.

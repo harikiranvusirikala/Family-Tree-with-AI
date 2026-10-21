@@ -3,8 +3,9 @@
 import type { ReactNode } from "react";
 import { EVERYONE_VIEWS, type EveryoneViewName } from "@/tree/everyone";
 
+// Below 640 px the icons go, so the five names fit a phone.
 const icon = (path: ReactNode) => (
-  <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+  <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 max-sm:hidden">
     {path}
   </svg>
 );
@@ -14,6 +15,7 @@ const VIEWS: Record<EveryoneViewName, { label: string; icon: ReactNode }> = {
   wheel: { label: "Wheel", icon: icon(<path d="M12 12h.01M12 3a9 9 0 1 0 0 18 9 9 0 1 0 0-18M12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 1 0 0-9" />) },
   network: { label: "Network", icon: icon(<path d="M6 7a2 2 0 1 0 0-.01M18 6a2 2 0 1 0 0-.01M12 18a2 2 0 1 0 0-.01M7.7 7.9l3.2 8.2M16.4 7.4l-3.3 8.7M8 6.5h8" />) },
   list: { label: "List", icon: icon(<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />) },
+  upcoming: { label: "Upcoming", icon: icon(<path d="M8 3v4M16 3v4M4 10h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />) },
 };
 
 /** ★ Everyone's views (an owner request after the final check): the one shown is pressed. */
@@ -26,7 +28,7 @@ export function ViewSwitcher({ shown, onShow }: { shown: EveryoneViewName | null
           type="button"
           aria-pressed={shown === view}
           onClick={() => onShow(view)}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium hover:bg-zinc-100 aria-pressed:bg-zinc-900 aria-pressed:text-white pointer-coarse:min-h-11 dark:hover:bg-zinc-800 dark:aria-pressed:bg-white dark:aria-pressed:text-zinc-900"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium max-sm:px-1.5 hover:bg-zinc-100 aria-pressed:bg-zinc-900 aria-pressed:text-white pointer-coarse:min-h-11 dark:hover:bg-zinc-800 dark:aria-pressed:bg-white dark:aria-pressed:text-zinc-900"
         >
           {VIEWS[view].icon}
           {VIEWS[view].label}

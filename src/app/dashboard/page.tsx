@@ -10,19 +10,23 @@ import { getDatabase } from "@/server/db";
 import { ROLE_LABELS } from "@/server/members-rules";
 import { requireUser } from "@/server/permissions";
 import { myRequests, pendingRequestCounts, type MyRequest } from "@/server/repositories/access-requests";
+import { loadGroupTree } from "@/server/repositories/family";
 import { listGroupsForUser, type GroupSummary } from "@/server/repositories/groups";
 import { invitesForUser, type InviteForMe } from "@/server/repositories/invites";
 import { can } from "@/server/roles";
+import { datedFamily } from "@/tree/upcoming";
 import { ImportNewGroup } from "./ImportNewGroup";
 import { NewGroupForm } from "./NewGroupForm";
+import { UpcomingSoon } from "./UpcomingSoon";
 
 export const metadata: Metadata = { title: "Dashboard · Family Tree" };
 
 const list = "flex flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800";
 
 /**
- * Invitations waiting for me, My groups, Shared with me (with a badge for access requests where I'm
- * an Admin or the Owner), my access requests, and creating a group (F1–F4).
+ * Invitations waiting for me, birthdays and anniversaries coming up, My groups, Shared with me (with a
+ * badge for access requests where I'm an Admin or the Owner), my access requests, and creating a group
+ * (F1–F4).
  */
 export default function DashboardPage() {
   return (
@@ -38,6 +42,10 @@ async function Dashboard() {
   const [groups, invites, requests] = await Promise.all([listGroupsForUser(db, user.id), invitesForUser(db, user), myRequests(db, user.id)]);
   const managed = groups.filter((g) => can(g.role, "handleAccessRequests")).map((g) => g.id);
   const waiting = managed.length ? await pendingRequestCounts(db, managed) : new Map<string, number>();
+  // Upcoming (an owner request): only the groups I'm a member of (any role may view), and of each only
+  // the dated people and couples; the browser works out which days come up.
+  const trees = await Promise.all(groups.map((g) => loadGroupTree(db, g.id)));
+  const upcoming = groups.map((g, i) => ({ groupId: g.id, groupName: g.name, family: datedFamily(trees[i]) }));
   const mine = groups.filter((g) => g.role === "owner");
   const shared = groups.filter((g) => g.role !== "owner");
 
@@ -54,6 +62,7 @@ async function Dashboard() {
           )}
         </div>
         {invites.length > 0 && <Invitations invites={invites} />}
+        <UpcomingSoon groups={upcoming} />
         <GroupList title="My groups" groups={mine} waiting={waiting} empty="You haven't created a group yet." />
         <GroupList title="Shared with me" groups={shared} waiting={waiting} empty="Nobody has shared a group with you yet." />
         {requests.length > 0 && <MyRequests requests={requests} />}

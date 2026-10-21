@@ -311,3 +311,27 @@ describe("marriage dates on the partner lines (owner request)", () => {
     expect([...partners.children].map((line) => line.textContent)).toEqual(["Sammie Chang, married 2001 (divorced)", "Arham Chopra, married 8 Sep 2008", "Jo Lee"]);
   });
 });
+
+describe("an age in the panel (birthdays and anniversaries, owner request)", () => {
+  test("on the device's day: exact with a full birth date, about with a year, at death", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 21, 12));
+    try {
+      const people = [
+        { id: "a", name: "Asha Rao", gender: "female" as const, birthYear: 1985, birthMonth: 10, birthDay: 22 },
+        { id: "b", name: "Ravi Rao", gender: "male" as const, birthYear: 1960 },
+        { id: "c", name: "Mohan Rao", gender: "male" as const, birthYear: 1930, deathYear: 2010 },
+      ];
+      const family: GroupTree = { persons: people, unions: [], sheets: [{ id: "tab", title: "Raos", rootPersonId: "a", extraPersonIds: [], pinned: true, order: 0 }] };
+      const ages = people.map((person) => {
+        render(<PersonPanel person={person} tree={family} canEdit={false} pending={false} run={vi.fn()} onSelect={() => {}} onClose={() => {}} onDelete={() => {}} currentSheetId="tab" onOpenSheet={() => {}} />);
+        const text = screen.getByRole("heading", { name: person.name }).parentElement!.textContent;
+        cleanup();
+        return text;
+      });
+      expect(ages).toEqual(["Asha Rao22 Oct 198540 years old", "Ravi Rao1960About 66 years old", "Mohan Rao1930 – 2010Died aged about 80"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

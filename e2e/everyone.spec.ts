@@ -276,7 +276,7 @@ test("Find in list, from a sheet: the List with their row selected and on the sc
 test("the Network: everyone and every couple; choosing someone lights up their relations; a heart opens the couple", async ({ page, signIn, sampleGroup }) => {
   const { groupId } = await sampleOwner(page, signIn, sampleGroup);
   await page.goto(`/g/${groupId}/s/everyone?view=tree`);
-  await expect(page.getByRole("group", { name: "View" }).getByRole("button")).toHaveText(["Tree", "Network", "Wheel", "List"]);
+  await expect(page.getByRole("group", { name: "View" }).getByRole("button")).toHaveText(["Tree", "Network", "Wheel", "List", "Upcoming"]);
   await viewButton(page, "Network").click();
   await expect(page).toHaveURL(everyoneUrl("network"));
   await expect(viewButton(page, "Network")).toHaveAttribute("aria-pressed", "true");
@@ -332,7 +332,7 @@ test("Show in network from a sheet, and Find someone, centre a circle; a reload 
 test("the Wheel: Steve Cruz in the middle, everyone else labelled in Telugu or English; tapping says how; Put in the middle", async ({ page, signIn, sampleGroup }) => {
   const { groupId } = await sampleOwner(page, signIn, sampleGroup);
   await page.goto(`/g/${groupId}/s/everyone?view=tree`);
-  await expect(page.getByRole("group", { name: "View" }).getByRole("button")).toHaveText(["Tree", "Network", "Wheel", "List"]);
+  await expect(page.getByRole("group", { name: "View" }).getByRole("button")).toHaveText(["Tree", "Network", "Wheel", "List", "Upcoming"]);
   await find(page).fill("steve");
   await page.getByRole("option", { name: "Steve Cruz (1985)" }).click();
   await viewButton(page, "Wheel").click(); // around the person selected
@@ -456,4 +456,59 @@ test("the List's Married column: marriage dates, and sorting earliest first, lat
   await viewButton(page, "Network").click();
   await expect(circles(page)).toHaveCount(36);
   await expect(page.getByRole("tabpanel").getByTestId("marriage-date")).toHaveCount(0);
+});
+
+test("Upcoming: birthdays and anniversaries nearest first; a row opens the person or the couple; the dashboard has the next 30 days (owner request)", async ({ page, signIn, sampleGroup, database }) => {
+  await page.clock.setFixedTime(new Date(2026, 9, 21, 10)); // Wednesday 21 October 2026, on the device
+  const { owner, groupId } = await sampleOwner(page, signIn, sampleGroup);
+  const tree = await loadGroupTree(database.db, groupId);
+  const born = (name: string, birthMonth: number, birthDay: number) => ({ op: "updatePerson", personId: tree.persons.find((p) => p.name === name)!.id, set: { birthMonth, birthDay } });
+  await applyOperations(database, groupId, [born("Steve Cruz", 10, 21), born("Amelia Young", 10, 22), born("Arham Chopra", 11, 3), born("Jake Cruz", 10, 25)], owner.id);
+
+  await page.goto(`/g/${groupId}/s/everyone?view=upcoming`);
+  const rows = page.getByRole("tabpanel").getByTestId("upcoming-row");
+  await expect(rows).toHaveText([
+    "Wed 21 OctTodaySCSteve CruzTurns 41",
+    "Thu 22 OctTomorrowAYAmelia YoungTurns 25",
+    "Tue 3 NovIn 13 daysACArham ChopraTurns 43",
+    "Wed 8 SepSCACSteve Cruz & Arham Chopra19th anniversary", // Jake Cruz has died: no birthday, no anniversary with Taylor
+  ]);
+  await expect(page.getByRole("tabpanel").getByRole("heading")).toHaveText(["October 2026", "November 2026", "September 2027"]);
+  await expect(page.getByText("22 living people have no full birth date, so their birthdays aren't shown.")).toBeVisible();
+  await page.screenshot({ path: "test-results/screenshots/everyone-upcoming.png" });
+
+  // A birthday opens the person, with their age; an anniversary the couple.
+  await rows.first().click();
+  await expect(personPanel(page).getByRole("heading", { name: "Steve Cruz" })).toBeVisible();
+  await expect(personPanel(page)).toContainText("41 years old");
+  await expect(rows.first()).toHaveAttribute("aria-current", "true");
+  await expect(page).toHaveURL(new RegExp(`/s/everyone\\?view=upcoming&person=${tree.persons.find((p) => p.name === "Steve Cruz")!.id}$`));
+  await rows.last().click();
+  await expect(page.getByRole("complementary", { name: "Couple details" })).toContainText("8 Sep 2008");
+  // Find someone selects their row.
+  await find(page).fill("Amelia");
+  await page.getByRole("option", { name: /Amelia Young/ }).click();
+  await expect(rows.nth(1)).toHaveAttribute("aria-current", "true");
+
+  // The dashboard: the next 30 days, each opening its group's Upcoming.
+  await page.goto("/dashboard");
+  const soon = page.getByRole("region", { name: "Upcoming", exact: true }).getByRole("link");
+  await expect(soon).toHaveText([
+    "Wed 21 OctTodaySteve Cruz turns 41Cruz family",
+    "Thu 22 OctTomorrowAmelia Young turns 25Cruz family",
+    "Tue 3 NovIn 13 daysArham Chopra turns 43Cruz family",
+  ]);
+  await page.screenshot({ path: "test-results/screenshots/dashboard-upcoming.png", fullPage: true });
+  await soon.nth(1).click();
+  await expect(page).toHaveURL(/\/s\/everyone\?view=upcoming&person=[0-9a-f]{24}$/);
+  await expect(personPanel(page).getByRole("heading", { name: "Amelia Young" })).toBeVisible();
+  await expect(rows.nth(1)).toHaveAttribute("aria-current", "true");
+});
+
+test("the dashboard has no Upcoming when nothing is in the next 30 days (owner request)", async ({ page, signIn, sampleGroup }) => {
+  await page.clock.setFixedTime(new Date(2026, 9, 21, 10)); // Steve and Arham's anniversary is on 8 September
+  await sampleOwner(page, signIn, sampleGroup);
+  await page.goto("/dashboard");
+  await expect(page.getByRole("region", { name: "My groups", exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Upcoming", exact: true })).toHaveCount(0);
 });

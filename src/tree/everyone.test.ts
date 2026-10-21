@@ -155,11 +155,14 @@ describe("which ★ Everyone view opens (owner request)", () => {
     expect(chooseView("circles", "tree", true)).toBe("tree"); // not a view
     expect(chooseView(null, null, true)).toBe("list");
     expect(chooseView(null, "nonsense", false)).toBe("tree");
+    expect(chooseView("upcoming", "tree", false)).toBe("upcoming"); // birthdays and anniversaries (owner request)
+    expect(chooseView(null, "upcoming", true)).toBe("upcoming");
   });
 
   test("its address holds the view and the selected person", () => {
     expect(everyoneHref("g1", "list", "p1")).toBe("/g/g1/s/everyone?view=list&person=p1");
     expect(everyoneHref("g1", "tree")).toBe("/g/g1/s/everyone?view=tree");
+    expect(everyoneHref("g1", "upcoming", "p1")).toBe("/g/g1/s/everyone?view=upcoming&person=p1");
     expect(everyoneHref("g1", "wheel", "p1", "c1")).toBe("/g/g1/s/everyone?view=wheel&centre=c1&person=p1");
     expect(everyoneHref("g1", "list", "p1", "c1")).toBe("/g/g1/s/everyone?view=list&person=p1"); // the middle is the Wheel's
   });

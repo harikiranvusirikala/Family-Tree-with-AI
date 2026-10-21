@@ -38,6 +38,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Database indexes (owner request) | Done 2026-10-21 (unit: 400 passed; database: 42 passed; e2e: 75 passed); `db:setup` to run on all three databases. See its section at the end |
 | – | A mother's side stays on her own sheet (owner request) | Done 2026-10-21 (unit tests: 409 passed; e2e: 76 passed). See its section at the end |
 | – | Marriage dates (owner request) | Done 2026-10-21 (unit tests: 433 passed; database: 42 passed; e2e: 78 passed). See its section at the end |
+| – | Birthdays and anniversaries (owner request) | Done 2026-10-21 (unit tests: 447 passed; e2e: 80 passed). See its section at the end |
 
 ## How we work
 
@@ -1324,3 +1325,38 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - The year sits in the gap above the heart. A full date is a little wider than the gap and reaches a few pixels over the cards' empty edges, never their photos. It ignores the pointer, so clicks still reach the cards and the heart.
   - The assistant's system prompt and tools changed (a new tool and new fields). A chat left open while this deploys may need New chat, because its earlier turns were made with the old ones.
   - README pictures made again: the three sheet screenshots, and `everyone-views.png`, whose List now has Born and Married (it was last laid out before the full dates). The Tree's and the List's captions mention the dates. A new e2e screenshot, `marriage-date.png`, shows a full date above a heart.
+
+## After the final check: birthdays and anniversaries (owner request)
+- **Why:** the second idea in IDEAS.md, without its reminders: see whose birthday or wedding anniversary is coming next, nearest first, now that people have full birth dates and couples have marriage dates.
+- **Build:**
+  - **Upcoming, a fifth view in ★ Everyone** (Tree · Network · Wheel · List · Upcoming), at its own address (`?view=upcoming`) like the others:
+    - **One row per date, nearest first:** each person's next birthday and each couple's next wedding anniversary, over the next 12 months from today. Today's come first, marked "Today", then "Tomorrow", then the date with the weekday ("Sat 14 Jun").
+    - **Rows grouped by month** ("June 2027"), so a long year stays easy to scan.
+    - **A birthday row:** the photo, the name, and "turns 40". **An anniversary row:** both partners, and their "52nd anniversary".
+    - **Who's included**: living people with a full birth date, and married couples (not divorced) with a full marriage date and both partners living. Someone with only a year can't be placed on a day, so they don't appear; a line at the end says how many people have no full birth date.
+    - **29 February** birthdays and anniversaries fall on 28 February in other years.
+    - **Tapping a row** opens the person's panel (a birthday) or the couple's (an anniversary), as the other views do. Find someone selects their row.
+    - **"Today" is the device's date,** worked out in the browser after the page loads (the server doesn't know the person's day or time zone), so nothing is drawn until then, like the other views that wait for the browser.
+    - **Phones:** the view switcher drops its icons below 640 px so the five names fit; the rows are a plain list that already fits a phone. The Upcoming view has no picture to export (like the List).
+  - **The dashboard**: an "Upcoming" section with the next 30 days across all the person's groups, each row naming the group and linking to its Upcoming view. Hidden when there's nothing in the next 30 days.
+  - **An age in the person panel,** beside the dates: "41 years old" for someone living ("about 41" with only a birth year), "died aged 77" for someone who has died (from the birth and death dates, or "about 77" with only the years). Nothing without a birth year.
+  - **Milestones marked** with a small badge on the row: a 60th birthday ("Shashtipurti"), a 25th anniversary ("Silver") and a 50th ("Golden"). The dashboard's rows show them too.
+  - **Pure and tested:** the dates are worked out by pure functions in `src/tree/` (next occurrence, age, ordinal, 29 February), unit-tested against fixed "today" dates, including across the new year.
+- **Not in this step:** reminders by email or WhatsApp (the idea's "could come later"); the assistant (it can already read birth and marriage dates).
+- **Tests:**
+  - Unit: next birthdays and anniversaries from a given day (today first, across the new year, 29 February, the 12 months' end); who's left out (no full date, died, divorced, a partner who died); ages ("turns 40", "41 years old", "about 41", "died aged 77"); ordinals (1st, 2nd, 3rd, 11th, 12th, 13th, 21st, 52nd); milestones; the view's rows, month headings and the count of people without a full date.
+  - E2E: the Upcoming view on the sample family with the clock set to a fixed day (Playwright's clock), nearest first; a row opens the panel; the dashboard's section; the phone's view switcher fits.
+- **Decisions (owner, 2026-10-21):**
+  1. Over the next 12 months from today (the proposal).
+  2. Living people and couples only (the proposal).
+  3. Also on the dashboard, the next 30 days across groups (the proposal).
+  4. Of the extras, only milestones marked: Shashtipurti (60th birthday), Silver (25th) and Golden (50th) anniversaries. No filter chips, no calendar file.
+- **Notes (2026-10-21):**
+  - "Today" comes from `useToday()` (`src/components/today.ts`, `useSyncExternalStore`): null in the server render and during hydration, then the device's date, checked again when the page comes back into view. The Upcoming view, the dashboard's section and the panel's age wait for it, so the server's day and time zone never reach the page (the night theme test fails on hydration errors).
+  - `next()` never makes a first birthday or anniversary today: someone born or married today turns 1 a year from now, 365 days away, still in the list. A date in the future (a birth year still to come) is left out.
+  - On the same day, birthdays come before anniversaries, then A to Z.
+  - The dashboard loads the tree of each group the user is a member of (any role) and sends only `datedFamily` of each: living people with a full birth date, and dated married couples with their partners. The browser works out the next 30 days.
+  - Below 640 px the view switcher has no icons and narrower padding, so "Tree Network Wheel List Upcoming" fits a 390 px phone; the e2e phone test checks that no name is cut off.
+  - The sample family has no full birth dates, so its Upcoming shows only Steve and Arham's anniversary, and the e2e test adds four birth dates with the device's day fixed (Playwright's `clock.setFixedTime`) on 21 October 2026.
+  - The e2e checks that list ★ Everyone's views now expect five.
+  - README: the ★ Everyone picture laid out again as a 2×3 grid with Upcoming (the three notes in the sixth cell), and `phone-panel.png` copied again (the panel now shows an age).

@@ -294,7 +294,7 @@ test("★ Everyone is the first choice in the sheet picker; a phone opens it on 
   await personPanel(page).getByRole("button", { name: "Close" }).tap();
 
   // The Network, readable.
-  await expect(page.getByRole("group", { name: "View" }).getByRole("button")).toHaveText(["Tree", "Network", "Wheel", "List"]);
+  await expect(page.getByRole("group", { name: "View" }).getByRole("button")).toHaveText(["Tree", "Network", "Wheel", "List", "Upcoming"]);
   await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Network" }).tap();
   await expect(page).toHaveURL(new RegExp(`/s/everyone\\?view=network$`));
   const circles = page.getByRole("tabpanel").getByTestId("network-person");
@@ -320,4 +320,15 @@ test("★ Everyone is the first choice in the sheet picker; a phone opens it on 
   await expect(page.getByRole("combobox", { name: "Find someone" })).toBeVisible();
   await expect.poll(async () => (await box(cardBox(page, "Alexander Cruz"))).width).toBeGreaterThan(105);
   await shot(page, "phone-everyone");
+
+  // Upcoming (an owner request): the five views' names fit the phone, without their icons.
+  const views = page.getByRole("group", { name: "View" });
+  const viewsBox = await box(views);
+  expect(viewsBox.x + viewsBox.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  expect(await views.getByRole("button").evaluateAll((buttons) => buttons.every((b) => b.scrollWidth <= b.clientWidth))).toBe(true);
+  await views.getByRole("button", { name: "Upcoming" }).tap();
+  await expect(page).toHaveURL(new RegExp(`/s/everyone\\?view=upcoming$`));
+  await expect(page.getByTestId("upcoming-row")).toHaveText([/Steve Cruz & Arham Chopra\d+(st|nd|rd|th) anniversary$/]); // the sample's only full date
+  await fitsWidth(page);
+  await shot(page, "phone-everyone-upcoming");
 });

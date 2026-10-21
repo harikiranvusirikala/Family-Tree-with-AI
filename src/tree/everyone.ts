@@ -34,7 +34,7 @@ export const nameMatches = (name: string, query: string) => fold(name).includes(
 // One fixed collation, so the server and every browser sort alike (the page is drawn on both).
 const collator = new Intl.Collator("en");
 /** A to Z by the name as written, then oldest first. */
-const byName = (a: Person, b: Person) => collator.compare(a.name, b.name) || (a.birthYear ?? 0) - (b.birthYear ?? 0);
+export const byName = (a: Person, b: Person) => collator.compare(a.name, b.name) || (a.birthYear ?? 0) - (b.birthYear ?? 0);
 
 /**
  * Find someone: the people whose name contains what was typed, names that start with it first, then
@@ -50,8 +50,8 @@ export function findPeople(persons: Person[], query: string, limit = 8): Person[
     .slice(0, limit);
 }
 
-/** ★ Everyone's views, in the switcher's order. */
-export const EVERYONE_VIEWS = ["tree", "network", "wheel", "list"] as const;
+/** ★ Everyone's views, in the switcher's order. Upcoming: birthdays and anniversaries (an owner request). */
+export const EVERYONE_VIEWS = ["tree", "network", "wheel", "list", "upcoming"] as const;
 export type EveryoneViewName = (typeof EVERYONE_VIEWS)[number];
 export const isEveryoneView = (value: unknown): value is EveryoneViewName => EVERYONE_VIEWS.includes(value as EveryoneViewName);
 

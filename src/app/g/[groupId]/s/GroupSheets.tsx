@@ -6,11 +6,13 @@ import { ChatWidget } from "@/components/chat/ChatWidget";
 import { ExportItems, ExportMenu } from "@/components/import-export/ExportMenu";
 import { ImportPanel } from "@/components/import-export/ImportPanel";
 import { isPhone } from "@/components/screen";
+import { useToday } from "@/components/today";
 import { EveryoneList } from "@/components/tree/EveryoneList";
 import { FamilyCanvas, type CanvasFocus, type CapturePicture } from "@/components/tree/FamilyCanvas";
 import { FindSomeone } from "@/components/tree/FindSomeone";
 import { setNameStyle, useNameStyle } from "@/components/tree/name-style";
 import { NetworkCanvas } from "@/components/tree/NetworkCanvas";
+import { UpcomingList } from "@/components/tree/UpcomingList";
 import { ViewSwitcher } from "@/components/tree/ViewSwitcher";
 import { WheelCanvas } from "@/components/tree/WheelCanvas";
 import { downloadPicture, printPicture } from "@/components/tree/sheet-picture";
@@ -77,8 +79,10 @@ export function GroupSheets({
   const addressView = everyone ? searchParams.get("view") : null;
   /** Null until the address has a view: the device's choice is made in an effect, below. */
   const shownView: EveryoneViewName | null = isEveryoneView(addressView) ? addressView : null;
-  const drawn = !everyone || shownView !== "list"; // something to picture
+  const drawn = !everyone || (shownView !== "list" && shownView !== "upcoming"); // something to picture
   const listShown = everyone && shownView === "list";
+  const upcomingShown = everyone && shownView === "upcoming";
+  const today = useToday(); // the device's day, once the page is in the browser
   const networkShown = everyone && shownView === "network";
   const wheelShown = everyone && shownView === "wheel";
   const rows = useMemo(() => (listShown ? listRows(tree) : []), [listShown, tree]);
@@ -220,7 +224,7 @@ export function GroupSheets({
 
   const person = selection?.kind === "person" ? tree.persons.find((p) => p.id === selection.id) : undefined;
   const couple = selection?.kind === "couple" ? tree.unions.find((u) => u.id === selection.id) : undefined;
-  // The List draws no tree, so it has only the data to export (Maintain and up).
+  // The List and Upcoming draw no tree, so they have only the data to export (Maintain and up).
   const exportable = drawn || canEdit;
   const pictureTitle = kin ? `${kin.centre.name}'s relatives` : networkShown ? "Everyone network" : everyone ? "Everyone" : current.title;
   // In the Wheel, the panel says how the selected person is related to the one in the middle.
@@ -392,6 +396,16 @@ export function GroupSheets({
                   openSheet(sheetId);
                 }}
               />
+            ) : upcomingShown ? (
+              today && (
+                <UpcomingList
+                  family={tree}
+                  today={today}
+                  selectedId={selection?.id}
+                  onPerson={(id) => setSelection({ kind: "person", id })}
+                  onCouple={(id) => setSelection({ kind: "couple", id })}
+                />
+              )
             ) : kin ? (
               <WheelCanvas kin={kin} style={nameStyle} captureRef={capture} actions={canvasActions} />
             ) : networkShown ? (

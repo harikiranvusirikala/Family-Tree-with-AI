@@ -57,7 +57,7 @@ As built (steps 1–11).
 src/
   app/                                   Next.js routes
     page.tsx                             landing + "Sign in with Google" (static)
-    dashboard/                           invitations · My groups · Shared with me · my access requests · create a group (F2)
+    dashboard/                           invitations · Upcoming (the next 30 days' birthdays and anniversaries) · My groups · Shared with me · my access requests · create a group (F2)
       page.tsx, actions.ts, NewGroupForm.tsx
     g/[groupId]/
       page.tsx                           opens the first pinned sheet
@@ -106,6 +106,7 @@ src/
     everyone.ts                          ★ Everyone: every person as one view (not a stored sheet), Find someone's matching, the List's rows and filters, which view opens
     network.ts                           ★ Everyone's Network: people, hearts and links, circle sizes, the d3-force arrangement, who lights up
     kinship.ts, wheel.ts                 ★ Everyone's Wheel: how everyone is related to one person (paths, Telugu and English names, groups, sides); rings and angles
+    upcoming.ts                          birthdays and anniversaries: each one's next day from a given today, milestones, ages
     edits.ts                             edits made by hand → operations; tab order
     describe.ts                          a proposal in plain words (the chat's proposal card)
     layout/                              LayoutEngine interface + ELK.js adapter
@@ -114,7 +115,7 @@ src/
     ThemeToggle.tsx, theme.ts            Day / Night / Follow device switch, useTheme(); theme-script.ts runs in <head> before the first paint
     initials.ts, use-hydrated.ts         shared helpers; screen.ts (phone and tablet sizes, for the few things CSS can't do)
     auth/                                SignInButton, UserMenu, Better Auth's browser client, safeReturnTo
-    tree/                                FamilyCanvas, PersonNode, UnionNode (heart), PersonPhoto, photoUrl; HidePhotosButton (the eye: initials only); framing.ts (phones' and tablets' views, Find someone's centring); FindSomeone; ★ Everyone's ViewSwitcher, EveryoneList, NetworkCanvas and WheelCanvas (name-style.ts: the Wheel's తె/En choice)
+    tree/                                FamilyCanvas, PersonNode, UnionNode (heart), PersonPhoto, photoUrl; HidePhotosButton (the eye: initials only); framing.ts (phones' and tablets' views, Find someone's centring); FindSomeone; ★ Everyone's ViewSwitcher, EveryoneList, NetworkCanvas, WheelCanvas (name-style.ts: the Wheel's తె/En choice) and UpcomingList
       edit/                              PersonPanel, CouplePanel, SheetTabs (with the phone's sheet picker and the sheet menu), person form (F6); PhotoControls, upload (F8); panel.ts (panel layouts)
       sheet-picture.ts                   the whole sheet as a PNG (html-to-image), download or print (F9)
     chat/                                ChatWidget (the conversation, kept in the browser), ProposalCard, the event-stream reader
@@ -190,7 +191,9 @@ What follows from this:
 - Adding parents gives the mother her own sheet unless that box is unchecked, so her side of the family goes there. Parents added from a sheet that won't show them (above a mother with her own sheet, or a partner who married in) go on the person's own sheet: the form says so, and saving opens it.
 - Deleting a sheet never deletes people. A deleted sheet is kept with `deletedAt` (like people and groups) and is gone for everyone. Pinned sheets (the father's and mother's start pinned) can't be deleted until unpinned, nor can a group's last sheet.
 
-**★ Everyone** (an owner request after the final check) is a built-in first tab, not a stored sheet: `everyoneView()` draws every person and every couple, with the same rules for what a couple and its children need to be drawn. Its address is `/g/{groupId}/s/everyone?view=tree|network|wheel|list` (the Wheel also `&centre=`, its middle), plus `&person=` for the selected person, so a link opens the same view and person; a group still opens on its first pinned sheet. Without a view in the address it opens the one last used on that device (`localStorage`), else List on phones and Tree elsewhere. Built: the Tree view and Find someone (part 1), the List (`listRows()`: each person's parents, partners, children and the sheets that show them, with filters, part 2), the Network (part 3) and the Wheel (part 4), both in [§7](#7-tree-rendering-and-auto-layout) (FEATURES.md, Everyone).
+**★ Everyone** (an owner request after the final check) is a built-in first tab, not a stored sheet: `everyoneView()` draws every person and every couple, with the same rules for what a couple and its children need to be drawn. Its address is `/g/{groupId}/s/everyone?view=tree|network|wheel|list|upcoming` (the Wheel also `&centre=`, its middle), plus `&person=` for the selected person, so a link opens the same view and person; a group still opens on its first pinned sheet. Without a view in the address it opens the one last used on that device (`localStorage`), else List on phones and Tree elsewhere. Built: the Tree view and Find someone (part 1), the List (`listRows()`: each person's parents, partners, children and the sheets that show them, with filters, part 2), the Network (part 3) and the Wheel (part 4), both in [§7](#7-tree-rendering-and-auto-layout), and Upcoming (birthdays and anniversaries, a later owner request) (FEATURES.md, Everyone).
+
+**Birthdays and anniversaries** (an owner request after the final check): `upcomingDates(family, today, withinDays?)` (`src/tree/upcoming.ts`) gives each living person's next birthday and each married couple's next anniversary (not divorced, both partners living, full dates only), nearest first, within the next 12 months or `withinDays`, with ages, ordinals and milestones (Shashtipurti at 60; Silver at 25, Golden at 50 years married). 29 February falls on the 28th in other years. "Today" is the device's date, read only in the browser (`useToday()`, null while the page is drawn on the server and hydrated), because the server knows neither the person's day nor their time zone. ★ Everyone's Upcoming view lists the year by month; the dashboard loads the trees of the user's own groups, sends only their dated people and couples (`datedFamily`) and shows the next 30 days. The person panel shows an age ("41 years old", "About 41 years old" with only a year, "Died aged 77").
 
 ## 7. Tree rendering and auto-layout
 

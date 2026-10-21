@@ -63,9 +63,9 @@ The owner's full requirements and every agreed decision are in [docs/FEATURES.md
 
 ### ★ Everyone: the whole family in one place
 
-![★ Everyone, the first tab: the whole family as a Tree, a Network, a Wheel around one person, and a List](docs/screenshots/everyone-views.png)
+![★ Everyone, the first tab: the whole family as a Tree, a Network, a Wheel around one person, a List, and the birthdays and anniversaries coming up](docs/screenshots/everyone-views.png)
 
-A built-in first tab on every group's sheets page that shows every person and how they're related, in four views:
+A built-in first tab on every group's sheets page that shows every person and how they're related, in five views:
 
 | View | What it shows | Best on |
 |---|---|---|
@@ -73,10 +73,12 @@ A built-in first tab on every group's sheets page that shows every person and ho
 | ◎ **Network** | Everyone and every relation on one canvas: hearts join couples, arrows run from parents to children, bigger circles have more relations | Computers and tablets |
 | ◉ **Wheel** | One person in the middle and everyone else in rings by how close they are, each labelled (mother, uncle's wife, cousin's child) | Every screen |
 | ☰ **List** | A searchable list with each person's parents, partners, children and the sheets that show them | Every screen; a phone's first view |
+| ▦ **Upcoming** | Everyone's next birthday ("Turns 41") and every couple's next wedding anniversary over the next 12 months, nearest first, with Shashtipurti, Silver and Golden marked | Every screen |
 
 - ★ Everyone comes first in the tab row (first in the sheet picker on phones), but a group still opens on its first pinned sheet, or its first sheet when none is pinned.
+- The dashboard lists the birthdays and anniversaries in the next 30 days across your groups, and a person's panel shows their age.
 - Tapping anyone, in any view, opens the same person panel as on a sheet (editing for Maintain and up), with shortcuts to the other views. The person you picked stays picked when you switch, and each view has its own link to share.
-- **All four views are built.** Find someone selects a person and moves to them (in the List it narrows the rows; in the Wheel it puts them in the middle). The List filters Everyone, Living, Married in and On no sheet. In the Network, choosing someone lights up their parents, partners and children. The Wheel labels everyone with their relation in Telugu relationship names written in English letters (Amma, Babai, Menamama, Bava…) or, with the "తె | En" toggle, in English. A person's panel has "Find in list", "Show in network" and "Relatives wheel", on any sheet too. The picture above shows them with the sample family. The agreed details are in [docs/FEATURES.md](docs/FEATURES.md#everyone-agreed-2026-10-20-all-four-views-built-tree-list-network-wheel).
+- **All five views are built.** Find someone selects a person and moves to them (in the List it narrows the rows; in the Wheel it puts them in the middle). The List filters Everyone, Living, Married in and On no sheet. In the Network, choosing someone lights up their parents, partners and children. The Wheel labels everyone with their relation in Telugu relationship names written in English letters (Amma, Babai, Menamama, Bava…) or, with the "తె | En" toggle, in English. Upcoming lists the next 12 months of birthdays and anniversaries by month, for people with full dates. A person's panel has "Find in list", "Show in network" and "Relatives wheel", on any sheet too. The picture above shows them with the sample family. The agreed details are in [docs/FEATURES.md](docs/FEATURES.md#everyone-agreed-2026-10-20-all-four-views-built-tree-list-network-wheel).
 
 ## Tech stack
 
