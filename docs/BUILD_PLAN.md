@@ -32,6 +32,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | ★ Everyone, part 1: the tab and the Tree view (owner request) | Done 2026-10-21 (e2e run in the owner's terminal: 66 passed). See its section at the end |
 | – | ★ Everyone, part 2: the List view (owner request) | Done 2026-10-21 (unit tests: 341 passed; e2e: 68 of 69 passed, and the one phone failure passed on a rerun of the phone tests in the owner's terminal). See its section at the end |
 | – | ★ Everyone, part 3: the Network view (owner request) | Done 2026-10-21 (unit tests: 352 passed; e2e: 71 passed). See its section at the end |
+| – | ★ Everyone, part 4: the Wheel view (owner request) | Done 2026-10-21 (unit tests: 378 passed; e2e: 73 passed). See its section at the end |
 
 ## How we work
 
@@ -1034,3 +1035,114 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - Lines leaving a person downwards (usually to their own heart) crossed their name, so they start below it (`personReach`, unit-tested).
   - The arrangement runs only in the browser: started while rendering, it would have run on the server too, for every page load with `?view=network`. After a change to the group the previous arrangement stays drawn until the new one is ready, so the canvas never draws new people at missing places.
   - React Flow canvases have no jsdom tests (like the Tree's); the lighting up, the hearts and the centring are covered by the e2e tests.
+
+## After the final check: ★ Everyone, part 4: the Wheel view (owner request)
+- **Why:** the last of the four agreed views (FEATURES.md, Everyone). It answers "how is everyone related to this person?": one person in the middle and everyone else in rings by how close they are, each labelled with the relation (Mother, Uncle's wife, Cousin's son). It reads well on a phone and never gets wider as the family grows, only fuller.
+- **Build:**
+  - **The switcher** becomes Tree · Network · Wheel · List, in the agreed order. The address is `?view=wheel&centre=<id>`, plus `&person=` for whoever is selected, so a link opens the same wheel. Phones keep List as their first view.
+  - **The middle:** the selected person when the Wheel opens, else the first pinned sheet's root, as agreed. Find someone, in the Wheel, puts the chosen person in the middle. A "This is me" link stays for later.
+  - **Rings** by steps from the middle, where a parent, partner, child, or brother or sister is one step:
+    - Closest: parents, partners, children, brothers and sisters.
+    - 2 steps: grandparents, grandchildren, aunts and uncles, nieces and nephews, in-laws, step-family.
+    - 3 steps: cousins, great-grandparents, an uncle's wife, and so on; then one ring per step (see question 4).
+    - Each ring grows to fit its people, so nobody overlaps.
+  - **Sides,** as in the mockup: ancestors up, descendants down, partners and their families right, brothers, sisters, aunts, uncles and cousins left. Within a side, each branch stays together (the mother's family near the mother).
+  - **Each person:** their round photo or initials (the eye hides photos here too), their name, and the relation's name (below). A line runs to the relative they're connected through.
+    - The middle person is bigger and ringed. Faint ring circles carry their labels ("Closest", "2 steps", …), and faint words name the sides.
+  - **Tapping someone** opens their panel, as in every other view; the middle stays put while you look around. Moving the middle (Put in the middle, or Find someone) animates: everyone glides to their new place.
+  - **A summary** in a corner on computers (like the Network's key): "Steve Cruz's relatives", with counts by group (parents, partners, children, brothers and sisters, grandparents, grandchildren, aunts and uncles, nieces and nephews, cousins, in-laws, others).
+    - People not related to the middle through anyone (a family not joined to the rest) aren't drawn; the summary counts them as "Not related through anyone".
+  - **First view,** readable: the closest two rings on computers and tablets, the closest ring on phones; pinch or zoom out for the rest. A new middle keeps the zoom and brings the view back to the middle.
+  - **The person panel:**
+    - In the Wheel it says how they're related to the middle, in both name styles and with the exact path ("Babai · Uncle · Steve Cruz's father's younger brother"), and offers "Put in the middle".
+    - Elsewhere (sheets, the Tree, the Network and the List) it gets **Relatives wheel**, which opens the Wheel around them. Viewers get it too.
+  - **Export:** the picture and print work as on a sheet, named "<Name>'s relatives".
+  - **Pure parts,** unit-tested on the sample family and on made-up special cases:
+    - `src/tree/kinship.ts`: the shortest path from the middle to everyone, the relation's name, its group and its steps.
+    - `src/tree/wheel.ts`: rings, sides and angles.
+  - **Relation names: Telugu by default, English on a toggle** (the owner's choice). Telugu names are written in English letters (Amma, Babai, Menamama), never in Telugu script.
+    - **The toggle:** "తె | En" in the bar, shown only in the Wheel, తె first. The choice is remembered on this device.
+    - **No birth year,** or the same year, where Telugu needs elder or younger: both names, "Annayya/Thammudu".
+    - **Telugu names** depend on what English ignores, all read from the group:
+      - who is elder or younger, from birth years (Annayya or Thammudu; the father's elder or younger brother);
+      - which side (the father's or the mother's);
+      - the middle person's gender (a man's sister's son is Menalludu; a woman's is like her own son);
+      - parallel or cross cousins (a father's brother's children are called brother and sister; a father's sister's are Bava, Vadina, Bavamaridi, Maradalu).
+    - **English names**, by gender:
+      - Mother/Father, Daughter/Son, Sister/Brother (Half-sister when only one parent is shared).
+      - Grandmother, Great-grandmother, "2× great-grandmother"; Grandson; Aunt/Uncle, Great-aunt; Niece/Nephew, Grandniece.
+      - Cousin, Second cousin, Cousin's son, Mother's cousin.
+      - Mother-in-law, Son-in-law, Sister-in-law; Stepmother, Stepson, Stepsister.
+      - Wife and Husband (Ex-wife, Ex-husband when divorced), in chains too.
+    - **Anyone else:** a chain of up to three names, else "Relative" (Bandhuvu in Telugu).
+      - English joins them with "'s": "Uncle's wife", "Cousin's husband", "Wife's cousin".
+      - Telugu puts the words side by side: "Menalludu bharya" (nephew's wife), "Nanna bharya" (father's wife: a stepmother).
+    - **The proposed Telugu names,** for the owner to check (usage varies between families and regions):
+
+      | Relation to the person in the middle | Telugu | English |
+      |---|---|---|
+      | Mother, father | Amma, Nanna | Mother, Father |
+      | Wife, husband | Bharya, Bhartha | Wife, Husband |
+      | Divorced wife, husband | Maaji bharya, Maaji bhartha | Ex-wife, Ex-husband |
+      | Son, daughter | Koduku, Kuthuru | Son, Daughter |
+      | Elder, younger brother | Annayya, Thammudu | Brother |
+      | Elder, younger sister | Akka, Chelli | Sister |
+      | Grandfather (either side) | Thathayya | Grandfather |
+      | Father's mother, mother's mother | Nannamma, Ammamma | Grandmother |
+      | Great-grandfather, great-grandmother | Muthathayya, Muthavva | Great-grandfather, Great-grandmother |
+      | Grandson, granddaughter | Manavadu, Manavaralu | Grandson, Granddaughter |
+      | Great-grandson, great-granddaughter | Munimanavadu, Munimanavaralu | Great-grandson, Great-granddaughter |
+      | Father's elder, younger brother | Peddananna, Babai | Uncle |
+      | Their wives | Peddamma, Pinni | Uncle's wife |
+      | Mother's elder, younger sister | Peddamma, Pinni | Aunt |
+      | Their husbands | Peddananna, Babai | Aunt's husband |
+      | Father's sister; her husband | Attha; Mavayya | Aunt; Aunt's husband |
+      | Mother's brother; his wife | Mavayya (Menamama); Attha | Uncle; Uncle's wife |
+      | Father-in-law, mother-in-law | Mavayya, Attha | Father-in-law, Mother-in-law |
+      | Son-in-law, daughter-in-law | Alludu, Kodalu | Son-in-law, Daughter-in-law |
+      | Elder, younger brother's wife | Vadina, Maradalu | Sister-in-law |
+      | Elder, younger sister's husband | Bava, Bavamaridi | Brother-in-law |
+      | Wife's or husband's elder, younger brother | Bava, Bavamaridi | Brother-in-law |
+      | Wife's or husband's elder, younger sister | Vadina, Maradalu | Sister-in-law |
+      | Husband's brother's wife (for a woman) | Thodikodalu | Sister-in-law |
+      | Wife's sister's husband (for a man) | Thodalludu | Brother-in-law |
+      | A man's sister's children, a woman's brother's | Menalludu, Menakodalu | Nephew, Niece |
+      | A man's brother's children, a woman's sister's | Annayya koduku, Thammudu kuthuru, Akka koduku, Chelli kuthuru… | Nephew, Niece |
+      | Cousins through a father's brother or a mother's sister | Annayya, Thammudu, Akka, Chelli, by age | Cousin |
+      | Cousins through a father's sister or a mother's brother | Bava, Bavamaridi, Vadina, Maradalu, by age | Cousin |
+
+  - **Drawing:** a `WheelCanvas` with React Flow, like the Network: pan, zoom, the zoom buttons and the picture; no overview map.
+  - No new library, and no database, server or permission changes.
+- **Tests:**
+  - Unit:
+    - Kinship from Steve Cruz across the sample: Olivia Cruz "Mother", Alexander Cruz "Grandfather", Jake Cruz "Uncle", Christina Cruz "Cousin", Jane Howell "Daughter-in-law", Sammie Chang his divorced partner, Emma Young "Uncle's wife".
+    - From others: Alexander Cruz and Jerry Willow (the same-sex couple), and someone in a family not joined to the rest.
+    - Made-up cases: half-siblings, a step-parent and step-children, second cousins, a great-great-grandparent, an in-law chain, a long chain that becomes "Relative".
+    - Steps, groups and the summary counts.
+    - The wheel: everyone in their ring, nobody overlapping, the sides (ancestors above the middle, descendants below, partners right), branches together, 2,000 people quickly.
+    - The panel: Relatives wheel everywhere but the Wheel; in the Wheel, the relation and Put in the middle.
+  - E2E:
+    - Desktop: the Wheel around Steve Cruz shows 35 others with their relations, and the summary.
+    - Tapping someone, as decided in question 1; Put in the middle moves the middle, and the address keeps it through a reload.
+    - Relatives wheel from a sheet; the picture's name; a Viewer.
+    - Phone: the Wheel opens readable at the two closest rings.
+    - Screenshots: `everyone-wheel.png`, `night-everyone-wheel.png` and `phone-everyone-wheel.png`.
+- **Decisions (owner, 2026-10-21):**
+  1. Tapping someone opens their panel (the proposal); "Put in the middle" moves the middle.
+  2. Relation names: Telugu relationship names, written in English letters, with a toggle to English names, Telugu first (the owner's own answer, replacing both proposals).
+  3. Couples are Wife and Husband (the proposal); Bharya and Bhartha in Telugu.
+  4. The wheel shows everyone related, one ring per step (the proposal).
+  5. The Telugu names table above is right as proposed.
+  6. A man's brother's children and a woman's sister's: "Annayya koduku", "Chelli kuthuru" (the proposal).
+  7. The toggle is "తె | En" (the proposal).
+  8. No birth year where Telugu needs elder or younger: both names, "Annayya/Thammudu" (the proposal).
+- **Notes (2026-10-21):**
+  - **Paths:** among paths of the same length, fewer marriages win. A half-brother or half-sister step counts as two, since it goes through another couple: a wife's son is a "Stepson" before he is a "Son's half-brother".
+  - **Chains:** a single name always wins. After that, Telugu prefers the fewest parts (Thodalludu, Attha amma), and English the fewest in-law words ("Wife's sister's husband", "Uncle's wife's mother", not the ambiguous "Sister-in-law's husband").
+  - **Groups** in the summary: an uncle's wife counts with aunts and uncles (she's Attha or Pinni); cousins include their children, and grandparents include great-grandparents.
+  - **Layout:** a side's share of the circle grows with the square root of its busiest ring, and the four sides are turned together towards their directions. With shares by plain count, a crowded cousins' side pushed the descendants round to the right.
+  - **Spacing:** neighbours sit 164 px apart along a ring, and rings 170 px apart, so circles and two-line names stay clear at any angle. That gave no overlaps for the sample or for 2,000 people, laid out in under 0.6 s; 136 px left 252 overlaps at 2,000.
+  - **First view:** two rings on a phone would have meant names about 5 px tall, so phones open on the middle at the readable zoom, and computers and tablets show the closest two rings.
+  - **A bug found while building:** switching to the Wheel with someone selected did nothing. The new middle was component state, which rendered before the pushed address reached `useSearchParams`, and the address effect then wrote the old view back. The middle now lives only in the address, and the effect reads the live address. The two e2e tests that failed before the fix cover it.
+  - **Busy sides:** on a busy side (cousins) some lines run a long way, for example from an uncle to his wife a ring further out. Readable, and the first thing to polish if wanted.
+  - **E2E runs:** one run had two failures outside this part: the phone panel's 28 px Close button, the flaky touch emulation seen in part 2, and the members page's "Role changed." arriving late. The next run passed all 73.

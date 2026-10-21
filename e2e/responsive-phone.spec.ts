@@ -263,7 +263,7 @@ test("night colours on a phone", async ({ page, signIn, sampleGroup }) => {
   await shot(page, "night-phone-tree");
 });
 
-test("★ Everyone is the first choice in the sheet picker; a phone opens it on the List, and the Network and the Tree readable (owner request)", async ({ page, signIn, sampleGroup }) => {
+test("★ Everyone is the first choice in the sheet picker; a phone opens it on the List, and the Network, the Wheel and the Tree readable (owner request)", async ({ page, signIn, sampleGroup }) => {
   const { groupId } = await openSampleGroup(page, signIn, sampleGroup);
   await expect(picker(page).locator("option").first()).toHaveText("★ Everyone");
   await picker(page).selectOption({ label: "★ Everyone" });
@@ -290,7 +290,7 @@ test("★ Everyone is the first choice in the sheet picker; a phone opens it on 
   await personPanel(page).getByRole("button", { name: "Close" }).tap();
 
   // The Network, readable.
-  await expect(page.getByRole("group", { name: "View" }).getByRole("button")).toHaveText(["Tree", "Network", "List"]);
+  await expect(page.getByRole("group", { name: "View" }).getByRole("button")).toHaveText(["Tree", "Network", "Wheel", "List"]);
   await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Network" }).tap();
   await expect(page).toHaveURL(new RegExp(`/s/everyone\\?view=network$`));
   const circles = page.getByRole("tabpanel").getByTestId("network-person");
@@ -298,6 +298,16 @@ test("★ Everyone is the first choice in the sheet picker; a phone opens it on 
   await expect.poll(async () => (await box(circles.filter({ hasText: "Alexander Cruz" }))).width).toBeGreaterThan(80);
   await fitsWidth(page);
   await shot(page, "phone-everyone-network");
+
+  // The Wheel, readable at the closest ring, around the first sheet's root (nobody is selected).
+  await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Wheel" }).tap();
+  await expect(page).toHaveURL(/\/s\/everyone\?view=wheel&centre=[0-9a-f]{24}$/);
+  const onWheel = page.getByRole("tabpanel").getByTestId("wheel-person");
+  await expect(onWheel).toHaveCount(36);
+  await expect.poll(async () => (await box(onWheel.filter({ hasText: "Jake Cruz" }))).width).toBeGreaterThan(85);
+  await expect(onWheel.filter({ hasText: "Jake Cruz" }).getByTestId("relation")).toHaveText("Koduku");
+  await fitsWidth(page);
+  await shot(page, "phone-everyone-wheel");
 
   // The Tree, readable.
   await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Tree" }).tap();

@@ -14,6 +14,16 @@ import { PhotoControls, type SignPhotoUpload } from "./PhotoControls";
 
 type Mode = "details" | "edit" | "parents" | "partner" | "child" | "sheet" | "ownSheet";
 
+/** In ★ Everyone's Wheel: how this person is related to the one in the middle. */
+export interface WheelRelation {
+  /** "Babai · Uncle"; null for the person in the middle. */
+  names: string | null;
+  /** "Steve Cruz's father's younger brother". */
+  path: string;
+  /** Puts them in the middle; not given for the person already there. */
+  onMiddle?: () => void;
+}
+
 export interface PanelProps {
   tree: GroupTree;
   canEdit: boolean;
@@ -59,9 +69,10 @@ const MOTHER_SHEET_HINT = "a tab for her side of the family: her parents, brothe
  * F6: one person's details and, for Maintain and up, what can be done with them. `signPhotoUpload` is
  * given when they may change photos and photos are set up (F8). Everyone can go to the person's own
  * sheets (an owner request after step 11): `onOpenSheet` opens one, as its tab would. On ★ Everyone
- * (`currentSheetId` EVERYONE) it also offers a sheet that shows them. `onFindInList` and
- * `onShowInNetwork`, given everywhere but in that view itself, open ★ Everyone's List at their row or
- * its Network centred on them.
+ * (`currentSheetId` EVERYONE) it also offers a sheet that shows them. `onFindInList`, `onShowInNetwork`
+ * and `onShowWheel`, given everywhere but in that view itself, open ★ Everyone's List at their row, its
+ * Network centred on them, or its Wheel around them. In the Wheel, `relation` says how they're related
+ * to the person in the middle.
  */
 export function PersonPanel({
   person,
@@ -71,6 +82,8 @@ export function PersonPanel({
   onOpenSheet,
   onFindInList,
   onShowInNetwork,
+  onShowWheel,
+  relation,
   ...props
 }: PanelProps & {
   person: Person;
@@ -80,6 +93,8 @@ export function PersonPanel({
   onOpenSheet: (sheetId: string) => void;
   onFindInList?: () => void;
   onShowInNetwork?: () => void;
+  onShowWheel?: () => void;
+  relation?: WheelRelation;
 }) {
   const { tree, canEdit, pending, run, onSelect, onClose } = props;
   const [mode, setMode] = useState<Mode>("details");
@@ -139,6 +154,23 @@ export function PersonPanel({
 
       {mode === "details" && (
         <>
+          {relation && (
+            <div aria-label="Relation" role="group" className="flex flex-col items-start gap-2 rounded-lg bg-amber-50 p-3 text-sm dark:bg-amber-950/40">
+              {relation.names ? (
+                <>
+                  <p className="font-semibold">{relation.names}</p>
+                  <p className="text-zinc-600 dark:text-zinc-400">{relation.path}</p>
+                </>
+              ) : (
+                <p className="font-semibold">In the middle of the wheel</p>
+              )}
+              {relation.onMiddle && (
+                <button type="button" onClick={relation.onMiddle} className="rounded-full bg-zinc-900 px-3 py-1 text-sm font-medium text-white hover:bg-zinc-700 pointer-coarse:min-h-11 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200">
+                  Put in the middle
+                </button>
+              )}
+            </div>
+          )}
           {canEdit && signPhotoUpload && (
             <PhotoControls person={person} signUpload={signPhotoUpload} pending={pending} run={run} onError={setFormError} />
           )}
@@ -164,7 +196,7 @@ export function PersonPanel({
               </dd>
             </div>
           </dl>
-          {(jumps.length > 0 || onFindInList || onShowInNetwork) && (
+          {(jumps.length > 0 || onFindInList || onShowInNetwork || onShowWheel) && (
             <div className="flex flex-col items-start gap-2">
               {jumps.map((jump) => (
                 <button
@@ -184,6 +216,11 @@ export function PersonPanel({
               {onShowInNetwork && (
                 <button type="button" onClick={onShowInNetwork} className="rounded-full border border-zinc-300 px-3 py-1 text-left text-sm font-medium hover:bg-zinc-100 pointer-coarse:min-h-11 dark:border-zinc-700 dark:hover:bg-zinc-800">
                   Show in network
+                </button>
+              )}
+              {onShowWheel && (
+                <button type="button" onClick={onShowWheel} className="rounded-full border border-zinc-300 px-3 py-1 text-left text-sm font-medium hover:bg-zinc-100 pointer-coarse:min-h-11 dark:border-zinc-700 dark:hover:bg-zinc-800">
+                  Relatives wheel
                 </button>
               )}
             </div>

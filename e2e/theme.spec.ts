@@ -45,6 +45,10 @@ test("day, night or follow the device: the choice stays, and the tree is readabl
   await expect(page.getByRole("tabpanel").getByTestId("network-person")).toHaveCount(36);
   await page.waitForTimeout(300);
   await screenshot(page, "everyone-network");
+  await page.goto(`/g/${groupId}/s/everyone?view=wheel`); // and its Wheel
+  await expect(page.getByRole("tabpanel").getByTestId("wheel-person")).toHaveCount(36);
+  await page.waitForTimeout(500);
+  await screenshot(page, "everyone-wheel");
 
   await page.goto("/dashboard");
   await expect(page.getByRole("heading", { name: "Welcome, Nora Night" })).toBeVisible(); // not the loading text

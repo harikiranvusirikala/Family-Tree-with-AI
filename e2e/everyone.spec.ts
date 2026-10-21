@@ -3,7 +3,7 @@ import { applyOperations } from "@/server/operations/apply";
 import { expect, test, type SampleGroup, type SignIn } from "./fixtures";
 
 // ★ Everyone (an owner request after the final check): part 1, the tab and the Tree view; part 2, the
-// List and the view switcher; part 3, the Network.
+// List and the view switcher; part 3, the Network; part 4, the Wheel.
 
 test.use({ viewport: { width: 1600, height: 1000 } });
 
@@ -11,12 +11,17 @@ const cards = (page: Page) => page.getByRole("tabpanel").getByTestId("person-car
 const card = (page: Page, name: string) => cards(page).filter({ hasText: name });
 const personPanel = (page: Page) => page.getByRole("complementary", { name: "Person details" });
 const find = (page: Page) => page.getByRole("combobox", { name: "Find someone" });
-const viewButton = (page: Page, name: "Tree" | "Network" | "List") => page.getByRole("group", { name: "View" }).getByRole("button", { name });
+const viewButton = (page: Page, name: "Tree" | "Network" | "Wheel" | "List") => page.getByRole("group", { name: "View" }).getByRole("button", { name });
 const listRows = (page: Page) => page.getByRole("table", { name: "People" }).locator("tbody tr");
 const listRow = (page: Page, nameAndYears: string) => listRows(page).filter({ has: page.getByRole("button", { name: nameAndYears, exact: true }) });
 const filterButton = (page: Page, name: RegExp) => page.getByRole("group", { name: "Show" }).getByRole("button", { name });
 const search = (page: Page) => page.getByRole("searchbox", { name: "Find someone" });
 const circles = (page: Page) => page.getByRole("tabpanel").getByTestId("network-person");
+const onWheel = (page: Page) => page.getByRole("tabpanel").getByTestId("wheel-person");
+/** The relation shown under someone on the Wheel (their years, for the person in the middle). */
+const relationOf = (page: Page, nameAndYears: string) => onWheel(page).filter({ has: page.getByRole("button", { name: nameAndYears, exact: true }) }).getByTestId("relation");
+const wheelUrl = (person = true) => new RegExp(`/s/everyone\\?view=wheel&centre=[0-9a-f]{24}${person ? "&person=[0-9a-f]{24}" : ""}$`);
+const centreOf = (page: Page) => new URL(page.url()).searchParams.get("centre");
 const circle = (page: Page, nameAndYears: string) => circles(page).filter({ has: page.getByRole("button", { name: nameAndYears, exact: true }) });
 /** The element's middle is within `slack` pixels of the canvas's middle, and it's drawn big enough to read. */
 async function centred(page: Page, locator: Locator, slack = 20) {
@@ -146,10 +151,13 @@ test("a Viewer gets ★ Everyone too, without edit controls", async ({ browser, 
     await expect(listRow(viewerPage, "Jerry Willow, 1920 – 1989")).toHaveAttribute("aria-current", "true");
     await expect(viewerPage.getByRole("button", { name: "Export" })).toHaveCount(0);
 
-    // And the Network, with its picture.
+    // And the Network, with its picture, and the Wheel around Jerry Willow, selected.
     await viewButton(viewerPage, "Network").click();
     await expect(circles(viewerPage)).toHaveCount(36);
     await expect(viewerPage.getByRole("button", { name: "Export" })).toBeVisible();
+    await viewButton(viewerPage, "Wheel").click();
+    await expect(onWheel(viewerPage)).toHaveCount(36);
+    await expect(relationOf(viewerPage, "Jake Cruz, 1945 – 2022")).toHaveText("Koduku");
   } finally {
     await viewerPage.context().close();
   }
@@ -265,7 +273,7 @@ test("Find in list, from a sheet: the List with their row selected and on the sc
 test("the Network: everyone and every couple; choosing someone lights up their relations; a heart opens the couple", async ({ page, signIn, sampleGroup }) => {
   const { groupId } = await sampleOwner(page, signIn, sampleGroup);
   await page.goto(`/g/${groupId}/s/everyone?view=tree`);
-  await expect(page.getByRole("group", { name: "View" }).getByRole("button")).toHaveText(["Tree", "Network", "List"]);
+  await expect(page.getByRole("group", { name: "View" }).getByRole("button")).toHaveText(["Tree", "Network", "Wheel", "List"]);
   await viewButton(page, "Network").click();
   await expect(page).toHaveURL(everyoneUrl("network"));
   await expect(viewButton(page, "Network")).toHaveAttribute("aria-pressed", "true");
@@ -314,6 +322,80 @@ test("Show in network from a sheet, and Find someone, centre a circle; a reload 
   await page.getByRole("option", { name: "Amelia Young (2001)" }).click();
   await expect(personPanel(page).getByRole("heading", { name: "Amelia Young" })).toBeVisible();
   await expect.poll(() => centred(page, circle(page, "Amelia Young, 2001"))).toBe(true);
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/s/${cruzSheet}$`));
+});
+
+test("the Wheel: Steve Cruz in the middle, everyone else labelled in Telugu or English; tapping says how; Put in the middle", async ({ page, signIn, sampleGroup }) => {
+  const { groupId } = await sampleOwner(page, signIn, sampleGroup);
+  await page.goto(`/g/${groupId}/s/everyone?view=tree`);
+  await expect(page.getByRole("group", { name: "View" }).getByRole("button")).toHaveText(["Tree", "Network", "Wheel", "List"]);
+  await find(page).fill("steve");
+  await page.getByRole("option", { name: "Steve Cruz (1985)" }).click();
+  await viewButton(page, "Wheel").click(); // around the person selected
+  await expect(page).toHaveURL(wheelUrl());
+  const steve = centreOf(page);
+  await expect(onWheel(page)).toHaveCount(36);
+  await expect(relationOf(page, "Steve Cruz, 1985")).toHaveText("1985"); // the middle shows his years
+  const names = page.getByRole("group", { name: "Relation names" });
+  await expect(names.getByRole("button", { name: "Telugu names" })).toHaveAttribute("aria-pressed", "true");
+  for (const [who, telugu] of [["Olivia Cruz, 1960", "Amma"], ["Jake Cruz, 1945 – 2022", "Menamama"], ["Christina Cruz, 1978", "Vadina"], ["Jane Howell, 2002", "Kodalu"], ["Amy Harolds, 1885 – 1966", "Muthavva"]]) {
+    await expect(relationOf(page, who), who).toHaveText(telugu);
+  }
+  await expect(page.getByRole("region", { name: "Relatives" })).toContainText("Steve Cruz's relatives");
+  await expect(page.getByRole("region", { name: "Relatives" })).toContainText("Cousins11");
+  await page.waitForTimeout(500); // let the wheel settle for the picture
+  await page.screenshot({ path: "test-results/screenshots/everyone-wheel.png" });
+
+  // English names, remembered on this device.
+  await names.getByRole("button", { name: "English names" }).click();
+  await expect(relationOf(page, "Olivia Cruz, 1960")).toHaveText("Mother");
+  await expect(relationOf(page, "Christina Cruz, 1978")).toHaveText("Cousin");
+  await expect(relationOf(page, "Taylor Humes, 1955")).toHaveText("Uncle's wife");
+  await page.reload();
+  await expect(relationOf(page, "Olivia Cruz, 1960")).toHaveText("Mother");
+  await names.getByRole("button", { name: "Telugu names" }).click();
+  await expect(relationOf(page, "Olivia Cruz, 1960")).toHaveText("Amma");
+
+  // Tapping someone opens their panel, saying how they're related; the middle stays put.
+  await page.getByRole("tabpanel").getByRole("button", { name: "Jake Cruz, 1945 – 2022" }).click();
+  const relation = personPanel(page).getByRole("group", { name: "Relation" });
+  await expect(relation).toContainText("Menamama · Uncle");
+  await expect(relation).toContainText("Steve Cruz's mother's elder brother");
+  expect(centreOf(page)).toBe(steve);
+  await expect(personPanel(page).getByRole("button", { name: "Relatives wheel" })).toHaveCount(0); // already there
+
+  // Put in the middle: Jake Cruz, his sister's son Steve is his Menalludu; a reload keeps it.
+  await relation.getByRole("button", { name: "Put in the middle" }).click();
+  await expect(relationOf(page, "Steve Cruz, 1985")).toHaveText("Menalludu");
+  expect(centreOf(page)).not.toBe(steve);
+  await expect(personPanel(page).getByRole("group", { name: "Relation" })).toHaveText("In the middle of the wheel");
+  await page.reload();
+  await expect(relationOf(page, "Steve Cruz, 1985")).toHaveText("Menalludu");
+  await expect(relationOf(page, "Jake Cruz, 1945 – 2022")).toHaveText("1945 – 2022");
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export" }).click();
+  await page.getByRole("menu", { name: "Export" }).getByRole("menuitem", { name: "Picture (PNG)" }).click();
+  expect((await download).suggestedFilename()).toBe("Jake Cruz's relatives.png");
+});
+
+test("Relatives wheel from a sheet, and Find someone in the Wheel, move the middle", async ({ page, signIn, sampleGroup }) => {
+  const { groupId, cruzSheet } = await sampleOwner(page, signIn, sampleGroup);
+  await page.goto(`/g/${groupId}/s/${cruzSheet}`);
+  await page.getByRole("tabpanel").getByRole("button", { name: "Tay Young, 2005" }).click();
+  await personPanel(page).getByRole("button", { name: "Relatives wheel" }).click();
+  await expect(page).toHaveURL(wheelUrl());
+  await expect(relationOf(page, "Tay Young, 2005")).toHaveText("2005");
+  await expect(relationOf(page, "Christina Cruz, 1978")).toHaveText("Amma");
+  await expect(relationOf(page, "Carrie Young, 2001")).toHaveText("Akka");
+
+  await find(page).fill("alexander");
+  await page.getByRole("option", { name: "Alexander Cruz (1918 – 2003)" }).click();
+  await expect(relationOf(page, "Alexander Cruz, 1918 – 2003")).toHaveText("1918 – 2003");
+  await expect(relationOf(page, "Jerry Willow, 1920 – 1989")).toHaveText("Bhartha"); // a same-sex couple
+  await page.goBack(); // the middle before
+  await expect(relationOf(page, "Tay Young, 2005")).toHaveText("2005");
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`/s/${cruzSheet}$`));
 });

@@ -200,7 +200,7 @@ This is a Family Tree Web Application that can be accessed via Web.
   - Photos come in only when a JSON file goes back into the group it came from.
   - The picture always uses the day colours on white.
 
-### Everyone (agreed 2026-10-20; parts 1–3, the tab, the Tree view, the List and the Network, built)
+### Everyone (agreed 2026-10-20; all four views built: Tree, List, Network, Wheel)
 
 - Four views of everyone in the group, chosen from the mockups: **Tree** (one big tree drawn like a sheet), **Network** (everyone and every relation on one canvas), **Wheel** (relatives in rings around one person, each labelled with the relation) and **List** (a searchable directory with each person's relations and sheets). The households graph with a relationship finder was not chosen.
 - They live in a built-in **★ Everyone** tab, the first in the sheet row (first in the phone's sheet picker, above the pinned sheets), with a switcher for the four views. It always holds everyone and can't be renamed or deleted.
@@ -213,6 +213,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 - On ★ Everyone, someone with no sheet of their own gets "Go to <sheet>" in their panel for the first sheet that shows them. (Named like the jump to a person's own sheets; "Show on another sheet" is already the edit that adds someone to a sheet.)
 - The List (part 2, agreed 2026-10-21): everyone A to Z by the name as written (first name first; no guessing which word is the family name), with parents, partners, children and the sheets that show them. Filters: Everyone, Living, Married in (a partner, no parents added, and a partner whose parents are added) and On no sheet. In the List, Find someone narrows the rows as you type. The picture and print are for drawn views, so in the List, Export has only the data files. The person panel's "Find in list" (on sheets and the Tree) opens the List at that person.
 - The Network (part 3, agreed 2026-10-21): arranged with d3-force (a new library; ELK took 40 s for 300 people), the same every time, older generations towards the top. Arrows to children start at the couple's heart. Choosing someone lights up their parents, partners and children and fades everyone else. "Show in network" in the person panel (on sheets, the Tree and the List). Its picture is named "Everyone network".
+- The Wheel (part 4, agreed 2026-10-21): relation names are Telugu relationship names written in English letters (Amma, Nanna, Annayya, Babai, Menamama, Attha, Bava, Vadina, Menalludu, Thodikodalu…), the owner's own choice, with a "తె | En" toggle to English names, Telugu first and remembered per device; the full table is in BUILD_PLAN.md, part 4. A man's brother's children (a woman's sister's) are "Annayya koduku", "Chelli kuthuru"; with no birth year, both names ("Annayya/Thammudu"). Couples are Wife and Husband (Bharya, Bhartha). Tapping someone opens their panel (the middle stays); "Put in the middle" moves it. The wheel shows everyone related, one ring per step; people related through nobody are counted, not drawn. Its picture is named "<Name>'s relatives".
 
 ### Backups and hardening (step 11)
 

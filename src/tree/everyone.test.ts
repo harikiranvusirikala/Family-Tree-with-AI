@@ -126,7 +126,8 @@ describe("which ★ Everyone view opens (owner request)", () => {
   test("the address's, else the last used on this device, else List on a phone and Tree elsewhere", () => {
     expect(chooseView("list", "tree", false)).toBe("list");
     expect(chooseView(null, "list", false)).toBe("list");
-    expect(chooseView("wheel", "tree", true)).toBe("tree"); // not built yet
+    expect(chooseView("wheel", "tree", true)).toBe("wheel");
+    expect(chooseView("circles", "tree", true)).toBe("tree"); // not a view
     expect(chooseView(null, null, true)).toBe("list");
     expect(chooseView(null, "nonsense", false)).toBe("tree");
   });
@@ -134,5 +135,7 @@ describe("which ★ Everyone view opens (owner request)", () => {
   test("its address holds the view and the selected person", () => {
     expect(everyoneHref("g1", "list", "p1")).toBe("/g/g1/s/everyone?view=list&person=p1");
     expect(everyoneHref("g1", "tree")).toBe("/g/g1/s/everyone?view=tree");
+    expect(everyoneHref("g1", "wheel", "p1", "c1")).toBe("/g/g1/s/everyone?view=wheel&centre=c1&person=p1");
+    expect(everyoneHref("g1", "list", "p1", "c1")).toBe("/g/g1/s/everyone?view=list&person=p1"); // the middle is the Wheel's
   });
 });

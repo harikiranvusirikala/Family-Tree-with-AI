@@ -49,8 +49,8 @@ export function findPeople(persons: Person[], query: string, limit = 8): Person[
     .slice(0, limit);
 }
 
-/** ★ Everyone's views, in the switcher's order. The Wheel joins between Network and List in part 4. */
-export const EVERYONE_VIEWS = ["tree", "network", "list"] as const;
+/** ★ Everyone's views, in the switcher's order. */
+export const EVERYONE_VIEWS = ["tree", "network", "wheel", "list"] as const;
 export type EveryoneViewName = (typeof EVERYONE_VIEWS)[number];
 export const isEveryoneView = (value: unknown): value is EveryoneViewName => EVERYONE_VIEWS.includes(value as EveryoneViewName);
 
@@ -64,9 +64,9 @@ export function chooseView(fromAddress: string | null, saved: string | null, pho
   return phone ? "list" : "tree";
 }
 
-/** ★ Everyone's address for a view, with the selected person, so a link opens the same. */
-export function everyoneHref(groupId: string, view: EveryoneViewName, personId?: string): string {
-  return `/g/${groupId}/s/${EVERYONE}?view=${view}${personId ? `&person=${personId}` : ""}`;
+/** ★ Everyone's address for a view, with the Wheel's middle and the selected person, so a link opens the same. */
+export function everyoneHref(groupId: string, view: EveryoneViewName, personId?: string, centreId?: string): string {
+  return `/g/${groupId}/s/${EVERYONE}?view=${view}${view === "wheel" && centreId ? `&centre=${centreId}` : ""}${personId ? `&person=${personId}` : ""}`;
 }
 
 /** One person in the List: their relations and the sheets that show them. */

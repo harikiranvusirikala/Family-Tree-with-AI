@@ -11,6 +11,7 @@ const icon = (path: ReactNode) => (
 
 const VIEWS: Record<EveryoneViewName, { label: string; icon: ReactNode }> = {
   tree: { label: "Tree", icon: icon(<path d="M12 4v6M6 14v-2h12v2M6 14v6M18 14v6" />) },
+  wheel: { label: "Wheel", icon: icon(<path d="M12 12h.01M12 3a9 9 0 1 0 0 18 9 9 0 1 0 0-18M12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 1 0 0-9" />) },
   network: { label: "Network", icon: icon(<path d="M6 7a2 2 0 1 0 0-.01M18 6a2 2 0 1 0 0-.01M12 18a2 2 0 1 0 0-.01M7.7 7.9l3.2 8.2M16.4 7.4l-3.3 8.7M8 6.5h8" />) },
   list: { label: "List", icon: icon(<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />) },
 };

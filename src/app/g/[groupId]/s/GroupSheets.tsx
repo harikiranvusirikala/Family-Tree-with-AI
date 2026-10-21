@@ -9,8 +9,10 @@ import { isPhone } from "@/components/screen";
 import { EveryoneList } from "@/components/tree/EveryoneList";
 import { FamilyCanvas, type CanvasFocus, type CapturePicture } from "@/components/tree/FamilyCanvas";
 import { FindSomeone } from "@/components/tree/FindSomeone";
+import { setNameStyle, useNameStyle } from "@/components/tree/name-style";
 import { NetworkCanvas } from "@/components/tree/NetworkCanvas";
 import { ViewSwitcher } from "@/components/tree/ViewSwitcher";
+import { WheelCanvas } from "@/components/tree/WheelCanvas";
 import { downloadPicture, printPicture } from "@/components/tree/sheet-picture";
 import { fileName } from "@/server/import-export/types";
 import { CouplePanel } from "@/components/tree/edit/CouplePanel";
@@ -22,6 +24,7 @@ import { CloudNameContext, PhotosHiddenContext } from "@/components/tree/photo";
 import type { Operation } from "@/server/operations/schema";
 import { deletePersonOps, restorePersonOps, tabOrder } from "@/tree/edits";
 import { chooseView, EVERYONE, everyoneHref, everyoneView, isEveryoneView, listRows, type EveryoneViewName, type ListFilter } from "@/tree/everyone";
+import { kinship, relationName, relationPath } from "@/tree/kinship";
 import { buildSheetView } from "@/tree/sheet-view";
 import type { GroupTree, Person } from "@/tree/types";
 import { applyChangesAction, signPhotoUploadAction } from "../actions";
@@ -74,9 +77,10 @@ export function GroupSheets({
   const addressView = everyone ? searchParams.get("view") : null;
   /** Null until the address has a view: the device's choice is made in an effect, below. */
   const shownView: EveryoneViewName | null = isEveryoneView(addressView) ? addressView : null;
-  const drawn = !everyone || shownView === "tree" || shownView === "network"; // something to picture
+  const drawn = !everyone || shownView !== "list"; // something to picture
   const listShown = everyone && shownView === "list";
   const networkShown = everyone && shownView === "network";
+  const wheelShown = everyone && shownView === "wheel";
   const rows = useMemo(() => (listShown ? listRows(tree) : []), [listShown, tree]);
   const [listFilter, setListFilter] = useState<ListFilter>("everyone");
   const [listQuery, setListQuery] = useState("");
@@ -85,6 +89,14 @@ export function GroupSheets({
     const id = everyone ? searchParams.get("person") : null;
     return id && tree.persons.some((p) => p.id === id) ? { kind: "person", id } : null;
   });
+  const selectedPerson = selection?.kind === "person" ? selection.id : undefined;
+  // The Wheel's middle lives in the address only (`&centre=`), set by every way into the Wheel; it stays
+  // put while people are selected there. Without one (an older link): whoever is selected, else the
+  // first sheet's root, until the effect below writes it in.
+  const addressCentre = everyone ? searchParams.get("centre") : null;
+  const wheelCentre = addressCentre && tree.persons.some((p) => p.id === addressCentre) ? addressCentre : (selectedPerson ?? view.rootPersonId);
+  const kin = useMemo(() => (wheelShown && wheelCentre ? kinship(tree, wheelCentre) : null), [wheelShown, wheelCentre, tree]);
+  const nameStyle = useNameStyle();
   const [deleted, setDeleted] = useState<Person | null>(null); // for Undo
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -96,7 +108,6 @@ export function GroupSheets({
   const capture = useRef<CapturePicture | null>(null);
   // Find someone, or the person in a ★ Everyone link: their card is centred.
   const [focus, setFocus] = useState<CanvasFocus | null>(() => (selection ? { personId: selection.id } : null));
-  const selectedPerson = selection?.kind === "person" ? selection.id : undefined;
 
   /** Export, picture (F9): the whole sheet, then a download or the print dialog. */
   async function picture(then: (dataUrl: string) => void) {
@@ -119,13 +130,18 @@ export function GroupSheets({
     if (!found && !everyone && !pending) window.history.replaceState(null, "", `/g/${groupId}/s/${current.id}`);
   }, [found, everyone, pending, current.id, groupId]);
 
-  // ★ Everyone's address follows the view and the selected person. Opened without a view (a link from
-  // before the List): the one last used on this device, else List on a phone and Tree elsewhere.
+  // ★ Everyone's address follows the selected person. Opened without a view (a link from before the
+  // List): the one last used on this device, else List on a phone and Tree elsewhere; the Wheel without
+  // a middle gets one. It reads the view and the middle from the live address, not from this render:
+  // a view or middle just pushed may not have reached useSearchParams yet, and mustn't be undone.
   useEffect(() => {
     if (!everyone) return;
-    const href = everyoneHref(groupId, shownView ?? chooseView(null, savedView(), isPhone()), selectedPerson);
+    const live = new URLSearchParams(window.location.search);
+    const liveView = live.get("view");
+    const shown = isEveryoneView(liveView) ? liveView : chooseView(null, savedView(), isPhone());
+    const href = everyoneHref(groupId, shown, selectedPerson, live.get("centre") ?? wheelCentre);
     if (href !== window.location.pathname + window.location.search) window.history.replaceState(null, "", href);
-  }, [everyone, shownView, selectedPerson, groupId]);
+  }, [everyone, shownView, selectedPerson, wheelCentre, groupId]);
 
   useEffect(() => {
     if (!shownView) return;
@@ -136,18 +152,25 @@ export function GroupSheets({
     }
   }, [shownView]);
 
-  const openSheet = (sheetId: string) =>
-    window.history.pushState(
-      null,
-      "",
-      sheetId === EVERYONE ? everyoneHref(groupId, chooseView(null, savedView(), isPhone()), selectedPerson) : `/g/${groupId}/s/${sheetId}`,
-    );
+  function openSheet(sheetId: string) {
+    if (sheetId !== EVERYONE) return window.history.pushState(null, "", `/g/${groupId}/s/${sheetId}`);
+    const next = chooseView(null, savedView(), isPhone());
+    window.history.pushState(null, "", everyoneHref(groupId, next, selectedPerson, selectedPerson ?? wheelCentre));
+  }
 
-  /** The view switcher. Back returns to the view before, as with tabs. */
+  /** The view switcher. Back returns to the view before, as with tabs. The Wheel opens around whoever is selected. */
   function showView(next: EveryoneViewName) {
     if (next === shownView) return;
-    setFocus(next !== "list" && selectedPerson ? { personId: selectedPerson } : null); // the Tree and the Network open at them
-    window.history.pushState(null, "", everyoneHref(groupId, next, selectedPerson));
+    setFocus((next === "tree" || next === "network") && selectedPerson ? { personId: selectedPerson } : null); // they open at them
+    window.history.pushState(null, "", everyoneHref(groupId, next, selectedPerson, selectedPerson ?? wheelCentre));
+  }
+
+  /**
+   * The Wheel around someone: the panel's Relatives wheel and Put in the middle, and Find someone in the
+   * Wheel. A new history entry, so Back returns to the middle before.
+   */
+  function showWheel(personId: string) {
+    window.history.pushState(null, "", everyoneHref(groupId, "wheel", personId, personId));
   }
 
   /** The panel's Find in list: the List, showing everyone, with their row in view. */
@@ -198,7 +221,21 @@ export function GroupSheets({
   const couple = selection?.kind === "couple" ? tree.unions.find((u) => u.id === selection.id) : undefined;
   // The List draws no tree, so it has only the data to export (Maintain and up).
   const exportable = drawn || canEdit;
-  const pictureTitle = networkShown ? "Everyone network" : everyone ? "Everyone" : current.title;
+  const pictureTitle = kin ? `${kin.centre.name}'s relatives` : networkShown ? "Everyone network" : everyone ? "Everyone" : current.title;
+  // In the Wheel, the panel says how the selected person is related to the one in the middle.
+  const kinOfSelected = kin && person ? kin.relatives.find((r) => r.person.id === person.id) : undefined;
+  const relation =
+    kin && person
+      ? person.id === kin.centre.id
+        ? { names: null, path: "" }
+        : kinOfSelected
+          ? {
+              names: `${relationName(kin.centre, kinOfSelected.path, "te")} · ${relationName(kin.centre, kinOfSelected.path, "en")}`,
+              path: `${kin.centre.name}'s ${relationPath(kin.centre, kinOfSelected.path)}`,
+              onMiddle: () => showWheel(person.id),
+            }
+          : { names: "Not related through anyone", path: `to ${kin.centre.name}`, onMiddle: () => showWheel(person.id) }
+      : undefined;
   const exportProps = {
     groupId,
     sheetId: everyone ? undefined : current.id,
@@ -284,6 +321,28 @@ export function GroupSheets({
           // The views, the count and Find someone; on phones the views get a row of their own.
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-zinc-200 px-3 py-2 md:px-4 dark:border-zinc-800">
             <ViewSwitcher shown={shownView} onShow={showView} />
+            {wheelShown && (
+              // The Wheel's relation names: Telugu names in English letters, or English (the owner's choice).
+              <div role="group" aria-label="Relation names" className="flex shrink-0 rounded-full border border-zinc-300 p-0.5 text-sm font-medium dark:border-zinc-700">
+                {(
+                  [
+                    ["te", "తె", "Telugu names"],
+                    ["en", "En", "English names"],
+                  ] as const
+                ).map(([style, label, name]) => (
+                  <button
+                    key={style}
+                    type="button"
+                    aria-label={name}
+                    aria-pressed={nameStyle === style}
+                    onClick={() => setNameStyle(style)}
+                    className="rounded-full px-3 py-1 hover:bg-zinc-100 aria-pressed:bg-zinc-900 aria-pressed:text-white pointer-coarse:min-h-11 dark:hover:bg-zinc-800 dark:aria-pressed:bg-white dark:aria-pressed:text-zinc-900"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
             <p className="hidden shrink-0 text-sm text-zinc-500 sm:block dark:text-zinc-400">
               {view.persons.length} {view.persons.length === 1 ? "person" : "people"} · {couples} {couples === 1 ? "couple" : "couples"}
             </p>
@@ -304,6 +363,7 @@ export function GroupSheets({
                   onChoose={(id) => {
                     setSelection({ kind: "person", id });
                     setFocus({ personId: id });
+                    if (wheelShown) showWheel(id); // in the Wheel: put them in the middle
                   }}
                 />
               )}
@@ -329,6 +389,8 @@ export function GroupSheets({
                   openSheet(sheetId);
                 }}
               />
+            ) : kin ? (
+              <WheelCanvas kin={kin} style={nameStyle} captureRef={capture} actions={canvasActions} />
             ) : networkShown ? (
               <NetworkCanvas tree={tree} rootPersonId={view.rootPersonId} focus={focus} captureRef={capture} actions={canvasActions} />
             ) : (
@@ -362,6 +424,8 @@ export function GroupSheets({
               onOpenSheet={openSheet}
               onFindInList={listShown ? undefined : () => findInList(person.id)}
               onShowInNetwork={networkShown ? undefined : () => showInNetwork(person.id)}
+              onShowWheel={wheelShown ? undefined : () => showWheel(person.id)}
+              relation={relation}
               {...panelProps}
             />
           )}

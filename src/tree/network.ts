@@ -122,12 +122,14 @@ export function personRadius(p: NetworkPerson): number {
  * How far from a person's centre a line towards (dx, dy) starts: at their circle, or below their name
  * when it leaves downwards through it (usually to their own heart), so it doesn't cross the name.
  */
-export function personReach(entry: NetworkPerson, dx: number, dy: number) {
-  const radius = entry.size / 2;
+export const personReach = (entry: NetworkPerson, dx: number, dy: number) => lineStart(entry.size, labelBox(entry.person.name), dx, dy);
+
+/** The same for any circle of `size` with a `label` under it (the Wheel's has two lines). */
+export function lineStart(size: number, label: { width: number; height: number }, dx: number, dy: number) {
+  const radius = size / 2;
   const length = Math.hypot(dx, dy) || 1;
   const [ux, uy] = [dx / length, dy / length];
   if (uy <= 0) return radius;
-  const label = labelBox(entry.person.name);
   const halfWidth = label.width / 2;
   if (Math.abs(ux) * (radius / uy) > halfWidth) return radius; // passes beside the name
   const out = Math.min((radius + 2 + label.height) / uy, ux === 0 ? Infinity : halfWidth / Math.abs(ux));

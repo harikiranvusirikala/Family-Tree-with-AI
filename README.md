@@ -76,7 +76,7 @@ A built-in first tab on every group's sheets page that shows every person and ho
 
 - ★ Everyone comes first in the tab row (first in the sheet picker on phones), but a group still opens on its first pinned sheet, or its first sheet when none is pinned.
 - Tapping anyone, in any view, opens the same person panel as on a sheet (editing for Maintain and up), with shortcuts to the other views. The person you picked stays picked when you switch, and each view has its own link to share.
-- **Built so far: the tab, the Tree view, the List, the Network and Find someone.** On the Tree and the Network, Find someone selects a person and moves to them; in the List it narrows the rows as you type, beside the filters Everyone, Living, Married in and On no sheet. In the Network, choosing someone lights up their parents, partners and children. A person's panel has "Find in list" and "Show in network", on any sheet too. The Wheel comes next; the picture is a design mockup of all four, drawn from the sample family. The agreed details are in [docs/FEATURES.md](docs/FEATURES.md#everyone-agreed-2026-10-20-parts-13-the-tab-the-tree-view-the-list-and-the-network-built).
+- **All four views are built.** Find someone selects a person and moves to them (in the List it narrows the rows; in the Wheel it puts them in the middle). The List filters Everyone, Living, Married in and On no sheet. In the Network, choosing someone lights up their parents, partners and children. The Wheel labels everyone with their relation in Telugu relationship names written in English letters (Amma, Babai, Menamama, Bava…) or, with the "తె | En" toggle, in English. A person's panel has "Find in list", "Show in network" and "Relatives wheel", on any sheet too. The picture above is the design mockup, drawn from the sample family. The agreed details are in [docs/FEATURES.md](docs/FEATURES.md#everyone-agreed-2026-10-20-all-four-views-built-tree-list-network-wheel).
 
 ## Tech stack
 
@@ -153,7 +153,6 @@ The full design (code layout, data model, sheet rules, permissions table, flows 
 | A group | Loaded whole into the browser: comfortable up to a few thousand people |
 
 **Not built (yet)**
-- **★ Everyone**'s Wheel view: designed ([above](#-everyone-the-whole-family-in-one-place)), to be built next (the tab, its Tree view, its List and its Network are built).
 - Hiding one extra person from a sheet; copying photos when importing into a different group.
 - Email notifications for invites and requests (they show in the app, plus a link to share).
 - A cap on groups per account: anyone with a Google account can sign up and create groups (an accepted risk; see [Security](#security)).

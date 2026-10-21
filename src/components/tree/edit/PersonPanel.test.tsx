@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { GroupTree } from "@/tree/types";
-import { PersonPanel } from "./PersonPanel";
+import { PersonPanel, type WheelRelation } from "./PersonPanel";
 
 afterEach(cleanup);
 
@@ -22,7 +22,7 @@ const tree: GroupTree = {
   ],
 };
 
-function panel(personId: string, currentSheetId: string, canEdit = true, onFindInList?: () => void, onShowInNetwork?: () => void) {
+function panel(personId: string, currentSheetId: string, canEdit = true, onFindInList?: () => void, onShowInNetwork?: () => void, wheel: { onShowWheel?: () => void; relation?: WheelRelation } = {}) {
   const onOpenSheet = vi.fn();
   const run = vi.fn(async () => ({ "new:sheet": "new-tab" }));
   render(
@@ -39,6 +39,8 @@ function panel(personId: string, currentSheetId: string, canEdit = true, onFindI
       onOpenSheet={onOpenSheet}
       onFindInList={onFindInList}
       onShowInNetwork={onShowInNetwork}
+      onShowWheel={wheel.onShowWheel}
+      relation={wheel.relation}
     />,
   );
   return { onOpenSheet, run };
@@ -161,5 +163,31 @@ describe("Show in network (★ Everyone, part 3, owner request)", () => {
   test("not in the Network itself (not given)", () => {
     panel("cynthia", "everyone", true, () => {});
     expect(screen.queryByRole("button", { name: "Show in network" })).toBeNull();
+  });
+});
+
+describe("the Wheel in the panel (★ Everyone, part 4, owner request)", () => {
+  test("elsewhere: Relatives wheel, after the other views' shortcuts, for Viewers too", () => {
+    const onShowWheel = vi.fn();
+    panel("cynthia", "cruz-tab", false, () => {}, () => {}, { onShowWheel });
+    expect(screen.getAllByRole("button", { name: /^(Find in list|Show in network|Relatives wheel)/ }).map((b) => b.textContent)).toEqual(["Find in list", "Show in network", "Relatives wheel"]);
+    fireEvent.click(screen.getByRole("button", { name: "Relatives wheel" }));
+    expect(onShowWheel).toHaveBeenCalled();
+  });
+
+  test("in the Wheel: how they're related to the middle, the exact path, and Put in the middle", () => {
+    const onMiddle = vi.fn();
+    panel("jerry", "everyone", false, () => {}, () => {}, { relation: { names: "Koduku · Son", path: "Cynthia Willow's son", onMiddle } });
+    const box = screen.getByRole("group", { name: "Relation" });
+    expect(box.textContent).toBe("Koduku · SonCynthia Willow's sonPut in the middle");
+    expect(screen.queryByRole("button", { name: "Relatives wheel" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Put in the middle" }));
+    expect(onMiddle).toHaveBeenCalled();
+  });
+
+  test("the person in the middle", () => {
+    panel("jerry", "everyone", false, undefined, undefined, { relation: { names: null, path: "" } });
+    expect(screen.getByRole("group", { name: "Relation" }).textContent).toBe("In the middle of the wheel");
+    expect(screen.queryByRole("button", { name: "Put in the middle" })).toBeNull();
   });
 });

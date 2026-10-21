@@ -51,3 +51,21 @@ body {
     height: 40px;
   }
 }
+
+/* ★ Everyone's Wheel (an owner request): when the middle moves, everyone glides to their new place and
+   the new lines fade in. Not for people who ask their device for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .wheel-canvas .react-flow__node {
+    transition: transform 450ms ease;
+  }
+
+  .wheel-canvas .wheel-line {
+    animation: wheel-line-in 600ms ease;
+  }
+}
+
+@keyframes wheel-line-in {
+  from {
+    opacity: 0;
+  }
+}
