@@ -3,7 +3,7 @@ import { applyOperations } from "@/server/operations/apply";
 import { expect, test, type SampleGroup, type SignIn } from "./fixtures";
 
 // ★ Everyone (an owner request after the final check): part 1, the tab and the Tree view; part 2, the
-// List and the view switcher.
+// List and the view switcher; part 3, the Network.
 
 test.use({ viewport: { width: 1600, height: 1000 } });
 
@@ -11,11 +11,19 @@ const cards = (page: Page) => page.getByRole("tabpanel").getByTestId("person-car
 const card = (page: Page, name: string) => cards(page).filter({ hasText: name });
 const personPanel = (page: Page) => page.getByRole("complementary", { name: "Person details" });
 const find = (page: Page) => page.getByRole("combobox", { name: "Find someone" });
-const viewButton = (page: Page, name: "Tree" | "List") => page.getByRole("group", { name: "View" }).getByRole("button", { name });
+const viewButton = (page: Page, name: "Tree" | "Network" | "List") => page.getByRole("group", { name: "View" }).getByRole("button", { name });
 const listRows = (page: Page) => page.getByRole("table", { name: "People" }).locator("tbody tr");
 const listRow = (page: Page, nameAndYears: string) => listRows(page).filter({ has: page.getByRole("button", { name: nameAndYears, exact: true }) });
 const filterButton = (page: Page, name: RegExp) => page.getByRole("group", { name: "Show" }).getByRole("button", { name });
 const search = (page: Page) => page.getByRole("searchbox", { name: "Find someone" });
+const circles = (page: Page) => page.getByRole("tabpanel").getByTestId("network-person");
+const circle = (page: Page, nameAndYears: string) => circles(page).filter({ has: page.getByRole("button", { name: nameAndYears, exact: true }) });
+/** The element's middle is within `slack` pixels of the canvas's middle, and it's drawn big enough to read. */
+async function centred(page: Page, locator: Locator, slack = 20) {
+  const canvas = await box(page.getByRole("tabpanel"));
+  const b = await box(locator);
+  return b.width > 80 && Math.abs(b.x + b.width / 2 - (canvas.x + canvas.width / 2)) < slack && Math.abs(b.y + b.height / 2 - (canvas.y + canvas.height / 2)) < slack;
+}
 /** ★ Everyone's address for a view, with anyone selected. */
 const everyoneUrl = (view: string, person = false) => new RegExp(`/s/everyone\\?view=${view}${person ? "&person=[0-9a-f]{24}" : ""}$`);
 
@@ -137,6 +145,11 @@ test("a Viewer gets ★ Everyone too, without edit controls", async ({ browser, 
     await expect(listRows(viewerPage)).toHaveCount(36);
     await expect(listRow(viewerPage, "Jerry Willow, 1920 – 1989")).toHaveAttribute("aria-current", "true");
     await expect(viewerPage.getByRole("button", { name: "Export" })).toHaveCount(0);
+
+    // And the Network, with its picture.
+    await viewButton(viewerPage, "Network").click();
+    await expect(circles(viewerPage)).toHaveCount(36);
+    await expect(viewerPage.getByRole("button", { name: "Export" })).toBeVisible();
   } finally {
     await viewerPage.context().close();
   }
@@ -245,6 +258,62 @@ test("Find in list, from a sheet: the List with their row selected and on the sc
   await expect(tay).toHaveAttribute("aria-current", "true");
   await expect(tay).toBeInViewport({ ratio: 1 });
   await expect(personPanel(page).getByRole("heading", { name: "Tay Young" })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/s/${cruzSheet}$`));
+});
+
+test("the Network: everyone and every couple; choosing someone lights up their relations; a heart opens the couple", async ({ page, signIn, sampleGroup }) => {
+  const { groupId } = await sampleOwner(page, signIn, sampleGroup);
+  await page.goto(`/g/${groupId}/s/everyone?view=tree`);
+  await expect(page.getByRole("group", { name: "View" }).getByRole("button")).toHaveText(["Tree", "Network", "List"]);
+  await viewButton(page, "Network").click();
+  await expect(page).toHaveURL(everyoneUrl("network"));
+  await expect(viewButton(page, "Network")).toHaveAttribute("aria-pressed", "true");
+  await expect(circles(page)).toHaveCount(36);
+  await expect(page.getByRole("tabpanel").getByRole("button", { name: /, (married|divorced)$/ })).toHaveCount(12);
+  await expect(page.getByRole("group", { name: "Key" })).toBeVisible();
+  // Bigger circles have more relations: Steve Cruz (7) over Alex Cruz (2).
+  const photo = (name: string) => circle(page, name).locator("div.rounded-full").first();
+  expect((await box(photo("Steve Cruz, 1985"))).width).toBeGreaterThan((await box(photo("Alex Cruz, 2021"))).width + 20);
+  await page.waitForTimeout(300); // let the network settle for the picture
+  await page.screenshot({ path: "test-results/screenshots/everyone-network.png" });
+
+  // Steve Cruz: his panel, his relatives lit up, everyone else faded.
+  await page.getByRole("tabpanel").getByRole("button", { name: "Steve Cruz, 1985" }).click();
+  await expect(personPanel(page).getByRole("heading", { name: "Steve Cruz" })).toBeVisible();
+  await expect(page).toHaveURL(everyoneUrl("network", true));
+  await expect(personPanel(page).getByRole("button", { name: "Show in network" })).toHaveCount(0); // already there
+  for (const name of ["Olivia Cruz, 1960", "Arham Chopra, 1983", "Sammie Chang, 1985", "Anna Cruz, 2012"]) await expect(circle(page, name), name).not.toHaveClass(/opacity-25/);
+  await expect(circle(page, "Jerry Willow, 1920 – 1989")).toHaveClass(/opacity-25/);
+  await page.screenshot({ path: "test-results/screenshots/everyone-network-chosen.png" });
+
+  // A heart opens the couple panel, as on the Tree.
+  await page.getByRole("tabpanel").getByRole("button", { name: "Steve Cruz and Arham Chopra, married" }).click();
+  await expect(page.getByRole("complementary", { name: "Couple details" })).toBeVisible();
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export" }).click();
+  await page.getByRole("menu", { name: "Export" }).getByRole("menuitem", { name: "Picture (PNG)" }).click();
+  expect((await download).suggestedFilename()).toBe("Everyone network.png");
+});
+
+test("Show in network from a sheet, and Find someone, centre a circle; a reload keeps the view and the person", async ({ page, signIn, sampleGroup }) => {
+  const { groupId, cruzSheet } = await sampleOwner(page, signIn, sampleGroup);
+  await page.goto(`/g/${groupId}/s/${cruzSheet}`);
+  await page.getByRole("tabpanel").getByRole("button", { name: "Tay Young, 2005" }).click();
+  await personPanel(page).getByRole("button", { name: "Show in network" }).click();
+  await expect(page).toHaveURL(everyoneUrl("network", true));
+  await expect(personPanel(page).getByRole("heading", { name: "Tay Young" })).toBeVisible();
+  await expect.poll(() => centred(page, circle(page, "Tay Young, 2005"))).toBe(true);
+
+  await page.reload();
+  await expect(personPanel(page).getByRole("heading", { name: "Tay Young" })).toBeVisible();
+  await expect.poll(() => centred(page, circle(page, "Tay Young, 2005"))).toBe(true);
+
+  await find(page).fill("amelia");
+  await page.getByRole("option", { name: "Amelia Young (2001)" }).click();
+  await expect(personPanel(page).getByRole("heading", { name: "Amelia Young" })).toBeVisible();
+  await expect.poll(() => centred(page, circle(page, "Amelia Young, 2001"))).toBe(true);
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`/s/${cruzSheet}$`));
 });

@@ -263,7 +263,7 @@ test("night colours on a phone", async ({ page, signIn, sampleGroup }) => {
   await shot(page, "night-phone-tree");
 });
 
-test("★ Everyone is the first choice in the sheet picker; a phone opens it on the List, and the Tree readable (owner request)", async ({ page, signIn, sampleGroup }) => {
+test("★ Everyone is the first choice in the sheet picker; a phone opens it on the List, and the Network and the Tree readable (owner request)", async ({ page, signIn, sampleGroup }) => {
   const { groupId } = await openSampleGroup(page, signIn, sampleGroup);
   await expect(picker(page).locator("option").first()).toHaveText("★ Everyone");
   await picker(page).selectOption({ label: "★ Everyone" });
@@ -288,6 +288,16 @@ test("★ Everyone is the first choice in the sheet picker; a phone opens it on 
     return row.y > 0 && row.y + row.height <= (await box(personPanel(page))).y;
   }).toBe(true);
   await personPanel(page).getByRole("button", { name: "Close" }).tap();
+
+  // The Network, readable.
+  await expect(page.getByRole("group", { name: "View" }).getByRole("button")).toHaveText(["Tree", "Network", "List"]);
+  await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Network" }).tap();
+  await expect(page).toHaveURL(new RegExp(`/s/everyone\\?view=network$`));
+  const circles = page.getByRole("tabpanel").getByTestId("network-person");
+  await expect(circles).toHaveCount(36);
+  await expect.poll(async () => (await box(circles.filter({ hasText: "Alexander Cruz" }))).width).toBeGreaterThan(80);
+  await fitsWidth(page);
+  await shot(page, "phone-everyone-network");
 
   // The Tree, readable.
   await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Tree" }).tap();

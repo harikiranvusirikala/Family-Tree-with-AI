@@ -8,7 +8,7 @@ import { CanvasActionsContext } from "./canvas-actions";
 export type UnionNodeType = Node<{ couple: boolean; divorced: boolean; label: string }, "union">;
 
 export const UNION_HEIGHT = 24;
-const HEART = "M12 21s-7.5-4.6-9.6-9.2C1 8.6 2.9 5 6.4 5c2.1 0 3.6 1.2 4.6 2.7h2C14 6.2 15.5 5 17.6 5 21.1 5 23 8.6 21.6 11.8 19.5 16.4 12 21 12 21z";
+export const HEART = "M12 21s-7.5-4.6-9.6-9.2C1 8.6 2.9 5 6.4 5c2.1 0 3.6 1.2 4.6 2.7h2C14 6.2 15.5 5 17.6 5 21.1 5 23 8.6 21.6 11.8 19.5 16.4 12 21 12 21z";
 
 /** "— ♥ —" between partners (a broken heart if divorced). A single parent's node is invisible. */
 export function UnionNode({ id, data }: NodeProps<UnionNodeType>) {

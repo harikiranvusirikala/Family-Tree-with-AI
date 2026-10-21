@@ -31,6 +31,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | The sheet tab row (owner requests, after the final check) | Done 2026-10-20. See its section at the end |
 | – | ★ Everyone, part 1: the tab and the Tree view (owner request) | Done 2026-10-21 (e2e run in the owner's terminal: 66 passed). See its section at the end |
 | – | ★ Everyone, part 2: the List view (owner request) | Done 2026-10-21 (unit tests: 341 passed; e2e: 68 of 69 passed, and the one phone failure passed on a rerun of the phone tests in the owner's terminal). See its section at the end |
+| – | ★ Everyone, part 3: the Network view (owner request) | Done 2026-10-21 (unit tests: 352 passed; e2e: 71 passed). See its section at the end |
 
 ## How we work
 
@@ -974,3 +975,62 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - The narrow line uses each relative's first word, as the phone mockup does; the panel has the full names.
   - Part 1's e2e tests expected ★ Everyone's address to end at `/s/everyone`; they now expect `?view=tree` (and `&person=` once someone is selected).
   - One e2e run had a phone test fail on a 28 px Close button: that page wasn't treated as a touch screen at all (the sheet picker was at its 40 px mouse size too), while the other phone tests in the run were. Rerunning the phone tests passed; a flaky touch emulation, not this change.
+
+## After the final check: ★ Everyone, part 3: the Network view (owner request)
+- **Why:** the third of the four agreed views (FEATURES.md, Everyone): everyone and every relation on one canvas, closest to the owner's reference image. It shows how the in-law families hang together and who connects to whom.
+- **Build:**
+  - **The switcher** becomes Tree · Network · List (Wheel joins between Network and List in part 4), and the address `?view=network`. Phones keep List as their first view; Network is offered there too, to pinch and drag.
+  - **What's drawn:**
+    - Everyone as a round photo (or initials) in their blue or pink ring, with their name under it. The eye hides photos here too.
+    - Bigger circles have more relations (parents, partners and children), from 44 px for one or none up to 88 px.
+    - Couples: a pink line between the partners with a heart on it; dashed, with a broken heart, when divorced.
+    - Parents to children: a grey arrow from the couple's heart to each child (one per child, and the heart joins the couple and their children, as on the Tree); a single parent's arrows start at the parent.
+  - **The arrangement:** a force layout (`d3-force`).
+    - Linked people pull together, everyone pushes apart, and circles never overlap. Families not joined to the rest sit nearby.
+    - It's the same every time for the same family (a fixed start and a seeded random number), so pictures and shared links look alike.
+    - A gentle pull puts older generations towards the top, so arrows mostly point down.
+    - Big groups are arranged a little at a time, so the page keeps responding, with "Arranging 2,000 people…" until it's done.
+  - **Moving around:** pan and zoom like a sheet, with the zoom buttons, and the overview map on computers. Circles can't be dragged, so the arrangement stays the same.
+    - Computers show the whole network. Phones and tablets open zoomed in at the first sheet's root, like the Tree.
+  - **Choosing someone:**
+    - Tapping a circle selects the person and opens the same person panel as on the Tree. Their lines and relatives (parents, partners, children) light up in orange, and everyone else fades.
+    - Tapping a heart opens the couple panel, as on the Tree.
+    - Find someone is the Tree's drop-down: it selects the person and centres their circle. Switching to the Network with someone selected centres them too.
+  - **The person panel gets Show in network,** on sheets, the Tree and the List (not in the Network itself). It opens the Network centred on them; Viewers get it too.
+  - **Export:** the picture and print work as on a sheet, named "Everyone network".
+  - **A small key** in a corner on computers: couple (dashed: divorced), parent → child, bigger circle: more relations, the selected person's relations. It isn't in the picture.
+  - **Pure parts:** `src/tree/network.ts` (the people, hearts and links with circle sizes; the arrangement), unit-tested on the sample family.
+  - **Drawing:** a `NetworkCanvas` with React Flow, like the Tree's canvas: round person nodes, heart nodes, and straight lines that stop at the circles' edges, with arrowheads.
+  - **A new dependency:** `d3-force` 3.0.0 (ISC, about 8 KB minified, with `d3-quadtree`, `d3-dispatch` and `d3-timer`), and `@types/d3-force` for development. ELK, already used for sheets, was measured first:
+
+    | ELK layout | Sample family (36 people) | 300 people |
+    |---|---|---|
+    | stress | 0.3–0.6 s, the same every time | about 40 s |
+    | force | 0.3–0.5 s, the same every time | about 40 s |
+
+    2,000 people didn't finish in several minutes. d3-force approximates the push between faraway circles (Barnes–Hut), so it grows roughly like n·log n instead of n²; the build checks it with a timed unit test, as the sheet layout has.
+  - No database, server or permission changes.
+- **Tests:**
+  - Unit:
+    - The network's parts on the sample: 36 people and 12 hearts, the links, circle sizes by relations.
+    - The arrangement: no circles overlap; the same twice; a family not joined to the rest stays near; a 300-person and a 2,000-person family arranged within a time limit.
+    - `NetworkCanvas` lights up the selected person's relations.
+    - `PersonPanel`: Show in network everywhere but the Network.
+  - E2E:
+    - Desktop: Network shows 36 circles and 12 hearts. Tapping Steve Cruz opens his panel and lights up his relations; a heart opens the couple panel.
+    - Find someone centres a circle; the address keeps the view and the person through a reload.
+    - Show in network, from a sheet. The picture is "Everyone network.png". A Viewer gets the Network.
+    - Phone: the switcher's three views, and the Network opens readable.
+    - Screenshots: `everyone-network.png`, `night-everyone-network.png` and `phone-everyone-network.png`.
+- **Decisions (owner, 2026-10-21),** each the proposal:
+  1. Add `d3-force` for the arrangement.
+  2. Arrows to children start at the couple's heart.
+  3. Older generations towards the top.
+  4. Choosing someone lights up their lines and relatives and fades everyone else.
+- **Notes (2026-10-21):**
+  - `d3-force` 3.0.0 checked in its package before installing (no install scripts): ISC, seeded random numbers (a fixed LCG per simulation) and a fixed spiral start, so the arrangement repeats; Barnes–Hut for the push between everyone. `npm install` added it with `d3-quadtree` (`d3-dispatch` and `d3-timer` were already there, through React Flow) and `@types/d3-force`; the lockfile has no `resolved` URLs. `npm audit`'s 5 high findings are all in the ESLint tool chain (`braces`), from before.
+  - Tuning, measured with the generated families: the first settings took 8.7 s for 2,000 people and left 569 overlaps. Pushing overlapping people apart costs most (12 ms a step for 2,000, against 7–8 ms for the push between everyone), so the arrangement uses 120 steps, then 80 steps that only push overlaps apart. Result: the sample in about 30 ms, 300 people in 0.4 s and 2,000 in about 4 s, with no overlaps up to 300 and under 20 overlapping pairs at 2,000. Adding the overlap push only in the later steps was faster but left 137–189 overlaps.
+  - The pull towards each generation's row started at 0.1; some children then sat beside their parents' heart instead of below it, so it's 0.3. Stronger pulls between partners didn't bring couples much closer: the room for names, not the pull, keeps partners about 150 px apart.
+  - Lines leaving a person downwards (usually to their own heart) crossed their name, so they start below it (`personReach`, unit-tested).
+  - The arrangement runs only in the browser: started while rendering, it would have run on the server too, for every page load with `?view=network`. After a change to the group the previous arrangement stays drawn until the new one is ready, so the canvas never draws new people at missing places.
+  - React Flow canvases have no jsdom tests (like the Tree's); the lighting up, the hearts and the centring are covered by the e2e tests.

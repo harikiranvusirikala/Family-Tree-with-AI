@@ -22,7 +22,7 @@ const tree: GroupTree = {
   ],
 };
 
-function panel(personId: string, currentSheetId: string, canEdit = true, onFindInList?: () => void) {
+function panel(personId: string, currentSheetId: string, canEdit = true, onFindInList?: () => void, onShowInNetwork?: () => void) {
   const onOpenSheet = vi.fn();
   const run = vi.fn(async () => ({ "new:sheet": "new-tab" }));
   render(
@@ -38,6 +38,7 @@ function panel(personId: string, currentSheetId: string, canEdit = true, onFindI
       currentSheetId={currentSheetId}
       onOpenSheet={onOpenSheet}
       onFindInList={onFindInList}
+      onShowInNetwork={onShowInNetwork}
     />,
   );
   return { onOpenSheet, run };
@@ -145,5 +146,20 @@ describe("Find in list (★ Everyone, part 2, owner request)", () => {
   test("not in the List itself (not given)", () => {
     panel("cynthia", "everyone");
     expect(findInList()).toBeNull();
+  });
+});
+
+describe("Show in network (★ Everyone, part 3, owner request)", () => {
+  test("offered when given (on sheets, the Tree and the List), after Find in list, for Viewers too", () => {
+    const onShowInNetwork = vi.fn();
+    panel("cynthia", "cruz-tab", false, () => {}, onShowInNetwork);
+    expect(screen.getAllByRole("button", { name: /^(Go to |Find in list|Show in network)/ }).map((b) => b.textContent)).toEqual(["Find in list", "Show in network"]);
+    fireEvent.click(screen.getByRole("button", { name: "Show in network" }));
+    expect(onShowInNetwork).toHaveBeenCalled();
+  });
+
+  test("not in the Network itself (not given)", () => {
+    panel("cynthia", "everyone", true, () => {});
+    expect(screen.queryByRole("button", { name: "Show in network" })).toBeNull();
   });
 });

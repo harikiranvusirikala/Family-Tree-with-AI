@@ -49,8 +49,8 @@ export function findPeople(persons: Person[], query: string, limit = 8): Person[
     .slice(0, limit);
 }
 
-/** ★ Everyone's views, in the switcher's order. Network and Wheel join in parts 3 and 4. */
-export const EVERYONE_VIEWS = ["tree", "list"] as const;
+/** ★ Everyone's views, in the switcher's order. The Wheel joins between Network and List in part 4. */
+export const EVERYONE_VIEWS = ["tree", "network", "list"] as const;
 export type EveryoneViewName = (typeof EVERYONE_VIEWS)[number];
 export const isEveryoneView = (value: unknown): value is EveryoneViewName => EVERYONE_VIEWS.includes(value as EveryoneViewName);
 

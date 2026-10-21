@@ -41,6 +41,10 @@ test("day, night or follow the device: the choice stays, and the tree is readabl
   await page.goto(`/g/${groupId}/s/everyone?view=list`); // ★ Everyone's List
   await expect(page.getByRole("table", { name: "People" }).locator("tbody tr")).toHaveCount(36);
   await screenshot(page, "everyone-list");
+  await page.goto(`/g/${groupId}/s/everyone?view=network`); // and its Network
+  await expect(page.getByRole("tabpanel").getByTestId("network-person")).toHaveCount(36);
+  await page.waitForTimeout(300);
+  await screenshot(page, "everyone-network");
 
   await page.goto("/dashboard");
   await expect(page.getByRole("heading", { name: "Welcome, Nora Night" })).toBeVisible(); // not the loading text

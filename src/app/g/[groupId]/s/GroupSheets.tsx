@@ -9,6 +9,7 @@ import { isPhone } from "@/components/screen";
 import { EveryoneList } from "@/components/tree/EveryoneList";
 import { FamilyCanvas, type CanvasFocus, type CapturePicture } from "@/components/tree/FamilyCanvas";
 import { FindSomeone } from "@/components/tree/FindSomeone";
+import { NetworkCanvas } from "@/components/tree/NetworkCanvas";
 import { ViewSwitcher } from "@/components/tree/ViewSwitcher";
 import { downloadPicture, printPicture } from "@/components/tree/sheet-picture";
 import { fileName } from "@/server/import-export/types";
@@ -73,8 +74,9 @@ export function GroupSheets({
   const addressView = everyone ? searchParams.get("view") : null;
   /** Null until the address has a view: the device's choice is made in an effect, below. */
   const shownView: EveryoneViewName | null = isEveryoneView(addressView) ? addressView : null;
-  const drawn = !everyone || shownView === "tree"; // a tree to picture
+  const drawn = !everyone || shownView === "tree" || shownView === "network"; // something to picture
   const listShown = everyone && shownView === "list";
+  const networkShown = everyone && shownView === "network";
   const rows = useMemo(() => (listShown ? listRows(tree) : []), [listShown, tree]);
   const [listFilter, setListFilter] = useState<ListFilter>("everyone");
   const [listQuery, setListQuery] = useState("");
@@ -144,7 +146,7 @@ export function GroupSheets({
   /** The view switcher. Back returns to the view before, as with tabs. */
   function showView(next: EveryoneViewName) {
     if (next === shownView) return;
-    setFocus(next === "tree" && selectedPerson ? { personId: selectedPerson } : null); // the Tree opens at them
+    setFocus(next !== "list" && selectedPerson ? { personId: selectedPerson } : null); // the Tree and the Network open at them
     window.history.pushState(null, "", everyoneHref(groupId, next, selectedPerson));
   }
 
@@ -153,6 +155,12 @@ export function GroupSheets({
     setListFilter("everyone");
     setListQuery("");
     window.history.pushState(null, "", everyoneHref(groupId, "list", personId));
+  }
+
+  /** The panel's Show in network: the Network, centred on them. */
+  function showInNetwork(personId: string) {
+    setFocus({ personId });
+    window.history.pushState(null, "", everyoneHref(groupId, "network", personId));
   }
 
   /** Sends one batch. Resolves to the new ids once the page shows the change, or null after an error. */
@@ -190,12 +198,18 @@ export function GroupSheets({
   const couple = selection?.kind === "couple" ? tree.unions.find((u) => u.id === selection.id) : undefined;
   // The List draws no tree, so it has only the data to export (Maintain and up).
   const exportable = drawn || canEdit;
+  const pictureTitle = networkShown ? "Everyone network" : everyone ? "Everyone" : current.title;
   const exportProps = {
     groupId,
     sheetId: everyone ? undefined : current.id,
     canExportData: canEdit,
-    onPicture: drawn ? () => picture((url) => downloadPicture(url, fileName(everyone ? "Everyone" : current.title))) : undefined,
-    onPrint: drawn ? () => picture((url) => printPicture(url, everyone ? "Everyone" : current.title)) : undefined,
+    onPicture: drawn ? () => picture((url) => downloadPicture(url, fileName(pictureTitle))) : undefined,
+    onPrint: drawn ? () => picture((url) => printPicture(url, pictureTitle)) : undefined,
+  };
+  const canvasActions = {
+    onPerson: (id: string) => setSelection({ kind: "person", id }),
+    onCouple: (id: string) => setSelection({ kind: "couple", id }),
+    selectedId: selection?.id,
   };
   const panelProps = {
     tree,
@@ -315,22 +329,12 @@ export function GroupSheets({
                   openSheet(sheetId);
                 }}
               />
+            ) : networkShown ? (
+              <NetworkCanvas tree={tree} rootPersonId={view.rootPersonId} focus={focus} captureRef={capture} actions={canvasActions} />
             ) : (
               // Nothing for the moment before ★ Everyone's view is chosen, rather than a Tree that a
               // phone's List would replace.
-              (!everyone || shownView) && (
-                <FamilyCanvas
-                  view={view}
-                  sheetId={everyone ? EVERYONE : current.id}
-                  focus={focus}
-                  captureRef={capture}
-                  actions={{
-                    onPerson: (id) => setSelection({ kind: "person", id }),
-                    onCouple: (id) => setSelection({ kind: "couple", id }),
-                    selectedId: selection?.id,
-                  }}
-                />
-              )
+              (!everyone || shownView) && <FamilyCanvas view={view} sheetId={everyone ? EVERYONE : current.id} focus={focus} captureRef={capture} actions={canvasActions} />
             )}
             {chat && (
               // Below 1024 px; above React Flow's credit in the corner.
@@ -357,6 +361,7 @@ export function GroupSheets({
               currentSheetId={everyone ? EVERYONE : current.id}
               onOpenSheet={openSheet}
               onFindInList={listShown ? undefined : () => findInList(person.id)}
+              onShowInNetwork={networkShown ? undefined : () => showInNetwork(person.id)}
               {...panelProps}
             />
           )}
