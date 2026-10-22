@@ -69,6 +69,19 @@ test("the browser enforces the policy: images and connections to other sites are
   policyViolations.length = 0; // expected here; in any other test, these would fail it
 });
 
+test("no Google Tag Manager in a test build: the landing page loads nothing from Google (owner request)", async ({ page, request }) => {
+  // playwright.config.ts clears GTM_ID for the build, so neither of Google's snippets is in the page,
+  // and "/" keeps the strict policy (the first test compares its headers).
+  expect(await (await request.get("/")).text()).not.toContain("googletagmanager");
+  const google: string[] = [];
+  page.on("request", (r) => {
+    if (new URL(r.url()).hostname.includes("google")) google.push(r.url());
+  });
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Sign in with Google" })).toBeEnabled(); // the page's scripts have run
+  expect(google).toEqual([]);
+});
+
 test("no secret reaches the browser: the built files hold none of this run's (step 11)", async () => {
   // The values playwright.config.ts gives the web server, and the database address.
   const secrets = [process.env.E2E_AUTH_SECRET!, "e2e-placeholder-secret", "e2e-placeholder-key", "e2e-google-placeholder-secret", process.env.MONGODB_URI!];

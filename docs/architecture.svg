@@ -130,8 +130,9 @@
 
   <!-- External services -->
   <rect x="1000" y="120" width="360" height="80" rx="12" fill="#FFF8E6" stroke="#E9B949" stroke-width="1.5"/>
-  <text x="1020" y="150" class="h">Google OAuth</text>
-  <text x="1020" y="174" class="s">Sign-in only: email, name, photo</text>
+  <text x="1020" y="146" class="h">Google</text>
+  <text x="1020" y="167" class="s">OAuth: sign-in only (email, name, photo)</text>
+  <text x="1020" y="187" class="s">Tag Manager: on the sign-in page only</text>
 
   <rect x="1000" y="220" width="360" height="90" rx="12" fill="#FBF1EA" stroke="#D4916A" stroke-width="1.5"/>
   <text x="1020" y="250" class="h">Anthropic API</text>
@@ -193,5 +194,5 @@
   <text x="1020" y="824" class="g">Photos stay in Cloudinary</text>
 
   <!-- Footer -->
-  <text x="40" y="900" class="g">Free: Vercel Hobby, MongoDB Atlas M0, Cloudinary free tier, Google OAuth.   Paid per use: Claude API (Haiku 5.5), capped per user per day.</text>
+  <text x="40" y="900" class="g">Free: Vercel Hobby, MongoDB Atlas M0, Cloudinary free tier, Google OAuth and Tag Manager.   Paid per use: Claude API (Haiku 5.5), capped per user per day.</text>
 </svg>

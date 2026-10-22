@@ -17,6 +17,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 - Some sample images available in @samples for reference how it should look. It should more look like @"samples/Sample Family Tree.png"
   - male / female border light blue / light pink
   - For living onces their is not mentioning of present, but passed one have end year
+- Add Google Tag Manager (container GTM-KZDLK4PQ) to see who visits the site, on the landing page only. (Added 2026-10-22.)
 
 ### Data model
 
@@ -80,6 +81,12 @@ This is a Family Tree Web Application that can be accessed via Web.
 - Support (2026-10-22): a "Buy me a coffee ☕" link to the owner's Buy Me a Coffee page, on the landing page and in the user menu, opening in a new tab. The README links to it and to GitHub Sponsors, and `.github/FUNDING.yml` gives the repository a Sponsor button with both.
   - Written into the code, not a setting: copies of the app keep the owner's link.
   - A plain link, not Buy Me a Coffee's widget script, so the Content Security Policy is unchanged.
+- Google Tag Manager (2026-10-22): container GTM-KZDLK4PQ, for Google Analytics of who visits, on the landing page (the sign-in page) only.
+  - Signed-in pages, with families' names, dates and photos, load no scripts from other sites and keep their Content Security Policy. Only the landing page's policy also allows Google's Tag Manager and Analytics addresses, and only when `GTM_ID` is set.
+  - A setting, not written into the code: `GTM_ID`, in Vercel's Production only. Previews, local runs and tests never load Tag Manager, and copies of the app don't send their visitors to the owner's account.
+  - Not when the page's address carries `?returnTo=` (the link a signed-out visitor opened: an invite's token, a group's ids). Those visits aren't counted, and the links never reach Google, whatever tags are added later.
+  - No consent banner for now (an open point, ARCHITECTURE.md §15).
+  - Google Analytics inside the app, if wanted later, means Tag Manager on every page: what that needs is in IDEAS.md (Analytics).
 
 ### Data model
 
@@ -226,7 +233,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 
 - Nightly backup at 02:47 India time: a Node script with the MongoDB driver (not mongodump), reading production (familytree) with a read-only database user. Every collection except sessions and verifications (sign-in leftovers; after a restore everyone signs in again). Encrypted with AES-256-GCM; each run is trial-restored inside the runner, then kept 90 days as a GitHub Actions artifact. Photos stay in Cloudinary.
 - The encryption key is a GitHub secret and is also kept in the owner's password manager.
-- One fixed Content Security Policy for the whole site, allowing inline scripts (no nonces, so pages keep their prebuilt shell), plus the usual security headers.
+- One fixed Content Security Policy for the whole site, allowing inline scripts (no nonces, so pages keep their prebuilt shell), plus the usual security headers. Since 2026-10-22, with `GTM_ID` set, the landing page's policy also allows Google Tag Manager (Tech stack & deployment).
 - A smoke test checks the live site as a signed-out visitor after every production deployment, and by hand.
 - Dependabot alerts on (emails about known vulnerabilities), no automatic update pull requests.
 - Sign-up stays open to any Google account, who can then create groups (the owner's choice after step 11's review; ARCHITECTURE.md §11).

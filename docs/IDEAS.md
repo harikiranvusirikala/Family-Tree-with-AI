@@ -1,6 +1,6 @@
 # Ideas for next features
 
-Candidate add-ons, suggested on 2026-10-21 after ★ Everyone, full dates and the phone and tablet work were done. None of these is agreed or planned yet: each one, if chosen, gets its own BUILD_PLAN.md section and open questions first, as usual.
+Candidate add-ons, suggested on 2026-10-21 after ★ Everyone, full dates and the phone and tablet work were done (the Analytics entry was added on 2026-10-22). None of these is agreed or planned yet: each one, if chosen, gets its own BUILD_PLAN.md section and open questions first, as usual.
 
 They are weighted toward what builds on the app as it is (★ Everyone's Wheel, full dates, the assistant, shared editing). Sizes are rough: S is about a day of work, M a couple of days, L more.
 
@@ -48,6 +48,17 @@ FEATURES.md already names this as "could come later", and the Wheel's kinship en
 - **A family book or poster (M–L):** a printable PDF with photos, sheet by sheet, or a large poster of ★ Everyone's Tree.
 - **Install on the phone (S–M):** add to the home screen, and read the tree offline.
 - **A read-only share link (M):** for relatives without a Google account. This needs a security decision first: who can make one, and when it expires.
+
+## Analytics
+
+- **Google Analytics inside the app (S–M):** today Google Tag Manager runs on the landing page only (the owner's choice, 2026-10-22). Once an Analytics tag is added in GTM's own dashboard (no code change: the landing page's policy already allows Analytics), it sees visitors, where they came from and Sign in with Google clicks, but nothing after sign-in. If the owner asks for numbers from inside the app (active users, who opens Ask AI, the Wheel or Export), GTM moves to every page:
+  - GTM's two snippets (`src/components/GoogleTagManager.tsx`) go in the root layout (`src/app/layout.tsx`) instead of the landing page, so GTM loads once and stays through the app's in-page navigation (the sheet tabs change the address with `pushState`); in Analytics, turn on "page changes based on browser history events".
+  - The Content Security Policy: the GTM and Analytics sources on every path, not only "/" (`headerRules` in `src/server/security-headers.ts`, which `next.config.ts` uses), still only when `GTM_ID` is set.
+  - Ids stay out of Google: page addresses carry group, sheet and person ids (`/g/{groupId}/s/{sheetId}?person=…`), so send a cleaned path such as `/g/:group/s/:sheet` (a dataLayer value or a GTM variable), and leave Analytics' form-interaction and site-search measurement off.
+  - Cookies and consent: Analytics sets cookies on signed-in pages too, so visitors in the EU would need a consent banner (Consent Mode).
+  - The landing page's privacy section and questions then say that signed-in pages are measured, and what isn't sent.
+  - Trust: anyone with access to the GTM container can run scripts on pages with family names, dates and photos, so its access stays with the owner.
+  - To compare first: Vercel Web Analytics (no cookies, its script served by the site itself, beside the Speed Insights the app already uses), which keeps Google off the family pages.
 
 ## Loose ends already in the docs
 

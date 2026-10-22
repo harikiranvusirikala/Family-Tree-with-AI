@@ -1,12 +1,12 @@
 import type { NextConfig } from "next";
-import { securityHeaders } from "./src/server/security-headers";
+import { headerRules } from "./src/server/security-headers";
 
 const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/(.*)", headers: securityHeaders(process.env) }];
+    return headerRules(process.env);
   },
   partialPrefetching: true,
   experimental: {

@@ -1,8 +1,11 @@
 // Security headers on every response (step 11, §11), set in next.config.ts. One fixed policy, built
 // at build time: inline scripts are allowed because Next.js writes each page's data into inline
 // scripts, as does the theme script; nonces would need every page drawn per request (decided in step 11).
+// With GTM_ID set, the landing page's policy also allows Google Tag Manager (an owner request).
 
-export interface HeaderEnv {
+import { gtmId, type TagManagerEnv } from "./tag-manager";
+
+export interface HeaderEnv extends TagManagerEnv {
   NODE_ENV?: string;
   /** The e2e stand-in for Cloudinary's API; Cloudinary itself otherwise. */
   CLOUDINARY_API_URL?: string;
@@ -10,7 +13,19 @@ export interface HeaderEnv {
 
 const PHOTOS = "https://res.cloudinary.com";
 
-export function contentSecurityPolicy(env: HeaderEnv): string {
+// Google Tag Manager with Google Analytics 4, on the landing page only (an owner request, 2026-10-22):
+// Google's sources (developers.google.com/tag-platform/security/guides/csp), and the frame its second
+// snippet loads for visitors without JavaScript. Not 'unsafe-eval', which Tag Manager's custom
+// JavaScript variables would need; other tags (Google Ads, the preview mode) would need more sources.
+const TAG_MANAGER: Record<string, string[]> = {
+  "script-src": ["https://*.googletagmanager.com"],
+  "img-src": ["https://*.google-analytics.com", "https://*.googletagmanager.com"],
+  "connect-src": ["https://*.google-analytics.com", "https://*.analytics.google.com", "https://*.googletagmanager.com"],
+  "frame-src": ["https://www.googletagmanager.com"],
+};
+
+/** The policy; with `tagManager`, the landing page's, which also allows Google Tag Manager. */
+export function contentSecurityPolicy(env: HeaderEnv, { tagManager = false } = {}): string {
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
     // React's debugging uses eval in `next dev` only.
@@ -25,6 +40,10 @@ export function contentSecurityPolicy(env: HeaderEnv): string {
     "form-action": ["'self'"],
     "frame-ancestors": ["'none'"],
   };
+  if (tagManager) {
+    // A directive the policy leaves out (frame-src) follows default-src: keep that, and add Google's.
+    for (const [name, sources] of Object.entries(TAG_MANAGER)) directives[name] = [...(directives[name] ?? directives["default-src"]), ...sources];
+  }
   return Object.entries(directives)
     .map(([name, sources]) => `${name} ${sources.join(" ")}`)
     .join("; ");
@@ -40,4 +59,15 @@ export function securityHeaders(env: HeaderEnv): { key: string; value: string }[
     { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
     { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   ];
+}
+
+/**
+ * next.config.ts's headers(): the security headers on every address and, with a valid GTM_ID, a
+ * second rule giving the landing page ("/" only) the policy that allows Google Tag Manager. When two
+ * rules match an address and set the same header, Next.js and Vercel send the later one.
+ */
+export function headerRules(env: HeaderEnv): { source: string; headers: { key: string; value: string }[] }[] {
+  const rules = [{ source: "/(.*)", headers: securityHeaders(env) }];
+  if (gtmId(env)) rules.push({ source: "/", headers: [{ key: "Content-Security-Policy", value: contentSecurityPolicy(env, { tagManager: true }) }] });
+  return rules;
 }

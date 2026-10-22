@@ -41,9 +41,11 @@ flowchart LR
     cloud["🖼️ Cloudinary<br/>stores the photos"]
     claude["🤖 Claude Haiku<br/>the AI chat"]
     gh["⚙️ GitHub Actions<br/>runs the tests,<br/>nightly backup"]
+    gtm["📊 Google Tag Manager<br/>visits to the<br/>sign-in page"]
 
     user <-->|"pages, clicks, edits"| app
     user -->|"signs in"| google
+    user -->|"sign-in page only"| gtm
     user -->|"uploads photos directly"| cloud
     app -->|"reads and saves"| mongo
     app -->|"chat messages"| claude
@@ -60,6 +62,7 @@ flowchart LR
 | **Cloudinary** | A photo service | Stores photos and crops them around faces |
 | **Claude Haiku** | Anthropic's AI model | Answers questions about the family and suggests changes |
 | **GitHub Actions** | Automation on GitHub | Runs every test on every push, backs up the database every night |
+| **Google Tag Manager** | Google's tag service, with Google Analytics | Counts visits to the sign-in page, and only that page (on the live site, when `GTM_ID` is set) |
 
 All of these have free tiers except the AI chat, which costs a few cents a month.
 
@@ -364,6 +367,7 @@ flowchart TB
 | [screen.ts](../src/components/screen.ts) | `isPhone()` and `isTabletOrPhone()`, for the few things CSS can't do |
 | [today.ts](../src/components/today.ts) | `useToday()`: today's date from your device (for birthdays) |
 | [support.ts](../src/components/support.ts) | The owner's Buy Me a Coffee address, linked from the landing page and the user menu |
+| [GoogleTagManager.tsx](../src/components/GoogleTagManager.tsx) | Google Tag Manager's two snippets, drawn on the landing page only (when `GTM_ID` is set) |
 | [initials.ts](../src/components/initials.ts), [short-date.ts](../src/components/short-date.ts), [use-hydrated.ts](../src/components/use-hydrated.ts), [request-messages.ts](../src/components/request-messages.ts) | Small helpers: "Jake Cruz" → "JC", short dates, "is the page ready for clicks yet?", shared messages |
 
 **`auth/`: signing in**
@@ -493,7 +497,8 @@ flowchart TB
 | [group-changed.ts](../src/server/group-changed.ts) | After a change, tells Next.js to refresh the group's pages |
 | [ids.ts](../src/server/ids.ts) | `toObjectId()`: turns a text id into a MongoDB id, safely |
 | [cloudinary.ts](../src/server/cloudinary.ts), [photos.ts](../src/server/photos.ts) | Signs photo uploads, deletes unused photos |
-| [security-headers.ts](../src/server/security-headers.ts) | Security rules sent with every page (Content Security Policy) |
+| [security-headers.ts](../src/server/security-headers.ts) | Security rules sent with every page (Content Security Policy); the landing page's also allows Google Tag Manager when `GTM_ID` is set |
+| [tag-manager.ts](../src/server/tag-manager.ts) | `gtmId()`: the Google Tag Manager container from `GTM_ID`, only if it looks like one |
 
 ### The sub-folders
 

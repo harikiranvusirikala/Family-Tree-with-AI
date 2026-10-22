@@ -316,6 +316,9 @@ Keep local settings in `.env.local`: Next.js also reads a `.env` file, but only 
    | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | from step 4 | the same |
    | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | from step 5 (optional) | the same |
    | `CHAT_API_KEY`, `CHAT_MODEL`, `CHAT_DAILY_LIMIT` | from step 6 (optional) | the same |
+   | `GTM_ID` | your Google Tag Manager container, `GTM-…` (optional) | **not set**: previews load no Tag Manager |
+
+   With `GTM_ID`, the sign-in page, and only it, loads Google Tag Manager, and that page's security policy allows Google Analytics. It doesn't load when the page's address carries `?returnTo=` (the link a signed-out visitor opened, which can hold an invite's token), so those links never reach Google. Analytics sets cookies, so visitors in the EU would need a consent banner, which the app doesn't have.
 
 3. Under **Settings → Environment Variables**, keep **Automatically expose System Environment Variables** turned on. Previews take their address from `VERCEL_URL` and `VERCEL_BRANCH_URL`, and the OAuth proxy finds production through `VERCEL_PROJECT_PRODUCTION_URL`.
 4. **Deploy.** If production's address isn't what you planned (Vercel added a suffix, or you add a custom domain), set `BETTER_AUTH_URL` to it, add its callback URL in Google (step 4), and **redeploy**: variable changes only reach new deployments.
@@ -355,6 +358,7 @@ Sign in at `https://YOUR-APP.vercel.app`. From then on, every push to `main` upd
 | The backup's time (UTC) | `cron` in `.github/workflows/backup.yml` (now 21:17 UTC) |
 | The chat model and daily limit | `CHAT_MODEL`, `CHAT_DAILY_LIMIT` in Vercel |
 | Database names, if you must change them | `MONGODB_DB` everywhere, plus `BACKUP_DB` in backup.yml's backup step |
+| Visitor numbers on the sign-in page (optional) | `GTM_ID` in Vercel, Production only (step 9), then redeploy |
 
 The documents in `docs/` record how the original was built and mention its address; they don't need changing.
 
@@ -385,6 +389,7 @@ The documents in `docs/` record how the original was built and mention its addre
 | `MONGODB_BACKUP_URI`, `BACKUP_ENCRYPTION_KEY` | only for `npm run backup` | | | ✓ | `npm run restore` asks for the key |
 | `VERCEL_*` system variables | | auto | auto | | "Automatically expose System Environment Variables" |
 | `SMOKE_URL` | for `npm run test:smoke` | | | a repository **variable** | The site the smoke test checks; the original app's site unless set |
+| `GTM_ID` | | optional | | | Your Google Tag Manager container, loaded on the sign-in page only; read at build time. Never in Preview |
 
 Secrets live only in `.env.local` (git-ignored), Vercel and GitHub Secrets.
 
@@ -445,6 +450,7 @@ It asks for the key (typing isn't shown), refuses a database that already has re
 - **Google sign-in only,** with Google-verified emails; no passwords stored. Sessions are httpOnly cookies; Google's tokens are stored encrypted.
 - **Every request is checked on the server:** the role is read from the database each time, every query carries the group's id, and a unit test fails if a new server action or route doesn't check its caller. Inputs from the browser are validated (zod) before any query.
 - **Headers on every page:** a Content Security Policy, HSTS, `X-Frame-Options: DENY`, a strict referrer policy and more. Every end-to-end test fails on a policy violation.
+- **Only the sign-in page** may load another site's script: Google Tag Manager, when `GTM_ID` is set, with that page's policy allowing Google's addresses. Signed-in pages, with the family's names, dates and photos, load nothing from other sites.
 - **Photos** have random, unguessable names in the group's folder, and only Maintain and up get an upload signature.
 - **Separate database users** per purpose, a separate preview database, and encrypted, read-only backups.
 - **Accepted risks:** anyone with a Google account can sign up and create groups (they could fill the free cluster, and each gets 50 chat messages a day; your Anthropic spend limit caps the cost); server actions have no rate limit of their own. Details in [docs/ARCHITECTURE.md §11](docs/ARCHITECTURE.md#11-security-and-privacy).

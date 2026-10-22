@@ -1,19 +1,42 @@
 import { expect, test } from "@playwright/test";
-import { securityHeaders } from "@/server/security-headers";
+import { contentSecurityPolicy, securityHeaders } from "@/server/security-headers";
 import { watchPolicyViolations } from "../e2e/policy-violations";
 
 // Against the live site: nothing here signs in or writes to its database.
 
-test("the landing page: security headers, and Sign in with Google works under the policy", async ({ page, baseURL }) => {
+const production = { NODE_ENV: "production" };
+
+test("the landing page: security headers, and Sign in with Google works under the policy", async ({ page, baseURL, request }) => {
   const violations = watchPolicyViolations(page, []);
+  // Google Tag Manager runs on the landing page when the site has GTM_ID (an owner request). Answered
+  // here, so a smoke test is never counted as a visit and Google Analytics sets no cookies; the
+  // browser still checks the policy before asking.
+  const tagManager: string[] = [];
+  await page.route("https://www.googletagmanager.com/**", (route) => {
+    tagManager.push(route.request().url());
+    return route.fulfill({ contentType: "text/javascript", body: "" });
+  });
   const response = (await page.goto("/"))!;
   const headers = await response.allHeaders();
-  for (const { key, value } of securityHeaders({ NODE_ENV: "production" })) {
+  // The landing page's policy also allows Tag Manager when the site has GTM_ID; a copy without it
+  // keeps the strict policy.
+  const strict = contentSecurityPolicy(production);
+  const withTagManager = contentSecurityPolicy(production, { tagManager: true });
+  expect([strict, withTagManager]).toContain(headers["content-security-policy"]);
+  for (const { key, value } of securityHeaders(production)) {
+    if (key === "Content-Security-Policy") continue;
     // Vercel sends its own Strict-Transport-Security too; either way it's two years.
     if (key === "Strict-Transport-Security") expect(headers[key.toLowerCase()]).toContain("max-age=63072000");
     else expect(headers[key.toLowerCase()], key).toBe(value);
   }
   expect(headers["x-powered-by"]).toBeUndefined();
+  // Every other address keeps the strict policy: one of the page's scripts, for example.
+  const script = (await response.text()).match(/\/_next\/static\/[^"]+\.js/)![0];
+  expect((await request.get(script)).headers()["content-security-policy"], script).toBe(strict);
+  // Tag Manager loads exactly when the policy allows it: both come from the build's GTM_ID.
+  if (headers["content-security-policy"] === withTagManager) {
+    await expect.poll(() => tagManager.some((url) => url.startsWith("https://www.googletagmanager.com/gtm.js?id=GTM-"))).toBe(true);
+  }
 
   // The button is enabled once the page's scripts run, so this also shows the policy lets them.
   await page.route("https://accounts.google.com/**", (route) => route.fulfill({ contentType: "text/plain", body: "Google (stub)" }));
@@ -25,6 +48,7 @@ test("the landing page: security headers, and Sign in with Google works under th
   for (const cookie of (await page.context().cookies()).filter((c) => baseURL!.includes(c.domain.replace(/^\./, "")))) {
     expect(cookie, cookie.name).toMatchObject({ secure: true, httpOnly: true, sameSite: "Lax" });
   }
+  if (headers["content-security-policy"] === strict) expect(tagManager).toEqual([]);
   expect(violations).toEqual([]);
 });
 

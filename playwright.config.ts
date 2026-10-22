@@ -78,6 +78,9 @@ export default defineConfig({
         ANTHROPIC_CUSTOM_HEADERS: "",
         ANTHROPIC_API_KEY: "",
         ANTHROPIC_AUTH_TOKEN: "",
+        // No Google Tag Manager in tests, even if .env.local or .env sets GTM_ID: Next.js never
+        // replaces a variable that is already set, even to nothing (e2e/security.spec.ts checks).
+        GTM_ID: "",
       },
     },
     {

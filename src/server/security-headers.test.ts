@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, test } from "vitest";
-import { contentSecurityPolicy, securityHeaders } from "./security-headers";
+import { contentSecurityPolicy, headerRules, securityHeaders } from "./security-headers";
 
 const directives = (policy: string) => Object.fromEntries(policy.split("; ").map((d) => [d.split(" ")[0], d.split(" ").slice(1)]));
 
@@ -39,5 +39,44 @@ describe("security headers (step 11)", () => {
       "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
       "Cross-Origin-Opener-Policy": "same-origin",
     });
+  });
+});
+
+describe("Google Tag Manager on the landing page only (owner request)", () => {
+  const production = { NODE_ENV: "production" };
+
+  test("without a valid GTM_ID: one rule, today's headers on every address", () => {
+    for (const GTM_ID of [undefined, "", "GTM-bad id"]) {
+      expect(headerRules({ ...production, GTM_ID }), String(GTM_ID)).toEqual([{ source: "/(.*)", headers: securityHeaders(production) }]);
+    }
+  });
+
+  test("with GTM_ID: every address keeps today's headers, and a later rule gives the landing page Google's sources", () => {
+    const rules = headerRules({ ...production, GTM_ID: "GTM-KZDLK4PQ" });
+    expect(rules).toEqual([
+      { source: "/(.*)", headers: securityHeaders(production) },
+      { source: "/", headers: [{ key: "Content-Security-Policy", value: contentSecurityPolicy(production, { tagManager: true }) }] },
+    ]);
+    expect(directives(rules[1].headers[0].value)).toEqual({
+      ...directives(contentSecurityPolicy(production)),
+      "script-src": ["'self'", "'unsafe-inline'", "https://*.googletagmanager.com"],
+      "img-src": ["'self'", "data:", "blob:", "https://res.cloudinary.com", "https://*.google-analytics.com", "https://*.googletagmanager.com"],
+      "connect-src": [
+        "'self'",
+        "https://api.cloudinary.com",
+        "https://res.cloudinary.com",
+        "https://*.google-analytics.com",
+        "https://*.analytics.google.com",
+        "https://*.googletagmanager.com",
+      ],
+      // Frames followed default-src ('self') until now; the frame is for visitors without JavaScript.
+      "frame-src": ["'self'", "https://www.googletagmanager.com"],
+    });
+  });
+
+  test("the e2e build's settings (playwright.config.ts clears GTM_ID): nothing from Google anywhere", () => {
+    const rules = headerRules({ NODE_ENV: "production", CLOUDINARY_API_URL: "http://localhost:3101", GTM_ID: "" });
+    expect(rules).toHaveLength(1);
+    expect(JSON.stringify(rules)).not.toMatch(/google/i);
   });
 });

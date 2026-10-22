@@ -56,7 +56,7 @@ As built (steps 1–11).
 ```
 src/
   app/                                   Next.js routes
-    page.tsx                             landing + "Sign in with Google" (static)
+    page.tsx                             landing + "Sign in with Google" (static); Google Tag Manager when GTM_ID is set
     dashboard/                           invitations · Upcoming (the next 30 days' birthdays and anniversaries) · My groups · Shared with me · my access requests · create a group (F2)
       page.tsx, actions.ts, NewGroupForm.tsx
     g/[groupId]/
@@ -86,7 +86,8 @@ src/
     cloudinary.ts                        signs uploads and deletes photos (no Cloudinary SDK)
     photos.ts                            signPhotoUpload: Maintain and up, into the group's folder
     members-rules.ts                     normalizeEmail, maskEmail, who may change whom (pure)
-    security-headers.ts                  the Content Security Policy and the other headers, set in next.config.ts (pure)
+    security-headers.ts                  the Content Security Policy and the other headers; headerRules, next.config.ts's headers() (pure)
+    tag-manager.ts                       gtmId: the Google Tag Manager container from GTM_ID, or nothing (pure)
     backup/                              the nightly backup (F12): archive.ts (collections ↔ Extended JSON lines; restore), crypt.ts (AES-256-GCM)
     repositories/                        data access; every function takes groupId
       documents.ts                       document types, collections, ensureIndexes
@@ -112,6 +113,7 @@ src/
     layout/                              LayoutEngine interface + ELK.js adapter
   components/
     AppHeader.tsx, NoAccess.tsx          the signed-in header; the "no access" page, with Request access (F4)
+    GoogleTagManager.tsx                 Google Tag Manager's two snippets, drawn by the landing page only
     ThemeToggle.tsx, theme.ts            Day / Night / Follow device switch, useTheme(); theme-script.ts runs in <head> before the first paint
     initials.ts, use-hydrated.ts         shared helpers; screen.ts (phone and tablet sizes, for the few things CSS can't do)
     auth/                                SignInButton, UserMenu, Better Auth's browser client, safeReturnTo
@@ -661,9 +663,10 @@ Model and prompt (built in step 9):
 - **Security headers** (step 11, `src/server/security-headers.ts`) on every response:
   - **Content Security Policy:** scripts, styles, fonts and connections only from the site itself; images also from `res.cloudinary.com` and `data:`/`blob:`; connections also to `api.cloudinary.com` (uploads) and `res.cloudinary.com` (the picture export); no plugins, no framing by other sites, base URLs and forms only to the site.
   - **Links to other sites** (the "Buy me a coffee" link, an owner request on 2026-10-22) are plain links that open in a new tab with `rel="noopener noreferrer"`, so the policy needs nothing for them; nothing from those sites loads in the app (no widget scripts).
-  - **Inline scripts are allowed:** Next.js writes each page's data into inline scripts, and nonces would need every page drawn per request, which partial prerendering (`cacheComponents`) doesn't allow (decided in step 11). React escapes everything people type, and the app has no raw HTML apart from the fixed theme script.
+  - **Inline scripts are allowed:** Next.js writes each page's data into inline scripts, and nonces would need every page drawn per request, which partial prerendering (`cacheComponents`) doesn't allow (decided in step 11). React escapes everything people type, and the app has no raw HTML apart from the fixed theme script and Google Tag Manager's snippet (its ID checked by `gtmId`).
   - **The others:** HSTS (two years), `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` (invite links never leave as referrers), a `Permissions-Policy` without camera, microphone or location, `Cross-Origin-Opener-Policy: same-origin`, and no `X-Powered-By`.
   - **Tests:** every e2e test fails if the browser reports a policy violation, and the production smoke test checks the headers on the live site after each deployment.
+  - **Google Tag Manager on the landing page only** (an owner request, 2026-10-22): with `GTM_ID` set (Vercel's Production only), a second header rule gives "/" alone a policy that also allows Google's sources for Tag Manager with Google Analytics 4 (scripts from `*.googletagmanager.com`, images and connections for Google Analytics, frames from `www.googletagmanager.com` for visitors without JavaScript); when two rules set the same header, Next.js and Vercel send the later one. Every other address, and "/" without `GTM_ID`, keeps the policy above, so signed-in pages, with families' names, dates and photos, load nothing from other sites. Google Analytics records a page's full address, and the landing page's can carry `?returnTo=` (an invite token, a group's ids), so the script skips Tag Manager when the address has `returnTo` (the owner's choice): those links never reach Google. Its cookies and consent: §15.
 - **Inputs from the browser** are treated as anything at all: a server action can be called directly with any arguments. Ids go through `toObjectId` and invite tokens through a format check before any query, so an object like `{ $ne: "" }` never reaches MongoDB (the invite token was found unchecked in step 11's review). Everything else is checked by zod, with lengths bounded.
 - **Every server action and route handler checks the caller,** and a unit test (`test/server-checks.test.ts`) fails if a new one doesn't call `requireUser`, `requireRole` or `getUser`.
 - **Google's tokens** are stored encrypted with `BETTER_AUTH_SECRET` (Better Auth's `encryptOAuthTokens`); the app never uses them.
@@ -718,6 +721,7 @@ Model and prompt (built in step 9):
 | `CHAT_API_URL`, `E2E_MODEL_URL` | Tests only | The e2e stand-in for the Messages API (`e2e/model-stub.mts`); the app defaults to `https://api.anthropic.com` |
 | `SMOKE_URL` | Smoke test | The site the smoke test checks; this app's production unless set. `smoke.yml` takes it from the repository variable of the same name (a fork sets its own); `npm run test:smoke` from the environment |
 | `CLOUDINARY_API_URL`, `E2E_CLOUDINARY_URL` | Tests only | The e2e stand-in for Cloudinary's API (`e2e/cloudinary-stub.mts`); the app defaults to `https://api.cloudinary.com` |
+| `GTM_ID` | App (Vercel Production only) | The owner's Google Tag Manager container (`GTM-KZDLK4PQ`), loaded on the landing page only; read when the site is built. Not set in Preview or locally, and cleared for the e2e build (`playwright.config.ts`); anything but a container ID is ignored |
 
 ## 14. Limits and when to upgrade
 
@@ -754,3 +758,4 @@ Limits built into the app:
 6. **Photos uploaded but never saved:** if the tab closes mid-way, or the save is refused, the uploaded photo stays in Cloudinary unused. Rare, so left out of step 7. A sweep could later delete photos in a group's folder that no person uses.
 7. **Copying photos on import:** photos come in only when a JSON file goes back into its own group. Copying them into another group's Cloudinary folder could come later.
 8. ~~**Open sign-up**~~ **Resolved 2026-10-20 (owner):** sign-up stays open to any Google account, an accepted risk (§11). Found in step 11's review: a stranger could create groups and import into them until the free cluster is full, or use their 50 chat messages a day. If that ever happens, the options are a cap on groups (or people) per account, or sign-up by invite only.
+9. **Consent for Google Analytics** (2026-10-22): with `GTM_ID` set, Google Analytics sets cookies on the landing page. Visitors in the EU would need a consent banner first, with Google's Consent Mode passing their choice to the tags. Not built; open until the owner decides.
