@@ -1,6 +1,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { INVALID_INVITE } from "@/server/repositories/invites";
 import { expect, test, type SampleGroup, type SignIn } from "./fixtures";
+import { loadEveryPicture } from "./pictures";
 
 // Phones (an owner request after the final check). The "phone" project runs this file in Chrome's
 // iPhone 13 emulation: 390 × 844, touch, a mobile viewport.
@@ -44,7 +45,7 @@ async function openSampleGroup(page: Page, signIn: SignIn, sampleGroup: SampleGr
 
 test("every page fits a phone's width, at 390 and 360 px", async ({ page, signIn, sampleGroup }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Family Tree" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Build your family tree together, with an AI assistant" })).toBeVisible();
   await fitsWidth(page);
 
   const { groupId, cruzSheet } = await openSampleGroup(page, signIn, sampleGroup);
@@ -70,6 +71,19 @@ test("every page fits a phone's width, at 390 and 360 px", async ({ page, signIn
     await expect(name).toBeVisible();
     expect(await name.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   }
+});
+
+test("the landing page on a phone: every part fits at 390 and 360 px, and Sign in with Google is on the first screen", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Sign in with Google" })).toBeInViewport();
+  await loadEveryPicture(page);
+  await shot(page, "phone-landing-top");
+  // At CSS size: at the phone's three device pixels per CSS pixel, the page is taller than Chrome
+  // can capture (16,384 px), and the screenshot repeats its top.
+  await page.screenshot({ path: "test-results/screenshots/phone-landing.png", fullPage: true, scale: "css" });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await fitsWidth(page);
+  await expect(page.getByRole("banner").getByRole("group", { name: "Theme" })).toBeInViewport();
 });
 
 test("the header's menu holds Members, Settings, the theme and Sign out", async ({ page, signIn, sampleGroup }) => {

@@ -9,8 +9,10 @@ import { safeReturnTo } from "./return-to";
 /**
  * Starts Google sign-in. `returnTo` (set by src/proxy.ts) is read when clicked, so the landing page
  * stays static. Failures come back to this page with `?error=`, keeping `returnTo` for another try.
+ * `label` is one of the wordings Google's guidelines allow ("Continue with Google" at the landing
+ * page's end, so its two buttons have different names).
  */
-export function SignInButton() {
+export function SignInButton({ label = "Sign in with Google" }: { label?: string }) {
   const hydrated = useHydrated();
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -42,7 +44,7 @@ export function SignInButton() {
         className="flex h-10 items-center gap-2.5 rounded-full border border-[#747775] bg-white px-3 pr-4 text-sm font-medium tracking-[0.25px] text-[#1f1f1f] transition-shadow hover:shadow-md disabled:opacity-60 dark:border-[#8e918f] dark:bg-[#131314] dark:text-[#e3e3e3]"
       >
         <GoogleLogo />
-        {pending ? "Opening Google…" : "Sign in with Google"}
+        {pending ? "Opening Google…" : label}
       </button>
       {failed && <p role="alert" className="text-sm text-red-700 dark:text-red-400">Couldn&apos;t reach the sign-in service. Please try again.</p>}
     </div>

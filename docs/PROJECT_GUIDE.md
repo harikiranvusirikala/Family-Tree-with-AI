@@ -178,8 +178,8 @@ Family Tree with AI/
 ├── test/                 ← shared test data (a sample family) and test helpers
 ├── e2e/                  ← "end-to-end" tests: a robot browser clicks through the real app
 ├── smoke/                ← a quick test of the live website after each deployment
-├── scripts/              ← command-line tools: set up the database, add sample data, back up, restore
-├── docs/                 ← the project's documents (plans, architecture, this guide, screenshots)
+├── scripts/              ← command-line tools: set up the database, add sample data, back up, restore, make the site's pictures
+├── docs/                 ← the project's documents (plans, architecture, this guide, screenshots, GitHub's social preview)
 ├── .github/workflows/    ← automation that runs on GitHub (tests, nightly backup, smoke test)
 ├── .github/FUNDING.yml   ← the repository's ❤ Sponsor button (GitHub Sponsors, Buy Me a Coffee)
 ├── .claude/              ← instructions for the Claude Code AI assistant (CLAUDE.md)
@@ -276,7 +276,7 @@ flowchart TB
 
 | Address | Files | Who can see it |
 |---|---|---|
-| `/` | [app/page.tsx](../src/app/page.tsx) | Everyone |
+| `/` | [app/page.tsx](../src/app/page.tsx), its parts in [components/landing/](../src/components/landing/) | Everyone, and search engines (the only page they see) |
 | `/dashboard` | [dashboard/page.tsx](../src/app/dashboard/page.tsx), plus `NewGroupForm.tsx`, `ImportNewGroup.tsx`, `UpcomingSoon.tsx`, `actions.ts` | Anyone signed in |
 | `/g/{groupId}` | [g/[groupId]/page.tsx](../src/app/g/[groupId]/page.tsx) | Members (View and up) |
 | `/g/{groupId}/s/{sheetId}` | [s/layout.tsx](../src/app/g/[groupId]/s/layout.tsx) loads the data, [s/GroupSheets.tsx](../src/app/g/[groupId]/s/GroupSheets.tsx) runs the editor. The `[sheetId]/page.tsx` is empty on purpose: the layout stays on screen while you switch tabs | View to look, Maintain to edit |
@@ -294,6 +294,15 @@ The API endpoints (they answer with data, not pages):
 | `/api/groups/{groupId}/export` | [api/groups/[groupId]/export/route.ts](../src/app/api/groups/[groupId]/export/route.ts) | Downloads a group or sheet as JSON or GEDCOM (Maintain and up) |
 
 Two more files in `src/app`: [layout.tsx](../src/app/layout.tsx) is the frame around *every* page (it sets the page title and applies the day/night theme before anything is drawn), and [globals.css](../src/app/globals.css) holds the site-wide styles.
+
+And the files that browsers, search engines and chat apps ask for by name:
+
+| File | Address | What it is |
+|---|---|---|
+| [robots.ts](../src/app/robots.ts) | `/robots.txt` | Tells search engines what they may read: on the live site only the landing page; elsewhere nothing |
+| [sitemap.ts](../src/app/sitemap.ts) | `/sitemap.xml` | The list of public pages for search engines: just the landing page |
+| [icon.svg](../src/app/icon.svg), `favicon.ico`, `apple-icon.png` | `/icon.svg` … | The app's icon (a couple, a heart and two children) for browser tabs, search results and phones' home screens |
+| `opengraph-image.png` | `/opengraph-image.png` | The picture chat apps and social sites show when someone shares a link |
 
 ### The tree editor, piece by piece
 
@@ -337,6 +346,9 @@ flowchart TB
     subgraph general["General"]
         AppHeader; NoAccess; ThemeToggle
     end
+    subgraph landing["landing/ — the public page"]
+        Hero; ChatPreview; Faq
+    end
     subgraph auth["auth/"]
         SignInButton; UserMenu
     end
@@ -369,6 +381,18 @@ flowchart TB
 | [support.ts](../src/components/support.ts) | The owner's Buy Me a Coffee address, linked from the landing page and the user menu |
 | [GoogleTagManager.tsx](../src/components/GoogleTagManager.tsx) | Google Tag Manager's two snippets, drawn on the landing page only (when `GTM_ID` is set) |
 | [initials.ts](../src/components/initials.ts), [short-date.ts](../src/components/short-date.ts), [use-hydrated.ts](../src/components/use-hydrated.ts), [request-messages.ts](../src/components/request-messages.ts) | Small helpers: "Jake Cruz" → "JC", short dates, "is the page ready for clicks yet?", shared messages |
+
+**`landing/`: the landing page**
+
+| File | What it does |
+|---|---|
+| [content.ts](../src/components/landing/content.ts) | The words search engines read twice: the title, the description, the questions and answers, and the structured data built from them |
+| [LandingHeader.tsx](../src/components/landing/LandingHeader.tsx), [LandingFooter.tsx](../src/components/landing/LandingFooter.tsx) | The top bar (logo, links to the page's parts, the theme switch) and the footer |
+| [Hero.tsx](../src/components/landing/Hero.tsx) | The top: what the app is, Sign in with Google, and the app on a computer and a phone |
+| [Showcase.tsx](../src/components/landing/Showcase.tsx), [ChatPreview.tsx](../src/components/landing/ChatPreview.tsx) | The AI assistant (its conversation drawn as text), the relatives wheel, the network, birthdays, and three phones |
+| [Features.tsx](../src/components/landing/Features.tsx), [Faq.tsx](../src/components/landing/Faq.tsx) | The three steps, six features and privacy; the questions and answers and the last sign-in button |
+| [section.tsx](../src/components/landing/section.tsx), [frames.tsx](../src/components/landing/frames.tsx), [icons.tsx](../src/components/landing/icons.tsx) | Shared pieces: a section and its heading, the computer and phone frames around screenshots, line icons |
+| `images/` | The screenshots, as small WebP files made by `npm run images` |
 
 **`auth/`: signing in**
 
@@ -499,6 +523,7 @@ flowchart TB
 | [cloudinary.ts](../src/server/cloudinary.ts), [photos.ts](../src/server/photos.ts) | Signs photo uploads, deletes unused photos |
 | [security-headers.ts](../src/server/security-headers.ts) | Security rules sent with every page (Content Security Policy); the landing page's also allows Google Tag Manager when `GTM_ID` is set |
 | [tag-manager.ts](../src/server/tag-manager.ts) | `gtmId()`: the Google Tag Manager container from `GTM_ID`, only if it looks like one |
+| [site.ts](../src/server/site.ts) | The site's own address (for search engines and link previews) and what robots.txt allows |
 
 ### The sub-folders
 
@@ -743,6 +768,7 @@ The [test/](../test/) folder holds what the tests share:
 | `npm run build` | Builds the app the way Vercel does |
 | `npm run test:e2e` | Builds, then runs the robot-browser tests |
 | `npm run seed` | Puts the sample family into your database (view it at `/dev/tree/db`) |
+| `npm run images` | Makes the icons, the link-preview picture, GitHub's social preview and the landing page's pictures |
 
 ### `scripts/`
 
@@ -754,6 +780,7 @@ The [test/](../test/) folder holds what the tests share:
 | [seed.mts](../scripts/seed.mts) | Adds the sample family |
 | [ai-live.mts](../scripts/ai-live.mts) | One real conversation with Claude (costs under a cent) |
 | [backup.mts](../scripts/backup.mts), [restore.mts](../scripts/restore.mts) | Makes an encrypted backup; restores one |
+| [site-images.mts](../scripts/site-images.mts) | `npm run images`: draws the site's pictures from [icon.svg](../src/app/icon.svg) and the screenshots in `docs/screenshots/` |
 
 ### From a change to the live site
 
@@ -822,7 +849,9 @@ Then pick what interests you:
 | Add a field to a person | [types.ts](../src/tree/types.ts), [schema.ts](../src/server/operations/schema.ts), [family.ts](../src/server/repositories/family.ts), the form, and the import/export converters |
 | Teach the AI something new | [src/server/ai/tools.ts](../src/server/ai/tools.ts) and [handlers.ts](../src/server/ai/handlers.ts) |
 | Change who may do what | [roles.ts](../src/server/roles.ts) |
-| Add a new page | A folder under [src/app/](../src/app/) with a `page.tsx`; if signed-out visitors may see it, add it to `PUBLIC_PATHS` in [proxy-rules.ts](../src/server/proxy-rules.ts) |
+| Add a new page | A folder under [src/app/](../src/app/) with a `page.tsx`; if signed-out visitors may see it, add it to `PUBLIC_PATHS` in [proxy-rules.ts](../src/server/proxy-rules.ts) (and, for search engines, to [site.ts](../src/server/site.ts)'s sitemap) |
+| Change the landing page's words | [landing/content.ts](../src/components/landing/content.ts) (title, description, questions) and the parts in [components/landing/](../src/components/landing/) |
+| Change the icon or the link-preview picture | [icon.svg](../src/app/icon.svg) or the screenshots in `docs/screenshots/`, then `npm run images` |
 | Add a tool button above the tree | [GroupSheets.tsx](../src/app/g/[groupId]/s/GroupSheets.tsx) (`trailing` for computers, `menuItems` for phones and tablets) |
 
 For the full rules behind any of this, see [ARCHITECTURE.md](ARCHITECTURE.md); for the history of why things are the way they are, see the notes in [BUILD_PLAN.md](BUILD_PLAN.md).

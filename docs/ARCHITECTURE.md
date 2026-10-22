@@ -56,7 +56,9 @@ As built (steps 1–11).
 ```
 src/
   app/                                   Next.js routes
-    page.tsx                             landing + "Sign in with Google" (static); Google Tag Manager when GTM_ID is set
+    page.tsx                             the landing page (static): what the app is, Sign in with Google, its search-engine metadata and structured data; Google Tag Manager when GTM_ID is set
+    robots.ts, sitemap.ts                robots.txt (search engines read the landing page on production only) and sitemap.xml (the landing page)
+    icon.svg, favicon.ico, apple-icon.png the app's icon (a couple, a heart and two children); opengraph-image.png, the link preview (scripts/site-images.mts)
     dashboard/                           invitations · Upcoming (the next 30 days' birthdays and anniversaries) · My groups · Shared with me · my access requests · create a group (F2)
       page.tsx, actions.ts, NewGroupForm.tsx
     g/[groupId]/
@@ -88,6 +90,7 @@ src/
     members-rules.ts                     normalizeEmail, maskEmail, who may change whom (pure)
     security-headers.ts                  the Content Security Policy and the other headers; headerRules, next.config.ts's headers() (pure)
     tag-manager.ts                       gtmId: the Google Tag Manager container from GTM_ID, or nothing (pure)
+    site.ts                              the site's address (canonical links, sitemap, preview images) and what robots.txt allows (pure)
     backup/                              the nightly backup (F12): archive.ts (collections ↔ Extended JSON lines; restore), crypt.ts (AES-256-GCM)
     repositories/                        data access; every function takes groupId
       documents.ts                       document types, collections, ensureIndexes
@@ -117,6 +120,7 @@ src/
     ThemeToggle.tsx, theme.ts            Day / Night / Follow device switch, useTheme(); theme-script.ts runs in <head> before the first paint
     initials.ts, use-hydrated.ts         shared helpers; screen.ts (phone and tablet sizes, for the few things CSS can't do)
     auth/                                SignInButton, UserMenu, Better Auth's browser client, safeReturnTo
+    landing/                             the landing page's parts (header, hero, spotlights, features, privacy, questions, footer), its words (content.ts: title, description, questions, structured data) and pictures (images/, made by scripts/site-images.mts)
     tree/                                FamilyCanvas, PersonNode, UnionNode (heart), PersonPhoto, photoUrl; HidePhotosButton (the eye: initials only); framing.ts (phones' and tablets' views, Find someone's centring); FindSomeone; ★ Everyone's ViewSwitcher, EveryoneList, NetworkCanvas, WheelCanvas (name-style.ts: the Wheel's తె/En choice) and UpcomingList
       edit/                              PersonPanel, CouplePanel, SheetTabs (with the phone's sheet picker and the sheet menu), person form (F6); PhotoControls, upload (F8); panel.ts (panel layouts)
       sheet-picture.ts                   the whole sheet as a PNG (html-to-image), download or print (F9)
@@ -125,8 +129,8 @@ src/
 test/                                    fixtures (the sample family), database helpers, planning.ts, seed; server-checks.test.ts (every action and route checks the caller)
 e2e/                                     Playwright specs and fixtures (signIn, sampleGroup, addMember, policyViolations); stand-ins for Cloudinary and the model
 smoke/                                   the production smoke test, signed out only (playwright.smoke.config.ts)
-scripts/                                 db:ping, db:setup, seed, test:ai-live, backup, restore
-docs/                                    FEATURES.md, ARCHITECTURE.md (this file), BUILD_PLAN.md, the architecture diagram, README screenshots
+scripts/                                 db:ping, db:setup, seed, test:ai-live, backup, restore; site-images (`npm run images`: the icons, the link preview, GitHub's social preview, the landing page's pictures)
+docs/                                    FEATURES.md, ARCHITECTURE.md (this file), BUILD_PLAN.md, the architecture diagram, screenshots (the README's, and the source of the site's pictures), social-preview.png (GitHub's)
 .github/workflows/                       ci.yml (every push), backup.yml (nightly), smoke.yml (after each production deployment)
 ```
 
@@ -660,6 +664,7 @@ Model and prompt (built in step 9):
 - **Preview deployments** use their own database, so testing can't damage real data.
 - **Backups** are encrypted (F12), made with a read-only user, and leave out sessions.
 - **AI chat:** tools filtered by role, confirmation by a person before any change, and a daily cap.
+- **Search engines** (an owner request on 2026-10-22) see only the landing page: every other page needs signing in, and `robots.txt` asks them to stay out of the private pages, the API and the developer pages. Previews and local builds ask them to stay out of everything. The landing page's Google Search Console code (`google-site-verification`) is public by design: it only proves who runs the site.
 - **Security headers** (step 11, `src/server/security-headers.ts`) on every response:
   - **Content Security Policy:** scripts, styles, fonts and connections only from the site itself; images also from `res.cloudinary.com` and `data:`/`blob:`; connections also to `api.cloudinary.com` (uploads) and `res.cloudinary.com` (the picture export); no plugins, no framing by other sites, base URLs and forms only to the site.
   - **Links to other sites** (the "Buy me a coffee" link, an owner request on 2026-10-22) are plain links that open in a new tab with `rel="noopener noreferrer"`, so the policy needs nothing for them; nothing from those sites loads in the app (no widget scripts).
@@ -697,6 +702,7 @@ Model and prompt (built in step 9):
   - The handoff is encrypted with `OAUTH_PROXY_SECRET`, the same value in Production and Preview. The databases and `BETTER_AUTH_SECRET` stay separate.
   - It needs production to run the plugin, so the first preview that can sign in with Google is the one after the plugin reaches production (step 5's).
 - Each deployment trusts exact origins only: `BETTER_AUTH_URL` locally and in production; on a preview, its own `VERCEL_BRANCH_URL` and `VERCEL_URL`. Never `*.vercel.app`, which would trust anyone's Vercel app.
+- **Search engines** are welcome on production only (`src/server/site.ts`): its `robots.txt` allows the landing page and names the sitemap, while every other deployment's says `Disallow: /`. The site's address in canonical links, the sitemap and link-preview images is sign-in's base URL (above), or `http://localhost:3000` when nothing is set.
 
 ## 13. Configuration
 
@@ -705,9 +711,9 @@ Model and prompt (built in step 9):
 | `MONGODB_URI` | App; GitHub Actions (tests) | Database user with read/write only (no admin). CI uses a separate test user, stored as a repo secret |
 | `MONGODB_DB` | App | `familytree`, `familytree_preview` or `familytree_dev` |
 | `BETTER_AUTH_SECRET` | App | Random, at least 32 bytes. Different in Production and Preview |
-| `BETTER_AUTH_URL` | App | Base URL locally and in production. Not set on previews |
+| `BETTER_AUTH_URL` | App | Base URL locally and in production. Not set on previews. Also the site's address for search engines and link previews |
 | `OAUTH_PROXY_SECRET` | App (Vercel) | Random, at least 32 bytes. The same value in Production and Preview: encrypts the preview sign-in handoff ([§12](#12-environments)) |
-| `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL` | App | Set by Vercel ("Automatically expose System Environment Variables") |
+| `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL` | App | Set by Vercel ("Automatically expose System Environment Variables"). `robots.txt` lets search engines in only where `VERCEL_ENV` is `production` |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | App | Google Cloud OAuth client |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | App | The same account in Production and Preview. Without them, cards show initials and photo buttons are hidden |
 | `CHAT_API_KEY` | App | The Anthropic API key for the chat (not `ANTHROPIC_API_KEY`, see §10). Without it, there is no "Ask AI" |
@@ -759,3 +765,4 @@ Limits built into the app:
 7. **Copying photos on import:** photos come in only when a JSON file goes back into its own group. Copying them into another group's Cloudinary folder could come later.
 8. ~~**Open sign-up**~~ **Resolved 2026-10-20 (owner):** sign-up stays open to any Google account, an accepted risk (§11). Found in step 11's review: a stranger could create groups and import into them until the free cluster is full, or use their 50 chat messages a day. If that ever happens, the options are a cap on groups (or people) per account, or sign-up by invite only.
 9. **Consent for Google Analytics** (2026-10-22): with `GTM_ID` set, Google Analytics sets cookies on the landing page. Visitors in the EU would need a consent banner first, with Google's Consent Mode passing their choice to the tags. Not built; open until the owner decides.
+10. **A domain of the app's own** (suggested 2026-10-22 with the search engine work): over time, search engines rank a site on its own domain better than one on a `vercel.app` address. It costs about $10–15 a year, and needs a second Google redirect URL and a new `BETTER_AUTH_URL`. Open; the owner decides.

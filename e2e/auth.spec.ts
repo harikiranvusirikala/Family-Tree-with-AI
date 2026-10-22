@@ -34,6 +34,15 @@ test.describe("Sign in with Google", () => {
     expect((await signIn).postDataJSON()).toMatchObject({ callbackURL: "/dashboard" });
   });
 
+  test("the landing page's second button, at its end, signs in the same way", async ({ page }) => {
+    await page.goto("/?returnTo=%2Fdashboard%3Ftab%3Dx");
+    const signIn = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith("/api/auth/sign-in/social"));
+    const google = page.waitForRequest((r) => r.url().startsWith("https://accounts.google.com/"));
+    await page.getByRole("button", { name: "Continue with Google" }).click();
+    expect((await signIn).postDataJSON()).toMatchObject({ provider: "google", callbackURL: "/dashboard?tab=x" });
+    await google;
+  });
+
   test("a failed sign-in comes back with a plain message", async ({ page }) => {
     await page.goto("/?returnTo=%2Fdashboard&error=access_denied");
     await expect(page.getByRole("alert").filter({ hasText: "Sign-in was cancelled." })).toBeVisible();

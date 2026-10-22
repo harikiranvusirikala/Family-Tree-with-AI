@@ -1,37 +1,48 @@
-import { Suspense } from "react";
-import { SignInButton, SignInError } from "@/components/auth/SignInButton";
+import type { Metadata } from "next";
 import { GoogleTagManager } from "@/components/GoogleTagManager";
-import { SUPPORT_URL } from "@/components/support";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { DESCRIPTION, GOOGLE_SITE_VERIFICATION, SITE_NAME, TITLE, structuredData } from "@/components/landing/content";
+import { Faq, GetStarted } from "@/components/landing/Faq";
+import { Features, HowItWorks, Privacy } from "@/components/landing/Features";
+import { Hero } from "@/components/landing/Hero";
+import { LandingFooter } from "@/components/landing/LandingFooter";
+import { LandingHeader } from "@/components/landing/LandingHeader";
+import { Phones, Spotlights } from "@/components/landing/Showcase";
+import type { AuthUrlEnv } from "@/server/auth-urls";
+import { siteUrl } from "@/server/site";
 import { gtmId, type TagManagerEnv } from "@/server/tag-manager";
 
+// The landing page: sign-in, and the only page search engines see (robots.ts, sitemap.ts). The
+// preview image beside this file (opengraph-image.png) is made by `npm run images`.
+export const metadata: Metadata = {
+  title: TITLE,
+  description: DESCRIPTION,
+  // One address for this page, also when a signed-out link adds ?returnTo= (src/proxy.ts).
+  alternates: { canonical: "/" },
+  openGraph: { type: "website", siteName: SITE_NAME, title: TITLE, description: DESCRIPTION, url: "/" },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
+  verification: { google: GOOGLE_SITE_VERIFICATION },
+};
+
 export default function Home() {
+  // `<` escaped so no text can close the script early (Next.js's JSON-LD guide).
+  const jsonLd = JSON.stringify(structuredData(siteUrl(process.env as AuthUrlEnv))).replace(/</g, "\\u003c");
   return (
     <>
       {/* First, as Google asks, and on this page only (an owner request); nothing without GTM_ID. */}
       <GoogleTagManager id={gtmId(process.env as TagManagerEnv)} />
-      <main className="relative flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24 text-center">
-        <div className="absolute right-4 top-3">
-          <ThemeToggle />
-        </div>
-        <h1 className="text-4xl font-semibold tracking-tight">Family Tree</h1>
-        <p className="max-w-md text-lg text-zinc-600 dark:text-zinc-400">
-          Build your family tree together and share it privately with your relatives.
-        </p>
-        <Suspense>
-          <SignInError />
-        </Suspense>
-        <SignInButton />
-        <a
-          href={SUPPORT_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Buy me a coffee (opens in a new tab)"
-          className="inline-flex items-center gap-1 text-sm text-zinc-500 underline hover:text-zinc-700 pointer-coarse:min-h-11 dark:text-zinc-400 dark:hover:text-zinc-200"
-        >
-          Buy me a coffee<span aria-hidden>☕</span>
-        </a>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
+      <LandingHeader />
+      <main className="flex-1">
+        <Hero />
+        <HowItWorks />
+        <Spotlights />
+        <Phones />
+        <Features />
+        <Privacy />
+        <Faq />
+        <GetStarted />
       </main>
+      <LandingFooter />
     </>
   );
 }

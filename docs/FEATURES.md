@@ -50,6 +50,12 @@ This is a Family Tree Web Application that can be accessed via Web.
 
 - A place where all persons and all their relations are displayed, like a network graph of everyone. (Added 2026-10-20.)
 
+### Landing page and search engines
+
+- Easy to find on Google: the repository's About text and topics, and on the live site a title, description, robots.txt, sitemap, link-preview picture and icon that search engines and chat apps use; Google Search Console's verification tag on the home page. (Added 2026-10-22.)
+- A real professional, full landing page that helps people find the app on Google. (Added 2026-10-22.)
+- A social preview picture for the GitHub repository, following GitHub's template: space left around the edges. (Added 2026-10-22.)
+
 ## Decisions (agreed 2026-10-18, and at each build step since)
 
 ### Tech stack & deployment
@@ -237,6 +243,17 @@ This is a Family Tree Web Application that can be accessed via Web.
 - A smoke test checks the live site as a signed-out visitor after every production deployment, and by hand.
 - Dependabot alerts on (emails about known vulnerabilities), no automatic update pull requests.
 - Sign-up stays open to any Google account, who can then create groups (the owner's choice after step 11's review; ARCHITECTURE.md §11).
+
+### Landing page and search engines (an owner request, 2026-10-22)
+
+- The landing page says what the app is, in this order: Sign in with Google with the app on a computer and a phone; three steps; the AI assistant (its "Priya married Ravi" conversation, drawn as text); the relatives wheel with Telugu names; the network; birthdays and anniversaries; phones; six features; privacy; eight questions and answers; a second button ("Continue with Google", a wording Google allows). It stays static.
+- Its title is "Family Tree with AI: build your family tree together", with a description of about 155 characters, one canonical address (also for `?returnTo=` links), link previews for chat apps and social sites (Open Graph and an X card, a 1200 × 630 picture), and structured data (the site, the app, the questions and answers). Inside the app the name stays "Family Tree".
+- Search engines read only the landing page, and only on production (robots.txt, and a sitemap listing the landing page). Previews and local builds keep them out.
+- Google Search Console's code is written into the code, like the coffee link; a copy of the app puts its own there or deletes it.
+- A new icon: a couple joined by a heart and their two children, drawn like the tree's cards. It is the favicon, the home-screen icon and the logo.
+- GitHub's social preview keeps everything that matters 80 px in from the edges (GitHub's template); the link preview is the same picture at 1200 × 630.
+- The landing page's pictures are ready-made WebP files (`npm run images`, from the README's screenshots), not optimised by Vercel, so the page uses none of Vercel's image quota. They are the day screenshots in both themes.
+- Not yet decided: a domain of the app's own (ARCHITECTURE.md §15).
 
 ### First build step
 

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- The app's icon: a couple joined by a heart, and their two children, drawn like the tree's cards.
+       scripts/site-images.mts makes favicon.ico and apple-icon.png from this file. -->
+  <defs>
+    <linearGradient id="tile-shade" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#27272a"/>
+      <stop offset="1" stop-color="#09090b"/>
+    </linearGradient>
+  </defs>
+  <rect id="tile" width="64" height="64" rx="14" fill="url(#tile-shade)"/>
+  <path d="M32 24V32M19.5 32H44.5M19.5 32V37M44.5 32V37" fill="none" stroke="#a1a1aa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="17" cy="18" r="7" fill="#dbeafe" stroke="#60a5fa" stroke-width="3"/>
+  <circle cx="47" cy="18" r="7" fill="#fce7f3" stroke="#f472b6" stroke-width="3"/>
+  <path transform="translate(26.6 13.01) scale(0.45)" fill="#fb7185" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+  <circle cx="19.5" cy="45" r="7" fill="#fce7f3" stroke="#f472b6" stroke-width="3"/>
+  <circle cx="44.5" cy="45" r="7" fill="#dbeafe" stroke="#60a5fa" stroke-width="3"/>
+</svg>

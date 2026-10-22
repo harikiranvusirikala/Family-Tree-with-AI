@@ -62,3 +62,22 @@ test("signed out: pages send you to sign in, the API refuses, developer pages do
   expect((await request.get(`/api/groups/${"0".repeat(24)}/export?format=json`)).status()).toBe(401);
   expect((await request.get("/dev/tree")).status()).toBe(404);
 });
+
+test("search engines: robots.txt lets them read the landing page, the sitemap lists it, and link previews have their picture", async ({ request, page, baseURL }) => {
+  const site = new URL(baseURL!).origin;
+  const robots = await request.get("/robots.txt", { maxRedirects: 0 });
+  expect(robots.status()).toBe(200);
+  const rules = await robots.text();
+  expect(rules).toContain("Allow: /\n");
+  for (const path of ["/api/", "/dashboard", "/g/", "/invite/"]) expect(rules).toContain(`Disallow: ${path}\n`);
+  expect(rules).toContain(`Sitemap: ${site}/sitemap.xml`);
+  expect(await (await request.get("/sitemap.xml", { maxRedirects: 0 })).text()).toContain(`<loc>${site}/</loc>`);
+
+  await page.goto("/");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", site);
+  const previewImage = (await page.locator('meta[property="og:image"]').getAttribute("content"))!;
+  expect(previewImage.startsWith(`${site}/`)).toBe(true);
+  const response = await request.get(previewImage, { maxRedirects: 0 });
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toBe("image/png");
+});

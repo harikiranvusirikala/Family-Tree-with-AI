@@ -1,6 +1,6 @@
 # Family Tree with AI
 
-A web app where a family builds its tree together. People are added by hand or by chatting with an AI assistant, laid out automatically, and shared privately with relatives through their Google accounts. It runs on free tiers (Vercel, MongoDB Atlas, Cloudinary, Google sign-in); only the AI chat costs money, a few cents a month.
+An open-source family tree (genealogy) web app where a family builds its tree together. People are added by hand or by chatting with an AI assistant, laid out automatically, and shared privately with relatives through their Google accounts. It runs on free tiers (Vercel, MongoDB Atlas, Cloudinary, Google sign-in); only the AI chat costs money, a few cents a month.
 
 **Live:** https://family-tree-with-ai.vercel.app · **Docs:** [beginner's guide to the code](docs/PROJECT_GUIDE.md) · [features and decisions](docs/FEATURES.md) · [architecture](docs/ARCHITECTURE.md) · [build plan](docs/BUILD_PLAN.md)
 
@@ -60,6 +60,7 @@ A web app where a family builds its tree together. People are added by hand or b
 - **Phones, tablets and computers.** On small screens: a sheet picker, one ⋯ menu for the tools, details over the bottom half of the screen, a round Ask AI button, and touch-sized controls.
 - **Day and night themes**, or follow the device.
 - **Nightly encrypted backups**, each one trial-restored before it's kept for 90 days.
+- **Easy to find, never public:** a landing page that says what the app is (with its questions and answers), link previews for chat apps and social sites, `robots.txt` and a sitemap. Search engines see only that page; family trees need signing in.
 - **Hardened:** security headers and a Content Security Policy on every page, and a smoke test of the live site after every deployment.
 
 The owner's full requirements and every agreed decision are in [docs/FEATURES.md](docs/FEATURES.md).
@@ -359,6 +360,10 @@ Sign in at `https://YOUR-APP.vercel.app`. From then on, every push to `main` upd
 | The chat model and daily limit | `CHAT_MODEL`, `CHAT_DAILY_LIMIT` in Vercel |
 | Database names, if you must change them | `MONGODB_DB` everywhere, plus `BACKUP_DB` in backup.yml's backup step |
 | Visitor numbers on the sign-in page (optional) | `GTM_ID` in Vercel, Production only (step 9), then redeploy |
+| Google Search Console's ownership code: yours, or none | `GOOGLE_SITE_VERIFICATION` in `src/components/landing/content.ts` (the original's only works for its own site) |
+| The landing page's link to the code | `SOURCE_URL` in the same file (the coffee link is `SUPPORT_URL` in `src/components/support.ts`) |
+| The icon, the link preview and the landing page's pictures | `src/app/icon.svg` and `docs/screenshots/`, then `npm run images` |
+| GitHub's social preview | Repository → Settings → General → Social preview: upload `docs/social-preview.png` |
 
 The documents in `docs/` record how the original was built and mention its address; they don't need changing.
 
@@ -370,6 +375,7 @@ The documents in `docs/` record how the original was built and mention its addre
 - [ ] Push a branch, open its preview, and sign in with Google there.
 - [ ] Actions: CI is green, Nightly backup is green (and has a `backup-<date>` artifact), and the Production smoke test is green.
 - [ ] Export the group as GEDCOM and import it into a new group.
+- [ ] Optional: in [Google Search Console](https://search.google.com/search-console), add your site with the HTML tag method (its code goes in `GOOGLE_SITE_VERIFICATION`, step 11), then submit `https://YOUR-APP.vercel.app/sitemap.xml`.
 
 ## Environment variables
 
@@ -412,6 +418,7 @@ Secrets live only in `.env.local` (git-ignored), Vercel and GitHub Secrets.
 | `npm run seed` | Loads the sample family into `MONGODB_DB`; view it at `/dev/tree/db` |
 | `npm run backup` | Writes an encrypted backup of `familytree` to `backups/`; normally the nightly workflow does it |
 | `npm run restore -- <file> …` | Restores a backup ([below](#backups-and-restore)) |
+| `npm run images` | Makes the favicon, the home-screen icon, the link-preview picture, GitHub's social preview and the landing page's pictures from `src/app/icon.svg` and `docs/screenshots/` |
 
 ## Tests
 
@@ -453,6 +460,7 @@ It asks for the key (typing isn't shown), refuses a database that already has re
 - **Only the sign-in page** may load another site's script: Google Tag Manager, when `GTM_ID` is set, with that page's policy allowing Google's addresses. Signed-in pages, with the family's names, dates and photos, load nothing from other sites.
 - **Photos** have random, unguessable names in the group's folder, and only Maintain and up get an upload signature.
 - **Separate database users** per purpose, a separate preview database, and encrypted, read-only backups.
+- **Search engines** see only the landing page: `robots.txt` keeps them out of everything else on production, and out of preview deployments entirely.
 - **Accepted risks:** anyone with a Google account can sign up and create groups (they could fill the free cluster, and each gets 50 chat messages a day; your Anthropic spend limit caps the cost); server actions have no rate limit of their own. Details in [docs/ARCHITECTURE.md §11](docs/ARCHITECTURE.md#11-security-and-privacy).
 
 ## Project documents

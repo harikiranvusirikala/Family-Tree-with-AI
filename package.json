@@ -23,7 +23,8 @@
     "test:ai-live": "node --import tsx --env-file-if-exists=.env.local scripts/ai-live.mts",
     "test:smoke": "playwright test --config playwright.smoke.config.ts",
     "backup": "node --import tsx --env-file-if-exists=.env.local scripts/backup.mts",
-    "restore": "node --import tsx --env-file-if-exists=.env.local scripts/restore.mts"
+    "restore": "node --import tsx --env-file-if-exists=.env.local scripts/restore.mts",
+    "images": "node --import tsx scripts/site-images.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
