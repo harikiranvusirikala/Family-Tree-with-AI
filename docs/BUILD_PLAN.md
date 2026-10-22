@@ -42,6 +42,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | "Topology is closed" on production (found by the owner) | Done 2026-10-21 (unit tests: 450 passed; e2e: 80 passed). See its section at the end |
 | – | The README's pictures (owner request) | Done 2026-10-21 (e2e: 80 passed). See its section at the end |
 | – | A beginner's guide to the code (owner request) | Done 2026-10-22 (docs only). See its section at the end |
+| – | Buy me a coffee (owner request) | Done 2026-10-22 (unit tests: 451 passed; e2e: 82 passed). See its section at the end |
 
 ## How we work
 
@@ -1401,3 +1402,20 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 - **Notes (2026-10-22):**
   - Docs only: no code or tests change. Every file link in the guide was checked to exist.
   - It describes the code as it is: a new or renamed folder, file, page or collection goes in the guide too (CLAUDE.md says so).
+
+## After the final check: buy me a coffee (owner request)
+- **Why:** people the project helps can send the owner a coffee, from any country.
+- **Build:**
+  - **README:** a Support section at the end (and in Contents) with Buy Me a Coffee and GitHub Sponsors links and badges.
+  - **The repository's ❤ Sponsor button:** `.github/FUNDING.yml` lists GitHub Sponsors and Buy Me a Coffee.
+  - **The site:** a "Buy me a coffee ☕" link under Sign in with Google on the landing page, and a menu item above Sign out in the user menu (every signed-in page, all screen sizes). Both open `SUPPORT_URL` (`src/components/support.ts`) in a new tab with `rel="noopener noreferrer"`; their name says "(opens in a new tab)".
+- **Decisions (owner, 2026-10-22):**
+  1. Buy Me a Coffee: supporters need no account, and it pays out to India. Ko-fi through PayPal India costs about the same; GitHub Sponsors (no fee) needs a GitHub account, so it's for the README only.
+  2. The site links to Buy Me a Coffee only: relatives using it usually have no GitHub account.
+  3. The landing page and the user menu (not the dashboard).
+  4. Written into the code, not a setting: copies of the app keep the owner's link.
+- **Tests:** the landing page's link (unit: address, new tab, `rel`); e2e `support.spec.ts`: on the landing page and in the user menu, the link opens the owner's page (answered by the test) in a new tab with no `window.opener`, and the menu closes.
+- **Notes (2026-10-22):**
+  - A plain link, not Buy Me a Coffee's widget: the widget's script would run on pages with family data and need the Content Security Policy to allow it. Opening another site in a new tab isn't covered by the policy, so it is unchanged.
+  - The links' addresses couldn't be opened from here (the network proxy blocks both sites); the owner checks them. GitHub shows the Sponsor button once Settings → General → Features → Sponsorships is ticked, and the `github:` entry once the GitHub Sponsors profile is approved.
+  - `support.ts` is a plain module, so both the landing page (a server component) and the user menu (a client component) import it.

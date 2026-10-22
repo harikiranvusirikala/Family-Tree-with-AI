@@ -178,6 +178,7 @@ Family Tree with AI/
 ├── scripts/              ← command-line tools: set up the database, add sample data, back up, restore
 ├── docs/                 ← the project's documents (plans, architecture, this guide, screenshots)
 ├── .github/workflows/    ← automation that runs on GitHub (tests, nightly backup, smoke test)
+├── .github/FUNDING.yml   ← the repository's ❤ Sponsor button (GitHub Sponsors, Buy Me a Coffee)
 ├── .claude/              ← instructions for the Claude Code AI assistant (CLAUDE.md)
 │
 ├── package.json          ← the list of libraries and the "npm run …" commands
@@ -362,6 +363,7 @@ flowchart TB
 | [ThemeToggle.tsx](../src/components/ThemeToggle.tsx), [theme.ts](../src/components/theme.ts), [theme-script.ts](../src/components/theme-script.ts) | Day / Night / Follow device. The script runs before the page is painted, so it never flashes white |
 | [screen.ts](../src/components/screen.ts) | `isPhone()` and `isTabletOrPhone()`, for the few things CSS can't do |
 | [today.ts](../src/components/today.ts) | `useToday()`: today's date from your device (for birthdays) |
+| [support.ts](../src/components/support.ts) | The owner's Buy Me a Coffee address, linked from the landing page and the user menu |
 | [initials.ts](../src/components/initials.ts), [short-date.ts](../src/components/short-date.ts), [use-hydrated.ts](../src/components/use-hydrated.ts), [request-messages.ts](../src/components/request-messages.ts) | Small helpers: "Jake Cruz" → "JC", short dates, "is the page ready for clicks yet?", shared messages |
 
 **`auth/`: signing in**

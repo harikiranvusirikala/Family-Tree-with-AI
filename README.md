@@ -28,6 +28,7 @@ A web app where a family builds its tree together. People are added by hand or b
 - [Security](#security)
 - [Project documents](#project-documents)
 - [License](#license)
+- [Support](#support)
 
 ## Features
 
@@ -463,3 +464,10 @@ It asks for the key (typing isn't shown), refuses a database that already has re
 ## License
 
 [MIT](LICENSE): use, copy, change and share it, keeping the copyright notice.
+
+## Support
+
+If this project helps your family, you can [buy me a coffee](https://buymeacoffee.com/harikiranvusirikala) ☕ or [sponsor me on GitHub](https://github.com/sponsors/harikiranvusirikala). It's never required: the code stays free under the MIT license. The site links to the coffee too, on its sign-in page and in the user menu.
+
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/harikiranvusirikala)
+[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/harikiranvusirikala)

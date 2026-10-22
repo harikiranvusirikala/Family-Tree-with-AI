@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { initials } from "../initials";
+import { SUPPORT_URL } from "../support";
 import { ThemeToggle } from "../ThemeToggle";
 import { useHydrated } from "../use-hydrated";
 import { authClient } from "./auth-client";
@@ -18,10 +19,10 @@ export interface HeaderLink {
 const menuItem = "flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm hover:bg-zinc-100 pointer-coarse:min-h-11 dark:hover:bg-zinc-800";
 
 /**
- * The signed-in user's initials and name, opening a menu with Sign out. The Google photo isn't shown:
- * next/image would need remotePatterns and use Vercel's image quota. On phones the menu also holds the
- * header's links and the day/night switch, and the initials carry the links' badge; the name shows
- * from 1024 px (screen readers always get it).
+ * The signed-in user's initials and name, opening a menu with Buy me a coffee (a new tab) and Sign
+ * out. The Google photo isn't shown: next/image would need remotePatterns and use Vercel's image
+ * quota. On phones the menu also holds the header's links and the day/night switch, and the initials
+ * carry the links' badge; the name shows from 1024 px (screen readers always get it).
  */
 export function UserMenu({ user, links = [] }: { user: { name: string; email: string }; links?: HeaderLink[] }) {
   const hydrated = useHydrated();
@@ -96,6 +97,17 @@ export function UserMenu({ user, links = [] }: { user: { name: string; email: st
               <ThemeToggle />
             </div>
           </div>
+          <a
+            href={SUPPORT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            role="menuitem"
+            aria-label="Buy me a coffee (opens in a new tab)"
+            onClick={() => setOpen(false)}
+            className={`${menuItem} gap-1`}
+          >
+            Buy me a coffee<span aria-hidden>☕</span>
+          </a>
           <button type="button" role="menuitem" onClick={signOut} disabled={signingOut} className={`${menuItem} disabled:opacity-60`}>
             {signingOut ? "Signing out…" : "Sign out"}
           </button>

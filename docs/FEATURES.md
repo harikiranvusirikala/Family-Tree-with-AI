@@ -77,6 +77,9 @@ This is a Family Tree Web Application that can be accessed via Web.
   - Set a monthly spend limit in the Anthropic Console.
 - All keys (MongoDB, Google, Cloudinary, Anthropic) live in Vercel environment variables, never in code.
 - Cost: $0/month except AI chat usage (Haiku 5.5: roughly under $1/month at ~200 messages).
+- Support (2026-10-22): a "Buy me a coffee ☕" link to the owner's Buy Me a Coffee page, on the landing page and in the user menu, opening in a new tab. The README links to it and to GitHub Sponsors, and `.github/FUNDING.yml` gives the repository a Sponsor button with both.
+  - Written into the code, not a setting: copies of the app keep the owner's link.
+  - A plain link, not Buy Me a Coffee's widget script, so the Content Security Policy is unchanged.
 
 ### Data model
 

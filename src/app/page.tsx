@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { SignInButton, SignInError } from "@/components/auth/SignInButton";
+import { SUPPORT_URL } from "@/components/support";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function Home() {
@@ -16,6 +17,15 @@ export default function Home() {
         <SignInError />
       </Suspense>
       <SignInButton />
+      <a
+        href={SUPPORT_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Buy me a coffee (opens in a new tab)"
+        className="inline-flex items-center gap-1 text-sm text-zinc-500 underline hover:text-zinc-700 pointer-coarse:min-h-11 dark:text-zinc-400 dark:hover:text-zinc-200"
+      >
+        Buy me a coffee<span aria-hidden>☕</span>
+      </a>
     </main>
   );
 }
