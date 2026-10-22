@@ -43,8 +43,9 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | The README's pictures (owner request) | Done 2026-10-21 (e2e: 80 passed). See its section at the end |
 | – | A beginner's guide to the code (owner request) | Done 2026-10-22 (docs only). See its section at the end |
 | – | Buy me a coffee (owner request) | Done 2026-10-22 (unit tests: 451 passed; e2e: 82 passed). See its section at the end |
-| – | Google Tag Manager on the landing page (owner request) | Done 2026-10-22 (unit tests: 462 passed; e2e: 83 passed); `GTM_ID` to set in Vercel's Production. See its section at the end |
-| – | Search engines and the landing page (owner request) | Done 2026-10-22 (unit tests: 472 passed; e2e: 88 passed, with Google Tag Manager merged first). After the merge the owner verifies the site in Search Console, submits the sitemap and uploads GitHub's social preview. See its section at the end |
+| – | Google Tag Manager on the landing page (owner request) | Done 2026-10-22 (unit tests: 462 passed; e2e: 83 passed). `GTM_ID` set in Vercel's Production and checked on the live site by the owner, 2026-10-23. See its section at the end |
+| – | Search engines and the landing page (owner request) | Done 2026-10-22 (unit tests: 472 passed; e2e: 88 passed, with Google Tag Manager merged first). Checked on the live site by the owner, 2026-10-23: Search Console verified, the sitemap submitted, GitHub's social preview uploaded. See its section at the end |
+| – | CLAUDE.md and ESLint after the parallel worktree (owner request) | Done 2026-10-23 (lint clean; unit tests: 472 passed). See its section at the end |
 
 ## How we work
 
@@ -1479,3 +1480,11 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - After the merge the owner verifies the site in Google Search Console (HTML tag; already on the page), submits `/sitemap.xml`, and uploads `docs/social-preview.png` in the repository's settings.
   - A domain of the app's own is suggested, not decided (ARCHITECTURE.md §15, question 10).
   - Merged after Google Tag Manager (the section above): the new landing page draws `GoogleTagManager` first, before its structured data. In a unit test's server render React puts the hero picture's preload link before it; in the page that link goes in `<head>`.
+
+## After the final check: CLAUDE.md and ESLint after the parallel worktree (owner request)
+- **Why:** reviewing CLAUDE.md (`/init`) after Google Tag Manager was built by a background agent in its own worktree, in parallel with the landing page. While that worktree existed, `npm run lint` in the main checkout reported 26,408 problems, all from the worktree's own build output.
+- **Build:**
+  - `eslint.config.mjs` ignores `.claude/worktrees/**` (Vitest's `src/**` and TypeScript's wildcards already skip it).
+  - CLAUDE.md: Start here names Google Tag Manager and IDEAS.md's Analytics entry; the worktree notes cover agents' worktrees (`agent-<id>`) and checking a worktree from the main checkout (`vitest --root`, `tsc -p`, `eslint --config`, `git -C`; e2e only from inside it); the sandbox note says an allowlisted command can still run sandboxed now and then, which `npm run db:ping` failing the same way confirms.
+- **Decisions (owner, 2026-10-23):** suggestions 1–4 of the review, straight to `main`; the file's length stays as it is.
+- **Notes (2026-10-23):** no code changes, so no e2e run; lint, typecheck and the unit tests ran on the result.

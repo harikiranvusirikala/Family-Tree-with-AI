@@ -29,6 +29,8 @@ const eslintConfig = defineConfig([
     // Playwright output:
     "playwright-report/**",
     "test-results/**",
+    // Parallel sessions' worktrees: each holds a whole checkout, with its own build output.
+    ".claude/worktrees/**",
   ]),
 ]);
 
