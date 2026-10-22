@@ -41,6 +41,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Birthdays and anniversaries (owner request) | Done 2026-10-21 (unit tests: 447 passed; e2e: 80 passed). See its section at the end |
 | – | "Topology is closed" on production (found by the owner) | Done 2026-10-21 (unit tests: 450 passed; e2e: 80 passed). See its section at the end |
 | – | The README's pictures (owner request) | Done 2026-10-21 (e2e: 80 passed). See its section at the end |
+| – | A beginner's guide to the code (owner request) | Done 2026-10-22 (docs only). See its section at the end |
 
 ## How we work
 
@@ -1393,3 +1394,10 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - The dashboard picture is clipped from the top of the page's main column to just below Upcoming, so the README shows no empty page or Create a group form.
   - Olivia Cruz's birth year is 1966 only in that e2e test's group, for the milestone; the shared sample family is unchanged.
   - `docs/screenshots/day-tree.png` is gone: nothing shows it any more (the e2e test still takes `day-tree.png` for checking by eye).
+
+## After the final check: a beginner's guide to the code (owner request)
+- **Why:** the docs are written for the people building the app. Someone opening the project for the first time needs a gentler way in: what each folder and file is for, and how the pieces fit together, in pictures.
+- **Build:** `docs/PROJECT_GUIDE.md`, mostly diagrams (Mermaid, which GitHub draws) and tables: the app and its services, six ideas that explain most of the code, the folders and the four layers of `src/`, every page and address, a line for every file in `src/components`, `src/tree` and `src/server`, the database with a small saved family, four journeys through the code (open a sheet, add a child, ask the AI, upload a photo), the tests, scripts and deployment, a reading order, "I want to… → look at…", and a glossary. The README links to it from its Docs line and first in Project documents.
+- **Notes (2026-10-22):**
+  - Docs only: no code or tests change. Every file link in the guide was checked to exist.
+  - It describes the code as it is: a new or renamed folder, file, page or collection goes in the guide too (CLAUDE.md says so).

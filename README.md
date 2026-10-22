@@ -2,7 +2,7 @@
 
 A web app where a family builds its tree together. People are added by hand or by chatting with an AI assistant, laid out automatically, and shared privately with relatives through their Google accounts. It runs on free tiers (Vercel, MongoDB Atlas, Cloudinary, Google sign-in); only the AI chat costs money, a few cents a month.
 
-**Live:** https://family-tree-with-ai.vercel.app · **Docs:** [features and decisions](docs/FEATURES.md) · [architecture](docs/ARCHITECTURE.md) · [build plan](docs/BUILD_PLAN.md)
+**Live:** https://family-tree-with-ai.vercel.app · **Docs:** [beginner's guide to the code](docs/PROJECT_GUIDE.md) · [features and decisions](docs/FEATURES.md) · [architecture](docs/ARCHITECTURE.md) · [build plan](docs/BUILD_PLAN.md)
 
 ![A family's sheet on a computer: the tree laid out automatically, and Ask AI beside it. Told "Priya Sharma married Ravi", it asks which Ravi, then proposes the changes on a card that waits for Confirm](docs/screenshots/chat.png)
 
@@ -452,6 +452,7 @@ It asks for the key (typing isn't shown), refuses a database that already has re
 
 | Document | What's in it |
 |---|---|
+| [docs/PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md) | Start here if you're new: the project's folders and files explained with diagrams, four journeys through the code, where to start reading, and a glossary |
 | [docs/FEATURES.md](docs/FEATURES.md) | The owner's requirements, then every agreed decision, under the same headings |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | The design: code layout, data model, sheet rules, layout, permissions, flows F1–F12, the AI chat, security, environments, configuration, limits |
 | [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) | How it was built, step by step, with the notes and bugs found at each step |

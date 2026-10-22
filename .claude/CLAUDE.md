@@ -14,6 +14,8 @@ Three docs in `docs/` drive all work. Read the relevant parts before changing an
 
 [IDEAS.md](../docs/IDEAS.md) lists candidate features suggested on 2026-10-21 ("This is me", birthdays, change history, …). None is agreed: a chosen one gets its own BUILD_PLAN section and questions first.
 
+[PROJECT_GUIDE.md](../docs/PROJECT_GUIDE.md) is a beginner's guide to the code (2026-10-22): folders, files, pages and collections explained with Mermaid diagrams and tables, linked from the README. It drives no work, but keep it true: a new or renamed folder, file, page or collection goes in it too.
+
 README.md and AGENTS.md stay at the root (`next dev` recreates a missing root AGENTS.md when an AI agent runs it), along with this file's `.claude/` folder.
 
 ## Working agreement with the owner
