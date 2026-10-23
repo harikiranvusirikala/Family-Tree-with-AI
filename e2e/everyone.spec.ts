@@ -53,8 +53,12 @@ test("a group opens on its first pinned sheet; ★ Everyone, the first tab, show
   await expect(page.getByRole("tab")).toHaveText(["★ Everyone", "Cruz family", "Jerry Willow's family"]);
 
   await page.getByRole("tab", { name: "★ Everyone" }).click();
-  await expect(page).toHaveURL(new RegExp(`/g/${groupId}/s/everyone\\?view=tree$`)); // a computer's first view
+  await expect(page).toHaveURL(new RegExp(`/g/${groupId}/s/everyone\\?view=network$`)); // a computer's first view (owner request)
   await expect(page.getByRole("tab", { name: "★ Everyone" })).toHaveAttribute("aria-selected", "true");
+  await expect(viewButton(page, "Network")).toHaveAttribute("aria-pressed", "true");
+  await expect(circles(page)).toHaveCount(36);
+  await viewButton(page, "Tree").click();
+  await expect(page).toHaveURL(everyoneUrl("tree"));
   await expect(viewButton(page, "Tree")).toHaveAttribute("aria-pressed", "true");
   await expect(cards(page)).toHaveCount(36);
   await expect(page.getByText("36 people · 12 couples")).toBeVisible();
@@ -74,7 +78,7 @@ test("a group opens on its first pinned sheet; ★ Everyone, the first tab, show
 
 test("Find someone selects them and brings their card into view; Go to a sheet that shows them, and Back", async ({ page, signIn, sampleGroup }) => {
   const { groupId, cruzSheet } = await sampleOwner(page, signIn, sampleGroup);
-  await page.goto(`/g/${groupId}/s/everyone`);
+  await page.goto(`/g/${groupId}/s/everyone?view=tree`);
   await expect(cards(page)).toHaveCount(36);
 
   await find(page).fill("amelia");
@@ -108,6 +112,8 @@ test("someone on no sheet shows on ★ Everyone only", async ({ page, signIn, sa
   await page.getByRole("tab", { name: "Jerry Willow's family" }).click();
   await expect(cards(page)).toHaveCount(32);
   await page.getByRole("tab", { name: "★ Everyone" }).click();
+  await expect(circles(page)).toHaveCount(37);
+  await viewButton(page, "Tree").click();
   await expect(cards(page)).toHaveCount(37);
   await expect(page.getByText("37 people · 12 couples")).toBeVisible();
 
@@ -120,7 +126,7 @@ test("someone on no sheet shows on ★ Everyone only", async ({ page, signIn, sa
 
 test("Export on ★ Everyone: a picture named Everyone, and no data for 'this sheet'", async ({ page, signIn, sampleGroup }) => {
   const { groupId } = await sampleOwner(page, signIn, sampleGroup);
-  await page.goto(`/g/${groupId}/s/everyone`);
+  await page.goto(`/g/${groupId}/s/everyone?view=tree`);
   await expect(cards(page)).toHaveCount(36);
   await page.getByRole("button", { name: "Export" }).click();
   const menu = page.getByRole("menu", { name: "Export" });
@@ -139,6 +145,8 @@ test("a Viewer gets ★ Everyone too, without edit controls", async ({ browser, 
     await addMember(groupId, viewer, "view");
     await viewerPage.goto(`/g/${groupId}`);
     await viewerPage.getByRole("tab", { name: "★ Everyone" }).click();
+    await expect(circles(viewerPage)).toHaveCount(36);
+    await viewButton(viewerPage, "Tree").click();
     await expect(cards(viewerPage)).toHaveCount(36);
     await find(viewerPage).fill("jerry");
     await find(viewerPage).press("Enter");
@@ -167,7 +175,7 @@ test("a Viewer gets ★ Everyone too, without edit controls", async ({ browser, 
 test("the List: everyone with their relations and sheets; a row opens the panel, a sheet opens with them selected", async ({ page, signIn, sampleGroup }) => {
   const { groupId, cruzSheet } = await sampleOwner(page, signIn, sampleGroup);
   await page.goto(`/g/${groupId}/s/everyone`);
-  await expect(page).toHaveURL(everyoneUrl("tree"));
+  await expect(page).toHaveURL(everyoneUrl("network")); // a link without a view: a computer's first view
   await viewButton(page, "List").click();
   await expect(page).toHaveURL(everyoneUrl("list"));
   await expect(viewButton(page, "List")).toHaveAttribute("aria-pressed", "true");

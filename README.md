@@ -73,8 +73,8 @@ A built-in first tab on every group's sheets page that shows every person and ho
 
 | View | What it shows | Best on |
 |---|---|---|
-| ⋔ **Tree** | The whole family drawn like a sheet, laid out automatically; export and print it like any sheet | Computers and tablets, where it's the first view |
-| ◎ **Network** | Everyone and every relation on one canvas: hearts join couples, arrows run from parents to children, bigger circles have more relations | Computers and tablets |
+| ⋔ **Tree** | The whole family drawn like a sheet, laid out automatically; export and print it like any sheet | Computers and tablets |
+| ◎ **Network** | Everyone and every relation on one canvas: hearts join couples, arrows run from parents to children, bigger circles have more relations | Computers and tablets, where it's the first view |
 | ◉ **Wheel** | One person in the middle and everyone else in rings by how close they are, each labelled (mother, uncle's wife, cousin's child) | Every screen |
 | ☰ **List** | A searchable list with each person's parents, partners, children and the sheets that show them | Every screen; a phone's first view |
 | ▦ **Upcoming** | Everyone's next birthday ("Turns 41") and every couple's next wedding anniversary over the next 12 months, nearest first, with Shashtipurti, Silver and Golden marked | Every screen |

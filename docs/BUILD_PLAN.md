@@ -48,6 +48,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | CLAUDE.md and ESLint after the parallel worktree (owner request) | Done 2026-10-23 (lint clean; unit tests: 472 passed). See its section at the end |
 | – | A production look across the app (owner request) | Agreed 2026-10-23; built part by part on the `production-look` branch. Part 1 (the app shell): done 2026-10-23 (unit tests: 483 passed; e2e: 93 passed). Part 2 (the dashboard): done 2026-10-23 (unit tests: 490 passed; e2e: 96 passed). Part 3 (Members and Settings): done 2026-10-23 (unit tests: 500 passed; e2e: 99 passed). Part 4 (the tree page's frame): first half (the sheet row, toolbar, canvas controls, panels and forms) and second half (the chat, Import and ★ Everyone) done 2026-10-23 (unit tests: 500 passed; e2e: 99 passed). Children eldest first (owner request) and Part 5 (finish: toasts, loading shapes, pictures) done 2026-10-23 (unit tests: 502 passed; e2e: 99 passed). Then merged into `main`. See its section at the end |
 | – | Siblings eldest first on sheets (owner request) | Done 2026-10-23 on `siblings-eldest-first` (unit tests: 507 passed; e2e: 99 passed). See its section at the end |
+| – | ★ Everyone opens on the Network on computers and tablets (owner request) | Done 2026-10-23 on `everyone-network-first` (unit tests: 507 passed; e2e: 100 passed). See its section at the end |
 
 ## How we work
 
@@ -1654,3 +1655,9 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - Children born on the same date (or with none) go A to Z by name, as in the panels: the first try fell back to ids, so the sample's 2021 twins came out William before Alex.
   - On the sample's Cruz sheet with its extra in-law parents, Timothy Cruz (1940) is tied to Emma Young's parents and keeps his place on the right, as planned.
   - Tests: unit, both Cruz sheets (eldest first, no crossings, no overlaps, partners together), the same-year tie, Jake's children, and a 300-person family with two ELK runs under twice the one-run limit. Unit 507 passed; e2e 99 passed.
+
+## After the production look: ★ Everyone opens on the Network (owner request)
+- **Why:** the owner wants ★ Everyone's first view on computers and tablets to be the Network, not the Tree. Phones keep the List.
+- **What changes:** only the device's default in `chooseView` (`src/tree/everyone.ts`). The address's view still comes first, then the view last used on that device (`localStorage` `everyone-view`), so someone who already used ★ Everyone on a device keeps their last view there. A group still opens on its first pinned sheet.
+- **Tests:** unit: `chooseView` gives Network without an address or saved view on a computer or tablet, List on a phone. E2e: the desktop ★ Everyone tests open the Network from the tab and from a link without a view (tests that need the Tree now ask for it), and a new tablet test checks the tab opens the Network.
+

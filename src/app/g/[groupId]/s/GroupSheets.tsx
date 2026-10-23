@@ -145,7 +145,7 @@ export function GroupSheets({
   }, [found, everyone, pending, current.id, groupId]);
 
   // ★ Everyone's address follows the selected person. Opened without a view (a link from before the
-  // List): the one last used on this device, else List on a phone and Tree elsewhere; the Wheel without
+  // List): the one last used on this device, else List on a phone and Network elsewhere; the Wheel without
   // a middle gets one. It reads the view and the middle from the live address, not from this render:
   // a view or middle just pushed may not have reached useSearchParams yet, and mustn't be undone.
   useEffect(() => {

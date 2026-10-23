@@ -148,13 +148,14 @@ describe("the List (★ Everyone, part 2, owner request)", () => {
 });
 
 describe("which ★ Everyone view opens (owner request)", () => {
-  test("the address's, else the last used on this device, else List on a phone and Tree elsewhere", () => {
+  test("the address's, else the last used on this device, else List on a phone and Network elsewhere", () => {
     expect(chooseView("list", "tree", false)).toBe("list");
     expect(chooseView(null, "list", false)).toBe("list");
     expect(chooseView("wheel", "tree", true)).toBe("wheel");
     expect(chooseView("circles", "tree", true)).toBe("tree"); // not a view
     expect(chooseView(null, null, true)).toBe("list");
-    expect(chooseView(null, "nonsense", false)).toBe("tree");
+    expect(chooseView(null, null, false)).toBe("network"); // computers and tablets (owner request)
+    expect(chooseView(null, "nonsense", false)).toBe("network");
     expect(chooseView("upcoming", "tree", false)).toBe("upcoming"); // birthdays and anniversaries (owner request)
     expect(chooseView(null, "upcoming", true)).toBe("upcoming");
   });

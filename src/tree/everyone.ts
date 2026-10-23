@@ -63,12 +63,12 @@ export const isEveryoneView = (value: unknown): value is EveryoneViewName => EVE
 
 /**
  * The view to open: the address's, else the one last used on this device (`saved`), else List on a
- * phone and Tree on anything bigger.
+ * phone and Network on anything bigger (an owner request).
  */
 export function chooseView(fromAddress: string | null, saved: string | null, phone: boolean): EveryoneViewName {
   if (isEveryoneView(fromAddress)) return fromAddress;
   if (isEveryoneView(saved)) return saved;
-  return phone ? "list" : "tree";
+  return phone ? "list" : "network";
 }
 
 /** ★ Everyone's address for a view, with the Wheel's middle and the selected person, so a link opens the same. */

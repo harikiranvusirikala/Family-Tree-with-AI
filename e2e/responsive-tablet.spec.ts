@@ -71,3 +71,13 @@ test("tabs, the sheet menu and side panels on a tablet", async ({ page, signIn, 
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), path).toBeLessThanOrEqual(0);
   }
 });
+
+test("★ Everyone opens on the Network on a tablet, as on a computer (owner request)", async ({ page, signIn, sampleGroup }) => {
+  const owner = await signIn(page, "Carla Cruz");
+  const { groupId, cruzSheet } = await sampleGroup(owner);
+  await page.goto(`/g/${groupId}/s/${cruzSheet}`);
+  await page.getByRole("tab", { name: "★ Everyone" }).click();
+  await expect(page).toHaveURL(new RegExp(`/s/everyone\\?view=network$`));
+  await expect(page.getByRole("group", { name: "View" }).getByRole("button", { name: "Network" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("tabpanel").getByTestId("network-person")).toHaveCount(36);
+});
