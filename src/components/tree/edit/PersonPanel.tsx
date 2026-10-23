@@ -7,7 +7,7 @@ import { EVERYONE } from "@/tree/everyone";
 import { buildSheetView, showsNewParentsOf } from "@/tree/sheet-view";
 import type { Gender, GroupTree, Person, Union } from "@/tree/types";
 import { ageText } from "@/tree/upcoming";
-import { formatLife, formatMarriage, formatYears } from "@/tree/years";
+import { eldestFirst, formatLife, formatMarriage, formatYears } from "@/tree/years";
 import { useToday } from "../../today";
 import { button, iconButton } from "../../ui/button";
 import { choice, choiceLabel, field, fieldLabel, formError as formErrorClass } from "../../ui/field";
@@ -300,7 +300,11 @@ export function PersonPanel({
               <section>
                 <h3 className={panelHeading}>Children</h3>
                 {couples.some((c) => c.children.length) ? (
-                  <ul>{couples.flatMap((c) => c.children.map((p) => <Relative key={p.id} p={p} onSelect={onSelect} />))}</ul>
+                  <ul>
+                    {eldestFirst(couples.flatMap((c) => c.children)).map((p) => (
+                      <Relative key={p.id} p={p} onSelect={onSelect} />
+                    ))}
+                  </ul>
                 ) : (
                   <p className={panelNote}>None</p>
                 )}

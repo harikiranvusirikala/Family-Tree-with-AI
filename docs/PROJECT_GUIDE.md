@@ -400,6 +400,7 @@ flowchart TB
 | [PageHeader.tsx](../src/components/ui/PageHeader.tsx) | A page's heading, the sentence under it and its main buttons |
 | [Skeleton.tsx](../src/components/ui/Skeleton.tsx) | Grey blocks in the page's shape while it loads |
 | [GradientSparkle.tsx](../src/components/ui/GradientSparkle.tsx) | Ask AI's sparkle, in the blue-to-pink gradient |
+| [Toast.tsx](../src/components/ui/Toast.tsx) | The short "Saved." and "deleted, Undo" messages over the tree |
 | [MessagePage.tsx](../src/components/ui/MessagePage.tsx) | A card in the middle of the page, for pages that say one thing (no access, an invite, not found) |
 | [icons.tsx](../src/components/ui/icons.tsx) | The app's line icons |
 

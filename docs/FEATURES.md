@@ -269,6 +269,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 - The dashboard and the header's switcher say "group", as the rest of the app does ("New group", "Your groups"). The cards show no member avatars: only Admins and the Owner see who is in a group. (Part 2, 2026-10-23.)
 - On the members page a role is a menu, each role saying what it allows; choosing one saves it straight away. Remove asks in a dialog; leaving stays in Settings. The type-the-name confirmations in Settings keep their button disabled until the name is typed. (Part 3, 2026-10-23.)
 - The sheet tabs are a segmented control, and the open sheet's options a drop-down menu, still first in the row on computers. New sheet, Rename and Delete sheet open dialogs. The eye that hides photos is the same square, bordered button on phones, tablets and computers (the owner's choice). (Part 4, 2026-10-23.)
+- The person and couple panels list children eldest first by birth date, then those with no birth year, A to Z (an owner request, 2026-10-23).
 
 ### First build step
 

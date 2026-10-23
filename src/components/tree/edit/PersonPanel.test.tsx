@@ -319,6 +319,30 @@ describe("marriage dates on the partner lines (owner request)", () => {
   });
 });
 
+describe("children eldest first (owner request)", () => {
+  test("across both couples, by birth date; those with no birth year after them, A to Z", () => {
+    const family: GroupTree = {
+      persons: [
+        { id: "mo", name: "Mo Rao", gender: "male" },
+        { id: "ann", name: "Ann Rao", gender: "female" },
+        { id: "bea", name: "Bea Rao", gender: "female" },
+        { id: "kid1", name: "Zara Rao", gender: "female", birthYear: 2001 },
+        { id: "kid2", name: "Yash Rao", gender: "male" },
+        { id: "kid3", name: "Arun Rao", gender: "male", birthYear: 1998, birthMonth: 5, birthDay: 2 },
+        { id: "kid4", name: "Bina Rao", gender: "female" },
+      ],
+      unions: [
+        { id: "u1", partnerIds: ["mo", "ann"], status: "divorced", childIds: ["kid1", "kid2"] },
+        { id: "u2", partnerIds: ["mo", "bea"], status: "married", childIds: ["kid3", "kid4"] },
+      ],
+      sheets: [{ id: "tab", title: "Raos", rootPersonId: "mo", extraPersonIds: [], pinned: true, order: 0 }],
+    };
+    render(<PersonPanel person={family.persons[0]} tree={family} canEdit={false} pending={false} run={vi.fn()} onSelect={() => {}} onClose={() => {}} onDelete={() => {}} currentSheetId="tab" onOpenSheet={() => {}} />);
+    const children = within(screen.getByText("Children").nextElementSibling as HTMLElement).getAllByRole("button");
+    expect(children.map(named)).toEqual(["Arun Rao, 1998", "Zara Rao, 2001", "Bina Rao", "Yash Rao"]);
+  });
+});
+
 describe("an age in the panel (birthdays and anniversaries, owner request)", () => {
   test("on the device's day: exact with a full birth date, about with a year, at death", () => {
     vi.useFakeTimers({ toFake: ["Date"] });

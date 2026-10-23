@@ -193,9 +193,9 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - **Upcoming** (birthdays and anniversaries, an owner request): `upcomingDates(family, today, withinDays?)`, `datedFamily`, `ageText`, `ordinal` in `src/tree/upcoming.ts` (pure; "today" is a `Day` passed in). `UpcomingList` draws the next 12 months by month (`data-testid="upcoming-row"`, rows' buttons named like cards and hearts); the dashboard's `UpcomingSoon` the next 30 days across the user's groups (the page sends only `datedFamily` of each group it loaded for the user). **Today comes only from `useToday()`** (`src/components/today.ts`): null during the server render and hydration, then the device's date; never read `new Date()` while rendering, or the server's day and time zone leak in (hydration errors). E2E tests fix the device's day with `page.clock.setFixedTime` before `goto`. Below 640 px the `ViewSwitcher` drops its icons so five names fit.
 - **Export:** only drawn views have a picture (`onPicture`/`onPrint` left out of `ExportItems` in the List and Upcoming); a Viewer there has no Export, and `SheetTabs` hides the ⋯ menu when it would be empty.
 
-## The production look (as built so far, an owner request after the final check)
+## The production look (as built, an owner request after the final check)
 
-- Built in five parts on the `production-look` branch (BUILD_PLAN.md). The tree drawing (cards, rings, hearts, layout), the Google button and the landing page stay as they are.
+- Built in five parts on the `production-look` branch, merged into `main` (BUILD_PLAN.md). The tree drawing (cards, rings, hearts, layout), the Google button and the landing page stay as they are.
 - **Building blocks** in `src/components/ui/`, used for anything new or restyled:
   - `button(variant, size)` and `iconButton` (`button.ts`, plain class strings for `<button>` and `<Link>`).
   - `Menu` with `menuItem`, `MenuLabel` and `MenuSeparator` for every drop-down (`Menu.tsx`). It gives the items a `close` that returns focus to its button.
@@ -204,6 +204,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
   - `field.ts`: fields (36 px, like the buttons), `compactField`, `menuField` (a menu button that looks like a dropdown), labels, hints, checkboxes, radios, errors and `formSuccess`.
   - `card.ts` (cards, `dangerCard`, title rows, lists), `badge.ts` (`ROLE_BADGE`, counts, "You"), `Avatar` (an account's initials; people in the tree use `PersonPhoto`), `PageHeader` (a page's heading, sentence and buttons), `LoadingPage` and `skeleton` (`Skeleton.tsx`, a page's shape while it loads), and `pageFrame` (`page.ts`).
   - `button.ts` variants include `dangerOutline` and `dangerGhost`, and `outlineIconButton` (the eye); `Menu.tsx` has `dangerMenuItem`; `GradientSparkle` is Ask AI's sparkle (its own gradient id per copy: Chrome doesn't paint a gradient defined inside `display: none`).
+  - `Toast` and `toastAction` (`Toast.tsx`): the sheet page's "Saved." and "<name> deleted." with Undo, at the top of the tree; `TreeLoading` (`Skeleton.tsx`) is the sheet pages' shape while they load.
   - The sheet page's panels are built from `panel.ts`: `detailsPanel(full)`, `panelHeader`, `panelBody`, `panelFooter`, `panelHeading`, `panelNote`.
   - `LineIcon` (`icons.tsx`). Add new icons there; no icon packages.
 - **Never combine a class string with a conflicting utility** (`${field} w-auto`, `${skeleton} rounded-2xl` when it has a radius): Tailwind's CSS order decides which wins, not the order in the class. Give the base string a variant instead.

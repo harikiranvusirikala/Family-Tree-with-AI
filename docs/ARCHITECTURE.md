@@ -118,7 +118,7 @@ src/
   components/
     AppHeader.tsx, NoAccess.tsx          the signed-in header; the "no access" page, with Request access (F4)
     GroupHeader.tsx                      a group's header: its switcher (GroupSwitcher) and pages as tabs; ThemeMenu, the theme as one button
-    ui/                                  building blocks: button, field, card and badge styles, Menu (drop-downs), Dialog (the native modal dialog), Avatar, PageHeader, LoadingPage, MessagePage (a card that says one thing), line icons, GradientSparkle (Ask AI's)
+    ui/                                  building blocks: button, field, card and badge styles, Menu (drop-downs), Dialog (the native modal dialog), Avatar, PageHeader, LoadingPage and TreeLoading, Toast, MessagePage (a card that says one thing), line icons, GradientSparkle (Ask AI's)
     GoogleTagManager.tsx                 Google Tag Manager's two snippets, drawn by the landing page only
     ThemeToggle.tsx, theme.ts            Day / Night / Follow device switch, useTheme(); theme-script.ts runs in <head> before the first paint
     initials.ts, use-hydrated.ts         shared helpers; screen.ts (phone and tablet sizes, for the few things CSS can't do)

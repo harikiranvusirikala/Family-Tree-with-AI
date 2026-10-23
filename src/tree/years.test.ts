@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { birthOrder, datesProblem, formatDate, formatLife, formatMarriage, formatYears, isRealDate, lifeDates, marriageDate, marriageOrder, marriageProblem } from "./years";
+import { birthOrder, datesProblem, eldestFirst, formatDate, formatLife, formatMarriage, formatYears, isRealDate, lifeDates, marriageDate, marriageOrder, marriageProblem } from "./years";
 
 describe("formatYears", () => {
   test("living person shows only the birth year, never 'Present'", () => {
@@ -43,6 +43,19 @@ describe("full dates (owner request)", () => {
   test("ordering by birth: a year alone before that year's dated days; nothing without a year", () => {
     const order = [{ birthYear: 1985, birthMonth: 3, birthDay: 12 }, { birthYear: 1985 }, { birthYear: 1984, birthMonth: 12, birthDay: 31 }, {}].map(birthOrder);
     expect(order).toEqual([19850312, 19850000, 19841231, undefined]);
+  });
+
+  test("children eldest first (an owner request): by birth date, a year alone before that year's dated days; then no birth year, A to Z", () => {
+    const children = [
+      { name: "Zoe", birthYear: 1990 },
+      { name: "Bo" },
+      { name: "Amy" },
+      { name: "Cal", birthYear: 1985, birthMonth: 3, birthDay: 12 },
+      { name: "Dev", birthYear: 1985 },
+      { name: "Eli", birthYear: 1985, birthMonth: 3, birthDay: 12 },
+    ];
+    expect(eldestFirst(children).map((c) => c.name)).toEqual(["Dev", "Cal", "Eli", "Zoe", "Amy", "Bo"]);
+    expect(children[0].name).toBe("Zoe"); // a new array
   });
 
   test("the date fields that are set", () => {

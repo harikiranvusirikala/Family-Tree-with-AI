@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { addChildOps, coupleStatusOps, marriageDateOps } from "@/tree/edits";
 import type { Union } from "@/tree/types";
-import { formatMarriage } from "@/tree/years";
+import { eldestFirst, formatMarriage } from "@/tree/years";
 import { button, iconButton } from "../../ui/button";
 import { formError as formErrorClass } from "../../ui/field";
 import { LineIcon } from "../../ui/icons";
@@ -28,7 +28,7 @@ export function CouplePanel({ union, tree, canEdit, pending, run, onSelect, onCl
   const married = formatMarriage(union);
   const byId = new Map(tree.persons.map((p) => [p.id, p]));
   const partners = union.partnerIds.flatMap((id) => byId.get(id) ?? []);
-  const children = union.childIds.flatMap((id) => byId.get(id) ?? []);
+  const children = eldestFirst(union.childIds.flatMap((id) => byId.get(id) ?? []));
 
   async function addChild(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

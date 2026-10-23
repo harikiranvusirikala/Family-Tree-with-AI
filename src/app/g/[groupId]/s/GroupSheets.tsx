@@ -24,6 +24,7 @@ import { SheetTabs, sheetMenuHeading, sheetMenuItem } from "@/components/tree/ed
 import { HidePhotosButton } from "@/components/tree/HidePhotosButton";
 import { button } from "@/components/ui/button";
 import { GradientSparkle } from "@/components/ui/GradientSparkle";
+import { Toast, toastAction } from "@/components/ui/Toast";
 import { searchField, searchIcon } from "@/components/ui/field";
 import { LineIcon } from "@/components/ui/icons";
 import { CloudNameContext, PhotosHiddenContext } from "@/components/tree/photo";
@@ -38,6 +39,8 @@ import { applyChangesAction, signPhotoUploadAction } from "../actions";
 type Selection = { kind: "person" | "couple"; id: string } | null;
 
 const UNDO_SECONDS = 10;
+/** How long "Saved." stays. */
+const SAVED_SECONDS = 2.5;
 
 /** The ★ Everyone view last used in this browser. */
 const VIEW_KEY = "everyone-view";
@@ -107,6 +110,8 @@ export function GroupSheets({
   const kin = useMemo(() => (wheelShown && wheelCentre ? kinship(tree, wheelCentre) : null), [wheelShown, wheelCentre, tree]);
   const nameStyle = useNameStyle();
   const [deleted, setDeleted] = useState<Person | null>(null); // for Undo
+  const [saved, setSaved] = useState(0); // counts saves: each one shows "Saved." for its own moment
+  const [savedShown, setSavedShown] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [chatOpen, setChatOpen] = useState(false);
@@ -204,7 +209,11 @@ export function GroupSheets({
         if (result.error !== undefined) {
           setError(result.error);
           resolve(null);
-        } else resolve(result.idMap);
+        } else {
+          setSaved((n) => n + 1);
+          setSavedShown(true);
+          resolve(result.idMap);
+        }
       });
     });
 
@@ -219,6 +228,13 @@ export function GroupSheets({
     if (!deleted) return;
     if (await run(restorePersonOps(deleted.id))) setDeleted(null);
   }
+
+  // "Saved." after a change, for a moment (the production look). A deletion's toast, with Undo, replaces it.
+  useEffect(() => {
+    if (!savedShown) return;
+    const timer = setTimeout(() => setSavedShown(false), SAVED_SECONDS * 1000);
+    return () => clearTimeout(timer);
+  }, [saved, savedShown]);
 
   useEffect(() => {
     if (!deleted) return;
@@ -478,13 +494,20 @@ export function GroupSheets({
               <ChatWidget groupId={groupId} tree={tree} run={run} pending={pending} onClose={() => setChatOpen(false)} />
             </div>
           )}
-          {deleted && (
-            <div role="status" className="absolute bottom-4 left-4 z-20 flex items-center gap-3 rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white shadow-lg dark:bg-white dark:text-zinc-900">
+          {deleted ? (
+            <Toast className="absolute inset-x-0 top-3 z-30">
               <span>{deleted.name} deleted.</span>
-              <button type="button" onClick={undoDelete} disabled={pending} className="font-semibold underline">
+              <button type="button" onClick={undoDelete} disabled={pending} className={toastAction}>
                 Undo
               </button>
-            </div>
+            </Toast>
+          ) : (
+            savedShown && (
+              <Toast className="absolute inset-x-0 top-3 z-30">
+                <LineIcon name="check" className="size-4" />
+                Saved.
+              </Toast>
+            )
           )}
         </div>
         {/* Covers the page while the picture is made in day colours, so night mode doesn't flash. */}

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { GroupHeader } from "@/components/GroupHeader";
 import { NoAccess } from "@/components/NoAccess";
+import { TreeLoading } from "@/components/ui/Skeleton";
 import { chatConfig } from "@/server/ai/config";
 import { cloudinaryConfig } from "@/server/cloudinary";
 import { getDatabase } from "@/server/db";
@@ -17,7 +18,7 @@ import { GroupSheets } from "./GroupSheets";
  */
 export default function SheetsLayout({ params, children }: LayoutProps<"/g/[groupId]/s">) {
   return (
-    <Suspense fallback={<p className="p-6 text-sm text-zinc-500 dark:text-zinc-400">Loading the tree…</p>}>
+    <Suspense fallback={<TreeLoading />}>
       <GroupSheetsLoader params={params} />
       {children}
     </Suspense>

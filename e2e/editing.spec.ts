@@ -242,11 +242,14 @@ test("edit details, delete with Undo, and a sheet's root can't be deleted", asyn
   await form(page, "Edit details").getByRole("spinbutton", { name: "Death year" }).fill("2024");
   await form(page, "Edit details").getByRole("button", { name: "Save" }).click();
   await expect(card(page, "Taylor Humes")).toHaveAccessibleName("Taylor Humes, 1955 – 2024");
+  await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible(); // a toast (the production look)
+  await page.screenshot({ path: "test-results/screenshots/saved-toast.png", animations: "disabled" });
 
   await card(page, "Alex Cruz").click();
   await personPanel(page).getByRole("button", { name: "Delete" }).click();
   await expect(cards(page)).toHaveCount(35);
   await expect(page.getByRole("status").filter({ hasText: "Alex Cruz deleted." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Saved." })).toHaveCount(0); // replaced by the deletion's
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(cards(page)).toHaveCount(36);
   await expect(card(page, "Alex Cruz")).toBeVisible();

@@ -78,6 +78,19 @@ const dateKey = (year: number, month?: number, day?: number) => year * 10000 + (
 /** For ordering by birth: eldest first. Undefined with no birth year. */
 export const birthOrder = (p: LifeDates): number | undefined => (p.birthYear === undefined ? undefined : dateKey(p.birthYear, p.birthMonth, p.birthDay));
 
+/**
+ * Children as the panels list them (an owner request): eldest first by birth date, then those with no
+ * birth year, A to Z. A new array.
+ */
+export function eldestFirst<P extends LifeDates & { name: string }>(people: P[]): P[] {
+  return [...people].sort((a, b) => {
+    const [x, y] = [birthOrder(a), birthOrder(b)];
+    if (x !== undefined && y !== undefined && x !== y) return x - y;
+    if ((x === undefined) !== (y === undefined)) return x === undefined ? 1 : -1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 /** For ordering by marriage: earliest first. Undefined with no marriage year. */
 export const marriageOrder = (u: MarriageDate): number | undefined => (u.marriageYear === undefined ? undefined : dateKey(u.marriageYear, u.marriageMonth, u.marriageDay));
 

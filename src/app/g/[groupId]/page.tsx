@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { GroupHeader } from "@/components/GroupHeader";
 import { NoAccess } from "@/components/NoAccess";
+import { TreeLoading } from "@/components/ui/Skeleton";
 import { getDatabase } from "@/server/db";
 import { noAccessToNull, requireRole, requireUser } from "@/server/permissions";
 import { firstSheetId } from "@/server/repositories/groups";
@@ -10,7 +11,7 @@ import { firstSheetId } from "@/server/repositories/groups";
 /** A group link opens its first pinned sheet. */
 export default function GroupPage({ params }: PageProps<"/g/[groupId]">) {
   return (
-    <Suspense fallback={<p className="p-6 text-sm text-zinc-500 dark:text-zinc-400">Opening the tree…</p>}>
+    <Suspense fallback={<TreeLoading />}>
       <OpenGroup params={params} />
     </Suspense>
   );

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { button } from "@/components/ui/button";
 import { MessagePage, MessageText } from "@/components/ui/MessagePage";
+import { LoadingPage, skeleton } from "@/components/ui/Skeleton";
 import { getDatabase } from "@/server/db";
 import { maskEmail, normalizeEmail, ROLE_LABELS } from "@/server/members-rules";
 import { requireUser } from "@/server/permissions";
@@ -19,7 +20,13 @@ export const metadata: Metadata = { title: "Invite · Family Tree" };
 /** F3: an invite link. Signed-out visitors sign in first and come back here (src/proxy.ts). */
 export default function InvitePage({ params }: PageProps<"/invite/[token]">) {
   return (
-    <Suspense fallback={<p className="p-6 text-sm text-zinc-500 dark:text-zinc-400">Opening the invite…</p>}>
+    <Suspense
+      fallback={
+        <LoadingPage className="flex flex-1 items-center justify-center px-4 py-12 sm:py-20">
+          <div className={`${skeleton} h-72 w-full max-w-md rounded-2xl`} />
+        </LoadingPage>
+      }
+    >
       <Invite params={params} />
     </Suspense>
   );
