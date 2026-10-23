@@ -49,7 +49,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | A production look across the app (owner request) | Agreed 2026-10-23; built part by part on the `production-look` branch. Part 1 (the app shell): done 2026-10-23 (unit tests: 483 passed; e2e: 93 passed). Part 2 (the dashboard): done 2026-10-23 (unit tests: 490 passed; e2e: 96 passed). Part 3 (Members and Settings): done 2026-10-23 (unit tests: 500 passed; e2e: 99 passed). Part 4 (the tree page's frame): first half (the sheet row, toolbar, canvas controls, panels and forms) and second half (the chat, Import and ★ Everyone) done 2026-10-23 (unit tests: 500 passed; e2e: 99 passed). Children eldest first (owner request) and Part 5 (finish: toasts, loading shapes, pictures) done 2026-10-23 (unit tests: 502 passed; e2e: 99 passed). Then merged into `main`. See its section at the end |
 | – | Siblings eldest first on sheets (owner request) | Done 2026-10-23 on `siblings-eldest-first` (unit tests: 507 passed; e2e: 99 passed). See its section at the end |
 | – | ★ Everyone opens on the Network on computers and tablets (owner request) | Done 2026-10-23 on `everyone-network-first` (unit tests: 507 passed; e2e: 100 passed). See its section at the end |
-| – | Dates without a year (owner request) | Done 2026-10-23 on `date-without-year` (unit tests: 510 passed; e2e: 100 passed before the review fixes). See its section at the end |
+| – | Dates without a year (owner request) | Done 2026-10-23 on `date-without-year` (unit tests: 510 passed; e2e: 100 passed). See its section at the end |
 
 ## How we work
 
