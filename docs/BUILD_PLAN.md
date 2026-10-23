@@ -50,7 +50,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Siblings eldest first on sheets (owner request) | Done 2026-10-23 on `siblings-eldest-first` (unit tests: 507 passed; e2e: 99 passed). See its section at the end |
 | – | ★ Everyone opens on the Network on computers and tablets (owner request) | Done 2026-10-23 on `everyone-network-first` (unit tests: 507 passed; e2e: 100 passed). See its section at the end |
 | – | Dates without a year (owner request) | Done 2026-10-23 on `date-without-year` (unit tests: 510 passed; e2e: 100 passed). See its section at the end |
-| – | Choose the face in a photo, then one photo for several people (owner request) | Agreed 2026-10-23; both parts (and larger photos, and the photo menu) built on `photo-crop` (unit tests: 543 passed; database: 43 passed; e2e: 103 passed), waiting for the owner's check. See its section at the end |
+| – | Choose the face in a photo, then one photo for several people (owner request) | Done 2026-10-24 on `photo-crop` (unit tests: 543 passed; database: 43 passed; e2e: 103 passed), merged to `main`. Checked by the owner on the preview: a real group photo showed the right faces. See its section at the end |
 
 ## How we work
 
@@ -1724,7 +1724,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   6. The Remove dialog counts only people in the tree; a deleted person's use still keeps the photo in Cloudinary, for Undo, without saying so.
   7. Both parts in one go (owner, 2026-10-24).
 - **Notes (as built, 2026-10-24):**
-  - Cloudinary's relative values were checked in its npm package (2.11.0, unpacked under `/tmp`, not installed): its URL builder treats a width or height below 1 as relative (`parseFloat(width) < 1`). `photoUrl` always writes four decimals, because `w_1` would be one pixel and `w_1.0000` is the whole width. Relative `x` and `y` follow Cloudinary's documentation as remembered; the owner's real group photo checks them.
+  - Cloudinary's relative values were checked in its npm package (2.11.0, unpacked under `/tmp`, not installed): its URL builder treats a width or height below 1 as relative (`parseFloat(width) < 1`). `photoUrl` always writes four decimals, because `w_1` would be one pixel and `w_1.0000` is the whole width. Relative `x` and `y` followed Cloudinary's documentation as remembered; the owner's real group photo on the preview confirmed them (2026-10-24).
   - Deviation: after an upload, the photo is saved on the person straight away (the whole photo), and "Which one is …?" then saves the rectangle as a second change. Closing the dialog or a closed tab still leaves the person with their photo, as the plan wanted.
   - Deviation (from the owner's question about a 600 KB photo): a photo is shrunk only when the shrunk copy is a smaller file. A heavily compressed photo over 2400 px is uploaded as it is, and Cloudinary's 2400 px limit shrinks it on arrival.
   - With no photo and no photos in the tree, the photo is a plain button named "Add a photo of <name>" that opens the file picker; otherwise it's "Photo options for <name>", whose menu has Upload a photo… and Use a photo from this tree… for someone without one.
