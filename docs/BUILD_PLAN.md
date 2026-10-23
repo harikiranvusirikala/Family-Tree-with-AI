@@ -46,6 +46,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Google Tag Manager on the landing page (owner request) | Done 2026-10-22 (unit tests: 462 passed; e2e: 83 passed). `GTM_ID` set in Vercel's Production and checked on the live site by the owner, 2026-10-23. See its section at the end |
 | – | Search engines and the landing page (owner request) | Done 2026-10-22 (unit tests: 472 passed; e2e: 88 passed, with Google Tag Manager merged first). Checked on the live site by the owner, 2026-10-23: Search Console verified, the sitemap submitted, GitHub's social preview uploaded. See its section at the end |
 | – | CLAUDE.md and ESLint after the parallel worktree (owner request) | Done 2026-10-23 (lint clean; unit tests: 472 passed). See its section at the end |
+| – | A production look across the app (owner request) | Agreed 2026-10-23; built part by part on the `production-look` branch. Part 1 (the app shell): in progress. See its section at the end |
 
 ## How we work
 
@@ -1488,3 +1489,43 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - CLAUDE.md: Start here names Google Tag Manager and IDEAS.md's Analytics entry; the worktree notes cover agents' worktrees (`agent-<id>`) and checking a worktree from the main checkout (`vitest --root`, `tsc -p`, `eslint --config`, `git -C`; e2e only from inside it); the sandbox note says an allowlisted command can still run sandboxed now and then, which `npm run db:ping` failing the same way confirms.
 - **Decisions (owner, 2026-10-23):** suggestions 1–4 of the review, straight to `main`; the file's length stays as it is.
 - **Notes (2026-10-23):** no code changes, so no e2e run; lint, typecheck and the unit tests ran on the result.
+
+## After the final check: a production look across the app (owner request)
+- **Why:** the landing page now looks like a production app, but the signed-in pages still look like a prototype: underlined text links in the header (Members, Settings), plain pill buttons, the browser's own form controls, "Loading…" text, and Next.js's own 404 and error pages. The owner asked for every page and component to have the same production look and feel: good UI and UX, smooth.
+- **Goal:** one visual language from the landing page through the whole app, in both themes and on phones, tablets and computers. The app's icon and name; navigation with an active state; the same buttons, fields, cards, menus and dialogs everywhere; line icons; smooth feedback (loading, saving, errors). It's a change of presentation, plus the small UX changes listed below. Features, permissions and rules stay the same.
+- **What stays:** the tree drawing itself (the round cards with blue and pink rings, hearts, lines and layout, from the owner's sample image); the Google sign-in button (Google's branding rules); the landing page; and the names that tests and screen readers use (where one changes, its tests change with it).
+- **Previews:** `docs/redesign/` shows the direction, drawn around real screenshots rather than pixel-exact: `sheet-day.png`, `sheet-night.png`, `dashboard.png`, `members.png`, `settings.png`, `phones.png` and `theme-switch.png`.
+- **Building blocks** (`src/components/ui/`, used on every page):
+  - Button (primary, secondary, ghost, danger; 36 px, 44 px on touch screens; optional icon; a spinner while pending) and IconButton (its name doubles as a tooltip).
+  - Field (label, input or select, hint, error), Card, PageHeader (title, description, actions), Badge (roles, counts, milestones), and Avatar (initials with the tree's blue and pink rings; a neutral ring for accounts).
+  - Menu (the account menu, the group switcher, a sheet's options, a row's ⋯), Tabs (the group's pages; the segmented sheet tabs), Dialog (the native `<dialog>`), Toast (saved, Undo, errors), Skeleton (loading), EmptyState.
+  - Line icons: the landing page's set, extended. No new packages.
+  - Motion: 150–200 ms fades and slides for menus, dialogs, panels and toasts, and none when the device asks for reduced motion.
+- **Parts** (one at a time; each stops for the owner's check):
+  1. **The app shell:**
+     - **The header on every signed-in page:** the icon and "Family Tree" (to the dashboard); a group switcher listing your groups; the group's pages as tabs (Tree · Members · Settings) with an active underline and the access-request count; the theme as one icon button with a menu; and the account avatar's menu (name, email, Buy me a coffee, Sign out).
+     - **On phones:** the switcher and the avatar; the group's pages and the theme stay in the account menu, as now.
+     - **The other pages:** the no-access page, the invite page, and new 404 and error pages, in the same style.
+  2. **The dashboard:** a greeting with New family tree and Import a file, which open dialogs instead of the long form on the page; invitations as banners with Accept and Decline; family trees as cards (role badge; people, couples and members counts; member avatars); a "Start a new family tree" card; Coming up as a card; an empty state on the first visit.
+  3. **Members and Settings:**
+     - **Members:** a table of avatar, name, email (Admins and the Owner only, as now), a role menu, the joined date and ⋯ Remove; access requests with a role and Approve/Deny; an Invite people dialog; pending invites with Copy link and Revoke.
+     - **Settings:** cards beside a side menu (General, Ownership, Danger zone); handing over and deleting still ask for the group's name, now in a dialog.
+  4. **The tree page's frame:**
+     - **Sheet tabs** as a segmented control, each sheet's options in a menu.
+     - **The toolbar:** the eye as an icon button, Export and Import with icons, Ask AI as the main button.
+     - **Canvas controls:** the zoom buttons and the minimap as floating cards.
+     - **The person and couple panels:** a header with the avatar, dates and age; shortcut tiles (their sheet, Wheel, Network, List); relatives as rows with avatars; Edit details first, then Add partner/child/parents; Delete apart at the bottom.
+     - **Forms** (person, couple, dates) with the new fields.
+     - **The chat:** bubbles, the proposal card and the input.
+     - **The rest:** the Import panel; ★ Everyone's bar, view switcher, List table and Upcoming list; on phones, the panels as bottom sheets.
+  5. **Finish:** toasts for saving and Undo everywhere; loading skeletons instead of "Loading…"; the screenshots taken again, then the README's pictures, the landing page's pictures and the social preview (`npm run images`); the docs.
+- **Decisions (owner, 2026-10-23):**
+  1. The five parts in this order, all on one branch (`production-look`). After each part's check it is committed there and the owner pushes it (a Vercel preview); at the end the branch is merged into `main`.
+  2. A group switcher in the header.
+  3. Create a group, Invite, New sheet and the type-the-name confirmations as dialogs.
+  4. The theme as one icon button with a menu (Day, Night, Follow device), shown in the header from tablets up; on phones it stays in the account menu (`docs/redesign/theme-switch.png`, option B). The landing page keeps its own three buttons.
+  5. On phones, Members and Settings stay in the account menu; no bottom tab bar.
+  6. The family tree cards show counts (people, couples, members), counted per group when the dashboard loads. No "last changed" time.
+  7. The tree drawing stays exactly as it is.
+  8. The blue-to-pink gradient only under the active tab and on Ask AI's sparkle; everything else neutral, like the landing page.
+- **Tests:** every part keeps the unit and e2e suites passing (472 and 88 today). New building blocks get unit tests; dialogs, menus and toasts get e2e checks for the keyboard (Escape, focus) and touch sizes; the screenshots are checked by eye in both themes and on phones.
