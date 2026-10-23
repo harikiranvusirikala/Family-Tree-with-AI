@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { AppHeader } from "@/components/AppHeader";
+import { GroupHeader } from "@/components/GroupHeader";
 import { NoAccess } from "@/components/NoAccess";
 import { shortDate } from "@/components/short-date";
 import { getDatabase } from "@/server/db";
@@ -38,13 +38,7 @@ async function GroupMembers({ params }: Pick<PageProps<"/g/[groupId]/members">, 
       </>
     );
   }
-  const header = (
-    <AppHeader user={user}>
-      <Link href={`/g/${groupId}`} className="truncate font-medium underline">
-        {access.group.name}
-      </Link>
-    </AppHeader>
-  );
+  const header = <GroupHeader user={user} groupId={groupId} groupName={access.group.name} role={access.role} active="members" />;
   if (!can(access.role, "manageMembers")) {
     return (
       <>

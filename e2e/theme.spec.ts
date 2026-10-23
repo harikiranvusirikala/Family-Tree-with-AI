@@ -60,35 +60,44 @@ test("day, night or follow the device: the choice stays, and the tree is readabl
   await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
   await screenshot(page, "members");
 
-  const choice = (label: string) => page.getByRole("group", { name: "Theme" }).getByRole("button", { name: label });
-  await expect(choice("Follow device")).toHaveAttribute("aria-pressed", "true");
+  // The header's theme is one button opening Day, Night and Follow device (the production look).
+  const themeMenu = async () => {
+    await page.getByRole("banner").getByRole("button", { name: "Theme" }).click();
+    return page.getByRole("menu", { name: "Theme" });
+  };
+  const choose = async (label: "Day" | "Night" | "Follow device") => (await themeMenu()).getByRole("menuitemradio", { name: label }).click();
+  const chosen = async (label: "Day" | "Night" | "Follow device") => {
+    await expect((await themeMenu()).getByRole("menuitemradio", { name: label })).toHaveAttribute("aria-checked", "true");
+    await page.keyboard.press("Escape");
+  };
+  await chosen("Follow device");
 
   // Day wins over the device, also after a reload.
-  await choice("Day theme").click();
+  await choose("Day");
   await expect(html(page)).not.toHaveClass(/\bdark\b/);
   await page.reload();
   await expect(html(page)).not.toHaveClass(/\bdark\b/);
-  await expect(choice("Day theme")).toHaveAttribute("aria-pressed", "true");
+  await chosen("Day");
   await page.goto(`/g/${groupId}/s/${cruzSheet}`);
   await expect(cardName(page, "Jake Cruz")).toBeVisible();
   expect(await lightness(cardName(page, "Jake Cruz"), "color")).toBeLessThan(0.2);
   await page.screenshot({ path: "test-results/screenshots/day-tree.png" }); // the sheets page as people see it by day
 
   // Night stays night when the device turns to day.
-  await choice("Night theme").click();
+  await choose("Night");
   await expect(html(page)).toHaveClass(/\bdark\b/);
   expect(await lightness(cardName(page, "Jake Cruz"), "color")).toBeGreaterThan(0.8);
   await page.emulateMedia({ colorScheme: "light" });
   await expect(html(page)).toHaveClass(/\bdark\b/);
 
   // Follow device: day now, then night as soon as the device changes, with no reload.
-  await choice("Follow device").click();
+  await choose("Follow device");
   await expect(html(page)).not.toHaveClass(/\bdark\b/);
   await page.emulateMedia({ colorScheme: "dark" });
   await expect(html(page)).toHaveClass(/\bdark\b/);
   await page.reload();
   await expect(html(page)).toHaveClass(/\bdark\b/);
-  await expect(choice("Follow device")).toHaveAttribute("aria-pressed", "true");
+  await chosen("Follow device");
   expect(hydrationErrors).toEqual([]);
 });
 

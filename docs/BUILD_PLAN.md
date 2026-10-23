@@ -46,7 +46,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Google Tag Manager on the landing page (owner request) | Done 2026-10-22 (unit tests: 462 passed; e2e: 83 passed). `GTM_ID` set in Vercel's Production and checked on the live site by the owner, 2026-10-23. See its section at the end |
 | – | Search engines and the landing page (owner request) | Done 2026-10-22 (unit tests: 472 passed; e2e: 88 passed, with Google Tag Manager merged first). Checked on the live site by the owner, 2026-10-23: Search Console verified, the sitemap submitted, GitHub's social preview uploaded. See its section at the end |
 | – | CLAUDE.md and ESLint after the parallel worktree (owner request) | Done 2026-10-23 (lint clean; unit tests: 472 passed). See its section at the end |
-| – | A production look across the app (owner request) | Agreed 2026-10-23; built part by part on the `production-look` branch. Part 1 (the app shell): in progress. See its section at the end |
+| – | A production look across the app (owner request) | Agreed 2026-10-23; built part by part on the `production-look` branch. Part 1 (the app shell): done 2026-10-23 (unit tests: 483 passed; e2e: 93 passed). Part 2 (the dashboard): in progress. See its section at the end |
 
 ## How we work
 
@@ -1529,3 +1529,20 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   7. The tree drawing stays exactly as it is.
   8. The blue-to-pink gradient only under the active tab and on Ask AI's sparkle; everything else neutral, like the landing page.
 - **Tests:** every part keeps the unit and e2e suites passing (472 and 88 today). New building blocks get unit tests; dialogs, menus and toasts get e2e checks for the keyboard (Escape, focus) and touch sizes; the screenshots are checked by eye in both themes and on phones.
+- **Part 1, the app shell (notes, 2026-10-23):**
+  - **Building blocks** in `src/components/ui/`:
+    - `icons.tsx`: the landing page's line icons, moved there and extended.
+    - `button.ts`: `button(variant, size)` and `iconButton`, class strings for buttons and links alike.
+    - `Menu.tsx`: the WAI-ARIA menu button. The first or ticked item takes focus, arrows, Home and End move, Escape closes and returns focus, and Tab or a tap elsewhere closes (pointerdown, as React Flow stops mouse events). It comes with `menuItem`, `MenuLabel` and `MenuSeparator`.
+    - `MessagePage.tsx`: a card in the middle of the page, for pages that say one thing.
+  - **The header** (`AppHeader`):
+    - The icon and "Family Tree". On group pages the name shows from 1024 px; the link's name stays "Family Tree".
+    - `GroupSwitcher`: the user's family trees, the open one ticked, then All family trees.
+    - The group's pages as tabs (`groupLinks`): Tree; Members, for Admins and the Owner, with the requests' count; Settings. The open one has `aria-current` and the gradient underline.
+    - `ThemeMenu` from tablets up.
+    - `UserMenu`: the avatar, opening the name and email, Buy me a coffee and Sign out. On phones it also holds the group's pages (Tree as well, the way back from Members or Settings) and ThemeToggle.
+  - **Where its data comes from:** `GroupHeader` (a server component) loads the switcher's groups and the waiting requests for the four group pages. The sheets layout draws it beside `SheetsOfGroup`, so the header's queries and the tree load at the same time.
+  - **The pages that say one thing:** the no-access page (its words unchanged, so it still reads the same for every group) and the invite page sit on `MessagePage`; there are new `src/app/not-found.tsx` and `src/app/error.tsx` (Next.js 16's `retry()`). No `global-error.tsx`: the root layout rarely fails, and Next.js's own page follows the device's theme.
+  - **Names kept for tests and screen readers:** "Family Tree" (home), "Settings", "Members, N access request(s)", and the account button named after the user. The group's name in the header is now the switcher button, not a link, so `groups.spec.ts` checks the button; the tablet test looks for the Theme button; the theme test uses the menu.
+  - **Tests:** unit `Menu.test.tsx` (focus, keys, closing) and `AppHeader.test.tsx` (tabs and the open one, Members only for managers, the switcher, the theme menu, the phones' account menu); e2e `app-shell.spec.ts` (switching trees and tabs, the theme menu by keyboard, the account menu, the 404 page, the no-access card) and a phone check that the switcher's menu fits with 44 px rows.
+  - **Two flakes,** both passing on the rerun: one run's partner-sheet save took over 15 s (the remote database), and one phone run measured mouse sizes (the known missing touch emulation). Menus scale in from 98 % for 140 ms, so tests measure their rows with `expect.poll` and take menu screenshots with `animations: "disabled"`.

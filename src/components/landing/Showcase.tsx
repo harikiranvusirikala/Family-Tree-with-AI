@@ -2,7 +2,7 @@ import Image, { type StaticImageData } from "next/image";
 import type { ReactNode } from "react";
 import { ChatPreview } from "./ChatPreview";
 import { BrowserFrame, PhoneFrame } from "./frames";
-import { LineIcon } from "./icons";
+import { LineIcon } from "@/components/ui/icons";
 import { Eyebrow, Section, SectionHeading } from "./section";
 import dashboardUpcoming from "./images/dashboard-upcoming.webp";
 import network from "./images/network.webp";

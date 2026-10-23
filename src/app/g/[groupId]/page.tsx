@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
+import { GroupHeader } from "@/components/GroupHeader";
 import { NoAccess } from "@/components/NoAccess";
 import { getDatabase } from "@/server/db";
 import { noAccessToNull, requireRole, requireUser } from "@/server/permissions";
@@ -31,9 +32,7 @@ async function OpenGroup({ params }: Pick<PageProps<"/g/[groupId]">, "params">) 
   if (sheetId) redirect(`/g/${groupId}/s/${sheetId}`); // streamed: the page has already started
   return (
     <>
-      <AppHeader user={user}>
-        <span className="truncate font-medium">{access.group.name}</span>
-      </AppHeader>
+      <GroupHeader user={user} groupId={groupId} groupName={access.group.name} role={access.role} active="tree" />
       <main className="p-6 text-zinc-600 dark:text-zinc-400">This group has no sheets yet.</main>
     </>
   );

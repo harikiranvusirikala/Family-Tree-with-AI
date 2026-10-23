@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { AppHeader } from "@/components/AppHeader";
+import { GroupHeader } from "@/components/GroupHeader";
 import { NoAccess } from "@/components/NoAccess";
 import { getDatabase } from "@/server/db";
 import { ROLE_LABELS } from "@/server/members-rules";
@@ -40,11 +40,7 @@ async function GroupSettings({ params }: Pick<PageProps<"/g/[groupId]/settings">
 
   return (
     <>
-      <AppHeader user={user}>
-        <Link href={`/g/${groupId}`} className="truncate font-medium underline">
-          {group.name}
-        </Link>
-      </AppHeader>
+      <GroupHeader user={user} groupId={groupId} groupName={group.name} role={role} active="settings" />
       <main className="mx-auto flex w-full max-w-xl flex-col gap-10 px-6 py-10">
         <h1 className="text-2xl font-semibold">Group settings</h1>
         {can(role, "renameGroup") ? (

@@ -106,7 +106,7 @@ test("rename and delete show everywhere, including pages the browser kept", asyn
   await textbox(page, "Group name").fill("Rao family tree");
   await page.getByRole("button", { name: "Rename" }).click();
   await expect(page.getByRole("status")).toHaveText("Saved.");
-  await expect(header.getByRole("link", { name: "Rao family tree", exact: true })).toBeVisible();
+  await expect(header.getByRole("button", { name: "Rao family tree", exact: true })).toBeVisible(); // the group switcher
   await home.click();
   await expect(mine.getByRole("link")).toContainText(["Rao family tree"]);
   await page.goBack();

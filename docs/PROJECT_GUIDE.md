@@ -303,6 +303,7 @@ And the files that browsers, search engines and chat apps ask for by name:
 | [sitemap.ts](../src/app/sitemap.ts) | `/sitemap.xml` | The list of public pages for search engines: just the landing page |
 | [icon.svg](../src/app/icon.svg), `favicon.ico`, `apple-icon.png` | `/icon.svg` … | The app's icon (a couple, a heart and two children) for browser tabs, search results and phones' home screens |
 | `opengraph-image.png` | `/opengraph-image.png` | The picture chat apps and social sites show when someone shares a link |
+| [not-found.tsx](../src/app/not-found.tsx), [error.tsx](../src/app/error.tsx) | any address that doesn't exist; any page that fails | The app's own "This page isn't here" and "Something went wrong" pages, with a way back |
 
 ### The tree editor, piece by piece
 
@@ -344,7 +345,10 @@ Components are reusable building blocks of the screen, written in React (`.tsx` 
 ```mermaid
 flowchart TB
     subgraph general["General"]
-        AppHeader; NoAccess; ThemeToggle
+        AppHeader; GroupSwitcher; NoAccess; ThemeMenu
+    end
+    subgraph ui["ui/ — building blocks"]
+        Menu; MessagePage
     end
     subgraph landing["landing/ — the public page"]
         Hero; ChatPreview; Faq
@@ -373,7 +377,8 @@ flowchart TB
 
 | File | What it does |
 |---|---|
-| [AppHeader.tsx](../src/components/AppHeader.tsx) | The bar at the top of signed-in pages |
+| [AppHeader.tsx](../src/components/AppHeader.tsx), [GroupHeader.tsx](../src/components/GroupHeader.tsx) | The bar at the top of signed-in pages: the app's icon, and on a group's pages its switcher and its pages as tabs (Tree, Members, Settings). `GroupHeader` loads what a group's header needs |
+| [GroupSwitcher.tsx](../src/components/GroupSwitcher.tsx), [ThemeMenu.tsx](../src/components/ThemeMenu.tsx) | The group's name, opening your other family trees; the theme as one button (Day, Night, Follow device) |
 | [NoAccess.tsx](../src/components/NoAccess.tsx), [RequestAccessForm.tsx](../src/components/RequestAccessForm.tsx) | The "no access" page (identical in every case) and its Request access form |
 | [ThemeToggle.tsx](../src/components/ThemeToggle.tsx), [theme.ts](../src/components/theme.ts), [theme-script.ts](../src/components/theme-script.ts) | Day / Night / Follow device. The script runs before the page is painted, so it never flashes white |
 | [screen.ts](../src/components/screen.ts) | `isPhone()` and `isTabletOrPhone()`, for the few things CSS can't do |
@@ -381,6 +386,15 @@ flowchart TB
 | [support.ts](../src/components/support.ts) | The owner's Buy Me a Coffee address, linked from the landing page and the user menu |
 | [GoogleTagManager.tsx](../src/components/GoogleTagManager.tsx) | Google Tag Manager's two snippets, drawn on the landing page only (when `GTM_ID` is set) |
 | [initials.ts](../src/components/initials.ts), [short-date.ts](../src/components/short-date.ts), [use-hydrated.ts](../src/components/use-hydrated.ts), [request-messages.ts](../src/components/request-messages.ts) | Small helpers: "Jake Cruz" → "JC", short dates, "is the page ready for clicks yet?", shared messages |
+
+**`ui/`: building blocks every page uses**
+
+| File | What it does |
+|---|---|
+| [button.ts](../src/components/ui/button.ts) | The look of every button and button-like link: primary, secondary, ghost, danger |
+| [Menu.tsx](../src/components/ui/Menu.tsx) | Drop-down menus that work with the mouse, a finger and the keyboard |
+| [MessagePage.tsx](../src/components/ui/MessagePage.tsx) | A card in the middle of the page, for pages that say one thing (no access, an invite, not found) |
+| [icons.tsx](../src/components/ui/icons.tsx) | The app's line icons |
 
 **`landing/`: the landing page**
 

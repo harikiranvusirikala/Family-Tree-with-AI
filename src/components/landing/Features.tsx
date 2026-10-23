@@ -1,4 +1,4 @@
-import { LineIcon, type IconName } from "./icons";
+import { LineIcon, type IconName } from "@/components/ui/icons";
 import { Section, SectionHeading } from "./section";
 
 const STEPS = [

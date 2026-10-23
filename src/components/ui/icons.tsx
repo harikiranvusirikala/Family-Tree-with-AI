@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/** The landing page's line icons: 24 px grid, drawn in the text colour like the theme switch's. */
+/** The app's line icons (the landing page's first): 24 px grid, drawn in the text colour. */
 const PATHS = {
   tree: (
     <>
@@ -51,6 +51,56 @@ const PATHS = {
     </>
   ),
   check: <path d="M20 6 9 17l-5-5" />,
+  chevronDown: <path d="m6 9 6 6 6-6" />,
+  chevronsUpDown: <path d="m7 15 5 5 5-5M7 9l5-5 5 5" />,
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </>
+  ),
+  moon: <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />,
+  monitor: (
+    <>
+      <rect x="2" y="4" width="20" height="13" rx="2" />
+      <path d="M8 21h8M12 17v4" />
+    </>
+  ),
+  settings: (
+    <>
+      <path d="M10.3 2.5h3.4l.5 2.6a7.5 7.5 0 0 1 1.9 1.1l2.5-.9 1.7 2.9-2 1.8a7.6 7.6 0 0 1 0 2.2l2 1.8-1.7 2.9-2.5-.9a7.5 7.5 0 0 1-1.9 1.1l-.5 2.6h-3.4l-.5-2.6a7.5 7.5 0 0 1-1.9-1.1l-2.5.9-1.7-2.9 2-1.8a7.6 7.6 0 0 1 0-2.2l-2-1.8 1.7-2.9 2.5.9a7.5 7.5 0 0 1 1.9-1.1z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  grid: (
+    <>
+      <rect x="3" y="3" width="7.5" height="7.5" rx="1.5" />
+      <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" />
+      <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" />
+      <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" />
+    </>
+  ),
+  logOut: <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />,
+  coffee: <path d="M17 8h1a4 4 0 0 1 0 8h-1M3 8h14v8a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5zM7 2.5v2.5M11 2.5v2.5M15 2.5v2.5" />,
+  mail: (
+    <>
+      <rect x="2.5" y="4.5" width="19" height="15" rx="2.5" />
+      <path d="m22 7-10 6.5L2 7" />
+    </>
+  ),
+  alert: <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01" />,
+  compass: (
+    <>
+      <circle cx="12" cy="12" r="9.5" />
+      <path d="m15.5 8.5-2 5-5 2 2-5z" />
+    </>
+  ),
+  userSwitch: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20.5v-1a5 5 0 0 1 5-5h3M16 13l3-3 3 3M19 10v10" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof PATHS;

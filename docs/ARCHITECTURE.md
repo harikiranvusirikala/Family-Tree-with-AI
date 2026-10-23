@@ -59,6 +59,7 @@ src/
     page.tsx                             the landing page (static): what the app is, Sign in with Google, its search-engine metadata and structured data; Google Tag Manager when GTM_ID is set
     robots.ts, sitemap.ts                robots.txt (search engines read the landing page on production only) and sitemap.xml (the landing page)
     icon.svg, favicon.ico, apple-icon.png the app's icon (a couple, a heart and two children); opengraph-image.png, the link preview (scripts/site-images.mts)
+    not-found.tsx, error.tsx             the app's own "page isn't here" and "something went wrong" pages
     dashboard/                           invitations · Upcoming (the next 30 days' birthdays and anniversaries) · My groups · Shared with me · my access requests · create a group (F2)
       page.tsx, actions.ts, NewGroupForm.tsx
     g/[groupId]/
@@ -116,6 +117,8 @@ src/
     layout/                              LayoutEngine interface + ELK.js adapter
   components/
     AppHeader.tsx, NoAccess.tsx          the signed-in header; the "no access" page, with Request access (F4)
+    GroupHeader.tsx                      a group's header: its switcher (GroupSwitcher) and pages as tabs; ThemeMenu, the theme as one button
+    ui/                                  building blocks: button styles, Menu (drop-downs), MessagePage (a card that says one thing), line icons
     GoogleTagManager.tsx                 Google Tag Manager's two snippets, drawn by the landing page only
     ThemeToggle.tsx, theme.ts            Day / Night / Follow device switch, useTheme(); theme-script.ts runs in <head> before the first paint
     initials.ts, use-hydrated.ts         shared helpers; screen.ts (phone and tablet sizes, for the few things CSS can't do)

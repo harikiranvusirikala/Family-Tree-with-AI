@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
+import { button } from "@/components/ui/button";
+import { MessagePage, MessageText } from "@/components/ui/MessagePage";
 import { getDatabase } from "@/server/db";
 import { maskEmail, normalizeEmail, ROLE_LABELS } from "@/server/members-rules";
 import { requireUser } from "@/server/permissions";
@@ -42,34 +44,29 @@ async function Invite({ params }: Pick<PageProps<"/invite/[token]">, "params">) 
   return (
     <>
       <AppHeader user={user} />
-      <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-24 text-center" data-testid="invite">
-        {!invite ? (
-          <>
-            <h1 className="text-2xl font-semibold">{INVALID_INVITE}</h1>
-            <p className="max-w-md text-zinc-600 dark:text-zinc-400">It may have expired or been withdrawn. Ask the person who sent it for a new one.</p>
-            <Link href="/dashboard" className="text-sm font-medium underline">
-              Go to your dashboard
-            </Link>
-          </>
-        ) : normalizeEmail(invite.email) !== normalizeEmail(user.email) ? (
-          // Another account: nothing about the group, only enough of the address to recognise it.
-          <>
-            <h1 className="text-2xl font-semibold">This invite is for another account</h1>
-            <p className="max-w-md text-zinc-600 dark:text-zinc-400">
-              This invite is for {maskEmail(invite.email)}. You&apos;re signed in as {user.email}.
-            </p>
-            <SwitchAccountButton />
-          </>
-        ) : (
-          <>
-            <h1 className="text-2xl font-semibold">Join {invite.groupName}</h1>
-            <p className="max-w-md text-zinc-600 dark:text-zinc-400">
-              {invite.invitedBy} invited you to join {invite.groupName} as {ROLE_LABELS[invite.role]}.
-            </p>
-            <InviteAnswer accept={acceptInviteAction.bind(null, token)} decline={declineInviteAction.bind(null, token)} groupName={invite.groupName} />
-          </>
-        )}
-      </main>
+      {!invite ? (
+        <MessagePage icon="alert" title={INVALID_INVITE} testId="invite">
+          <MessageText>It may have expired or been withdrawn. Ask the person who sent it for a new one.</MessageText>
+          <Link href="/dashboard" className={button("secondary")}>
+            Go to your dashboard
+          </Link>
+        </MessagePage>
+      ) : normalizeEmail(invite.email) !== normalizeEmail(user.email) ? (
+        // Another account: nothing about the group, only enough of the address to recognise it.
+        <MessagePage icon="userSwitch" title="This invite is for another account" testId="invite">
+          <MessageText>
+            This invite is for {maskEmail(invite.email)}. You&apos;re signed in as {user.email}.
+          </MessageText>
+          <SwitchAccountButton />
+        </MessagePage>
+      ) : (
+        <MessagePage icon="mail" title={`Join ${invite.groupName}`} testId="invite">
+          <MessageText>
+            {invite.invitedBy} invited you to join {invite.groupName} as {ROLE_LABELS[invite.role]}.
+          </MessageText>
+          <InviteAnswer accept={acceptInviteAction.bind(null, token)} decline={declineInviteAction.bind(null, token)} groupName={invite.groupName} />
+        </MessagePage>
+      )}
     </>
   );
 }

@@ -1,11 +1,11 @@
 import { Suspense } from "react";
-import { AppHeader, type HeaderLink } from "@/components/AppHeader";
+import { AppHeader } from "@/components/AppHeader";
+import { GroupHeader } from "@/components/GroupHeader";
 import { NoAccess } from "@/components/NoAccess";
 import { chatConfig } from "@/server/ai/config";
 import { cloudinaryConfig } from "@/server/cloudinary";
 import { getDatabase } from "@/server/db";
 import { noAccessToNull, requireRole, requireUser } from "@/server/permissions";
-import { pendingRequestCounts } from "@/server/repositories/access-requests";
 import { loadGroupTree } from "@/server/repositories/family";
 import { can } from "@/server/roles";
 import { GroupSheets } from "./GroupSheets";
@@ -36,31 +36,23 @@ async function GroupSheetsLoader({ params }: Pick<LayoutProps<"/g/[groupId]/s">,
       </>
     );
   }
-  const { db } = await getDatabase();
-  const manages = can(access.role, "manageMembers");
-  const [tree, waiting] = await Promise.all([
-    loadGroupTree(db, groupId),
-    manages ? pendingRequestCounts(db, [groupId]).then((counts) => counts.get(groupId) ?? 0) : 0,
-  ]);
-
-  const links: HeaderLink[] = [
-    ...(manages
-      ? [{ href: `/g/${groupId}/members`, label: "Members", ariaLabel: waiting ? `Members, ${waiting} access ${waiting === 1 ? "request" : "requests"}` : undefined, badge: waiting }]
-      : []),
-    { href: `/g/${groupId}/settings`, label: "Settings" }, // everyone: the Owner's settings, or Leave this group
-  ];
-
-  // h-dvh: on phones, the height between the browser's bars (100vh reaches under them).
+  // h-dvh: on phones, the height between the browser's bars (100vh reaches under them). The header
+  // and the tree load side by side.
   return (
     <div className="flex h-dvh flex-col">
-      <AppHeader user={user} links={links}>
-        <span className="truncate font-medium">{access.group.name}</span>
-      </AppHeader>
-      {tree.sheets.length ? (
-        <GroupSheets groupId={groupId} tree={tree} canEdit={can(access.role, "edit")} cloudName={cloudinaryConfig()?.cloudName} chat={!!chatConfig()} />
-      ) : (
-        <main className="p-6 text-zinc-600 dark:text-zinc-400">This group has no sheets yet.</main>
-      )}
+      <GroupHeader user={user} groupId={groupId} groupName={access.group.name} role={access.role} active="tree" />
+      <SheetsOfGroup groupId={groupId} canEdit={can(access.role, "edit")} />
     </div>
+  );
+}
+
+/** The group's sheets, for a user the layout has let in. */
+async function SheetsOfGroup({ groupId, canEdit }: { groupId: string; canEdit: boolean }) {
+  const { db } = await getDatabase();
+  const tree = await loadGroupTree(db, groupId);
+  return tree.sheets.length ? (
+    <GroupSheets groupId={groupId} tree={tree} canEdit={canEdit} cloudName={cloudinaryConfig()?.cloudName} chat={!!chatConfig()} />
+  ) : (
+    <main className="p-6 text-zinc-600 dark:text-zinc-400">This group has no sheets yet.</main>
   );
 }

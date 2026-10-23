@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { SUPPORT_URL } from "@/components/support";
 import { SOURCE_URL } from "./content";
-import { GitHubMark } from "./icons";
+import { GitHubMark } from "@/components/ui/icons";
 import { Logo, PAGE_LINKS, pageLink } from "./LandingHeader";
 
 /** Links to other sites open in a new tab, and say so (CLAUDE.md, step 11's hardening). */

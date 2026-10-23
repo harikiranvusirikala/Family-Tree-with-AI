@@ -104,6 +104,17 @@ test("the header's menu holds Members, Settings, the theme and Sign out", async 
   await expect(page.getByRole("heading", { name: "Group settings" })).toBeVisible();
 });
 
+test("on a phone the header holds the app's icon, the group's switcher and the account, and the switcher's menu fits", async ({ page, signIn, sampleGroup }) => {
+  await openSampleGroup(page, signIn, sampleGroup);
+  await page.getByRole("banner").getByRole("button", { name: "Cruz family", exact: true }).tap();
+  const all = page.getByRole("menu", { name: "Your family trees" }).getByRole("menuitem", { name: "All family trees" });
+  await expect(all).toBeVisible();
+  expect(await onScreen(all)).toBe(true);
+  // Measured once the menu's opening animation (a slight scale) is over.
+  await expect.poll(async () => (await box(all)).height).toBeGreaterThanOrEqual(44);
+  await shot(page, "phone-group-switcher");
+});
+
 test("a sheet opens zoomed in at its root, and the picker switches sheets", async ({ page, signIn, sampleGroup }) => {
   const { cruzSheet, jerrySheet } = await openSampleGroup(page, signIn, sampleGroup);
   await expect(page.getByRole("tab")).toHaveCount(0);

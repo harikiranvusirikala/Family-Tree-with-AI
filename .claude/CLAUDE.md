@@ -180,7 +180,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - **Panels** use `detailsPanel(full)` and `widePanel` from `src/components/tree/edit/panel.ts`: over the tree on phones (the bottom `PHONE_PANEL_SHARE`; all of it for a form, the chat and Import), beside it from `md`. A new panel uses them.
 - **The canvas frames itself** (no `fitView` prop on React Flow: its fit, once cards are measured, undid the framing). Computers fit the sheet after every layout. Below `lg`, a new sheet (the `sheetId` prop) opens at `readableViewport`, later changes keep the view, and `revealViewport` brings the selection into view (`src/components/tree/framing.ts`, unit-tested).
 - **Touch:** buttons and menu items get `pointer-coarse:min-h-11` (44 px; an `<a>` needs `flex` or `inline-flex` for it to apply). `globals.css` gives fields 16 px text on touch screens (iPhones zoom into smaller text), outside Tailwind's layers so it beats `text-sm`. A menu that must close on a tap on the canvas listens for `pointerdown`, not `mousedown`: React Flow stops the mouse events browsers make up after a touch.
-- On phones, `AppHeader`'s `links` (Members, Settings) and the theme switch move into `UserMenu`. Below `lg` the name beside the initials is `sr-only`, so the button keeps the user's name for screen readers and tests.
+- On phones, the group's pages (Tree, Members, Settings) and `ThemeToggle` move into `UserMenu`; from tablets up the header shows them as tabs and the theme as `ThemeMenu` (one button). The account button shows only the initials, with the user's name `sr-only`, so screen readers and tests still find it by name.
 - Full-height pages use `h-dvh`, not `h-screen` (100vh reaches under a phone browser's bars).
 
 ## ★ Everyone (as built, after the final check)
@@ -192,6 +192,22 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
 - **The Wheel** (part 4): `kinship(tree, centre)` and `relationName`/`relationPath` (`src/tree/kinship.ts`, pure, unit-tested on the sample and a made-up family), `layoutWheel` (`src/tree/wheel.ts`), `WheelCanvas` (React Flow; a "rings" node behind the people; nodes glide via the `.wheel-canvas` CSS in `globals.css`). Telugu names (the owner's table, in BUILD_PLAN.md part 4) need birth years, sides, the middle person's gender and parallel or cross cousins; change them with their unit tests. The name style is `useNameStyle`/`setNameStyle` (`name-style.ts`, localStorage). People on the wheel are `data-testid="wheel-person"` with their relation in `data-testid="relation"`. `PersonPanel` gets `onShowWheel` elsewhere and `relation` (a `WheelRelation`) in the Wheel.
 - **Upcoming** (birthdays and anniversaries, an owner request): `upcomingDates(family, today, withinDays?)`, `datedFamily`, `ageText`, `ordinal` in `src/tree/upcoming.ts` (pure; "today" is a `Day` passed in). `UpcomingList` draws the next 12 months by month (`data-testid="upcoming-row"`, rows' buttons named like cards and hearts); the dashboard's `UpcomingSoon` the next 30 days across the user's groups (the page sends only `datedFamily` of each group it loaded for the user). **Today comes only from `useToday()`** (`src/components/today.ts`): null during the server render and hydration, then the device's date; never read `new Date()` while rendering, or the server's day and time zone leak in (hydration errors). E2E tests fix the device's day with `page.clock.setFixedTime` before `goto`. Below 640 px the `ViewSwitcher` drops its icons so five names fit.
 - **Export:** only drawn views have a picture (`onPicture`/`onPrint` left out of `ExportItems` in the List and Upcoming); a Viewer there has no Export, and `SheetTabs` hides the ⋯ menu when it would be empty.
+
+## The production look (as built so far, an owner request after the final check)
+
+- Built in five parts on the `production-look` branch (BUILD_PLAN.md). The tree drawing (cards, rings, hearts, layout), the Google button and the landing page stay as they are.
+- **Building blocks** in `src/components/ui/`, used for anything new or restyled:
+  - `button(variant, size)` and `iconButton` (`button.ts`, plain class strings for `<button>` and `<Link>`).
+  - `Menu` with `menuItem`, `MenuLabel` and `MenuSeparator` for every drop-down (`Menu.tsx`). It gives the items a `close` that returns focus to its button.
+  - `MessagePage` and `MessageText` for pages that say one thing.
+  - `LineIcon` (`icons.tsx`). Add new icons there; no icon packages.
+- **The header:** signed-in pages draw `AppHeader`, and a group's pages draw `GroupHeader` (a server component: the switcher's groups, the waiting count) with `active` (`"tree" | "members" | "settings"`). The names tests use:
+  - the home link: "Family Tree";
+  - the navigation "This family tree", with tabs "Tree", "Members" ("Members, N access request(s)" while requests wait) and "Settings";
+  - the group's name: the switcher button, opening the menu "Your family trees";
+  - "Theme": the menu "Theme", with the menuitemradios Day, Night and Follow device;
+  - the account button: the user's name, opening the menu "Account".
+- **Menus scale and fade in** (`animate-menu-in`, 140 ms, `motion-reduce:animate-none`): measure their rows with `expect.poll`, and screenshot them with `animations: "disabled"`.
 
 ## The landing page and search engines (as built, an owner request after the final check)
 
@@ -245,6 +261,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
   - **★ Everyone:** `everyone-tree.png`, `everyone-list.png`, `night-everyone-list.png`, `everyone-network.png`, `everyone-network-chosen.png`, `night-everyone-network.png`, `everyone-wheel.png`, `night-everyone-wheel.png`, `everyone-upcoming.png`, `night-everyone-upcoming.png`, `dashboard-upcoming.png`, `phone-everyone.png`, `phone-everyone-list.png`, `phone-everyone-network.png`, `phone-everyone-wheel.png`, `phone-everyone-upcoming.png`.
   - **Phones and tablets:** `phone-tree.png`, `phone-panel.png`, `phone-menu.png`, `phone-chat.png`, `night-phone-tree.png`, `tablet-tree.png`.
   - **Exported pictures and import:** `sheet-picture.png`, `sheet-picture-no-photos.png`, `import-preview.png`.
+  - **The app shell:** `header.png` and `night-header.png` (the header's top), `group-switcher.png`, `night-account-menu.png`, `not-found.png`, `no-access.png`, `phone-group-switcher.png`.
   - **The landing page:** `landing.png` and `night-landing.png` (the whole page), `phone-landing.png` (the whole page, at CSS size) and `phone-landing-top.png`; `day-sign-in.png` and `night-sign-in.png` show its top.
   - **README copies:** `docs/screenshots/chat.png` (the top picture), `phone-tree.png`, `phone-panel.png`, `phone-everyone-upcoming.png` and `dashboard-upcoming.png` are copies of those screenshots: copy them again after visible changes to the sheets page, the chat, ★ Everyone's Upcoming or the dashboard. `docs/screenshots/everyone-views.png` lays out `everyone-tree.png`, `everyone-network-chosen.png`, `everyone-wheel.png`, `everyone-list.png` and `everyone-upcoming.png` in a 2×3 grid with captions, the three notes in the sixth cell: after visible changes to ★ Everyone, lay it out again the same way, with a temporary e2e spec that feeds copies of those screenshots into `page.setContent` as data URLs, at `deviceScaleFactor: 2` and a 1080 px wide page, then delete the spec.
   - **The site's pictures** come from `docs/screenshots/` too: `chat.png` and `phone-tree.png` (the link preview and GitHub's social preview), and with `phone-panel.png`, `phone-everyone-upcoming.png`, `dashboard-upcoming.png`, `everyone-wheel.png` and `everyone-network-chosen.png`, the landing page. After copying any of them again, run `npm run images` and look at `docs/social-preview.png`.

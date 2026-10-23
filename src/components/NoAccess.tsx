@@ -4,6 +4,8 @@ import { getDatabase } from "@/server/db";
 import { accessState } from "@/server/repositories/access-requests";
 import { RequestAccessForm } from "./RequestAccessForm";
 import { REQUEST_DENIED, REQUEST_SENT } from "./request-messages";
+import { button } from "./ui/button";
+import { MessagePage, MessageText } from "./ui/MessagePage";
 
 /**
  * Shown for a group the user can't open (F4). It says nothing about the group, and looks the same
@@ -13,30 +15,27 @@ import { REQUEST_DENIED, REQUEST_SENT } from "./request-messages";
 export async function NoAccess({ groupId, user }: { groupId: string; user: { id: string; email: string } }) {
   const state = await accessState((await getDatabase()).db, groupId, user);
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-24 text-center" data-testid="no-access">
-      <h1 className="text-2xl font-semibold">You don&apos;t have access to this family tree</h1>
+    <MessagePage icon="lock" title="You don't have access to this family tree" testId="no-access">
       {state.inviteToken ? (
         <>
-          <p className="max-w-md text-zinc-600 dark:text-zinc-400">You&apos;ve been invited to this family tree.</p>
-          <Link href={`/invite/${state.inviteToken}`} className="inline-flex items-center rounded-full bg-zinc-900 px-5 py-2 pointer-coarse:min-h-11 text-sm font-medium text-white dark:bg-white dark:text-zinc-900">
+          <MessageText>You&apos;ve been invited to this family tree.</MessageText>
+          <Link href={`/invite/${state.inviteToken}`} className={button("primary")}>
             See the invite
           </Link>
         </>
       ) : state.request === "pending" ? (
-        <p role="status" className="max-w-md text-zinc-600 dark:text-zinc-400">{REQUEST_SENT}</p>
+        <MessageText role="status">{REQUEST_SENT}</MessageText>
       ) : state.request === "denied" ? (
-        <p className="max-w-md text-zinc-600 dark:text-zinc-400">{REQUEST_DENIED}</p>
+        <MessageText>{REQUEST_DENIED}</MessageText>
       ) : (
         <>
-          <p className="max-w-md text-zinc-600 dark:text-zinc-400">
-            The link may be wrong, or nobody has shared this tree with you yet. You can ask its admins for access.
-          </p>
+          <MessageText>The link may be wrong, or nobody has shared this tree with you yet. You can ask its admins for access.</MessageText>
           <RequestAccessForm action={requestAccessAction.bind(null, groupId)} />
         </>
       )}
-      <Link href="/dashboard" className="text-sm font-medium underline">
+      <Link href="/dashboard" className={`${button("ghost", "sm")} mt-1`}>
         Go to your dashboard
       </Link>
-    </main>
+    </MessagePage>
   );
 }

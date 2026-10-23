@@ -24,7 +24,7 @@ test("tabs, the sheet menu and side panels on a tablet", async ({ page, signIn, 
   // The header as on a computer, without the user's name beside the initials.
   const header = page.getByRole("banner");
   await expect(header.getByRole("link", { name: "Settings" })).toBeVisible();
-  await expect(header.getByRole("group", { name: "Theme" })).toBeVisible();
+  await expect(header.getByRole("button", { name: "Theme" })).toBeVisible(); // one button, opening Day, Night and Follow device
   expect((await box(header.getByRole("button", { name: owner.name }))).width).toBeLessThan(50); // the initials only
 
   // Tabs, not the picker; the tools are in the sheet menu, and Ask AI is the round button.

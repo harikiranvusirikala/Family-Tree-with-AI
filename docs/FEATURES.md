@@ -56,6 +56,10 @@ This is a Family Tree Web Application that can be accessed via Web.
 - A real professional, full landing page that helps people find the app on Google. (Added 2026-10-22.)
 - A social preview picture for the GitHub repository, following GitHub's template: space left around the edges. (Added 2026-10-22.)
 
+### A production look
+
+- Every page and component with the same production feel as the landing page: good UI and UX, look and feel, smoothness. For example, the Members and Settings links in the header don't look professional. (Added 2026-10-23.)
+
 ## Decisions (agreed 2026-10-18, and at each build step since)
 
 ### Tech stack & deployment
@@ -254,6 +258,14 @@ This is a Family Tree Web Application that can be accessed via Web.
 - GitHub's social preview keeps everything that matters 80 px in from the edges (GitHub's template); the link preview is the same picture at 1200 × 630.
 - The landing page's pictures are ready-made WebP files (`npm run images`, from the README's screenshots), not optimised by Vercel, so the page uses none of Vercel's image quota. They are the day screenshots in both themes.
 - Not yet decided: a domain of the app's own (ARCHITECTURE.md §15).
+
+### A production look (an owner request, 2026-10-23)
+
+- One visual language from the landing page through every signed-in page, in both themes and on phones, tablets and computers, built in five parts on one branch: the app shell, the dashboard, Members and Settings, the tree page's frame, then toasts, loading skeletons and fresh screenshots. Features, permissions and rules stay the same.
+- The tree drawing (cards, rings, hearts, layout), the Google button and the landing page stay as they are.
+- A group switcher in the header, and the group's pages (Tree, Members, Settings) as tabs with the open one underlined in the blue-to-pink gradient, the only other use of which is Ask AI's sparkle.
+- The theme as one button with a menu from tablets up; on phones it and the group's pages stay in the account menu (no bottom tab bar).
+- Create a group, Invite, New sheet and the type-the-name confirmations become dialogs. The family tree cards show people, couples and members counts, but no "last changed" time.
 
 ### First build step
 
