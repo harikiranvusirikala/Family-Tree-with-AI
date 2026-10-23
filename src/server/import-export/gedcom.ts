@@ -6,10 +6,14 @@ import { exportPart, MAX_IMPORT_PEOPLE, type ImportData, type ImportPerson } fro
 
 const GEDCOM_MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
-/** A GEDCOM date: "12 MAR 1985" when the day and month are known (an owner request), else the year. */
+/**
+ * A GEDCOM date: "12 MAR 1985" when the day and month are known (an owner request), else the year, or
+ * "" for none. GEDCOM 5.5.1 dates need a year, so a day and month alone are a date phrase: "(12 MAR)".
+ */
 function gedcomDate(year?: number, month?: number, day?: number): string {
   const dayAndMonth = month !== undefined && day !== undefined ? `${day} ${GEDCOM_MONTHS[month - 1]}` : "";
-  return [dayAndMonth, year].filter(Boolean).join(" ");
+  if (year === undefined) return dayAndMonth && `(${dayAndMonth})`;
+  return dayAndMonth ? `${dayAndMonth} ${year}` : String(year);
 }
 
 const MIN_YEAR = 1000;
@@ -31,8 +35,9 @@ export function exportGedcom(tree: GroupTree, sheet?: NamedSheet, now = new Date
 
   for (const p of persons) {
     lines.push(`0 ${xref.get(p.id)} INDI`, `1 NAME ${gedcomName(p.name)}`, `1 SEX ${p.gender === "male" ? "M" : "F"}`);
-    if (gedcomDate(p.birthYear, p.birthMonth, p.birthDay)) lines.push("1 BIRT", `2 DATE ${gedcomDate(p.birthYear, p.birthMonth, p.birthDay)}`);
-    if (gedcomDate(p.deathYear, p.deathMonth, p.deathDay)) lines.push("1 DEAT", `2 DATE ${gedcomDate(p.deathYear, p.deathMonth, p.deathDay)}`);
+    const [born, died] = [gedcomDate(p.birthYear, p.birthMonth, p.birthDay), gedcomDate(p.deathYear, p.deathMonth, p.deathDay)];
+    if (born) lines.push("1 BIRT", `2 DATE ${born}`);
+    if (died) lines.push("1 DEAT", `2 DATE ${died}`);
     for (const u of unions) if (u.childIds.includes(p.id)) lines.push(`1 FAMC ${xref.get(u.id)}`);
     for (const u of unions) if (u.partnerIds.includes(p.id)) lines.push(`1 FAMS ${xref.get(u.id)}`);
   }
@@ -41,7 +46,8 @@ export function exportGedcom(tree: GroupTree, sheet?: NamedSheet, now = new Date
     // Men as HUSB and women as WIFE; a same-sex couple gets two of one, which the major programs read.
     for (const partner of u.partnerIds) lines.push(`1 ${gender.get(partner) === "male" ? "HUSB" : "WIFE"} ${xref.get(partner)}`);
     for (const child of u.childIds) lines.push(`1 CHIL ${xref.get(child)}`);
-    if (gedcomDate(u.marriageYear, u.marriageMonth, u.marriageDay)) lines.push("1 MARR", `2 DATE ${gedcomDate(u.marriageYear, u.marriageMonth, u.marriageDay)}`);
+    const married = gedcomDate(u.marriageYear, u.marriageMonth, u.marriageDay);
+    if (married) lines.push("1 MARR", `2 DATE ${married}`);
     if (u.status === "divorced") lines.push("1 DIV Y");
   }
   lines.push("0 TRLR");
@@ -88,7 +94,7 @@ export function yearOf(date: string | undefined): number | undefined {
 }
 
 /**
- * A GEDCOM date as a year, with the day and month when it's an exact date ("12 MAR 1985"). Approximate
+ * A GEDCOM date as a year, with the day and month when it's an exact date ("12 MAR 1985"), or a day and month alone ("(12 MAR)"). Approximate
  * dates ("ABT 1900", "BET 1900 AND 1910", "MAR 1985") give only their year.
  */
 export function dateOf(date: string | undefined): { year?: number; month?: number; day?: number } {
@@ -97,7 +103,8 @@ export function dateOf(date: string | undefined): { year?: number; month?: numbe
     const [day, month, year] = [Number(exact[1]), GEDCOM_MONTHS.indexOf(exact[2]) + 1, Number(exact[3])];
     if (month > 0 && year >= MIN_YEAR && year <= MAX_YEAR && isRealDate(year, month, day)) return { year, month, day };
   }
-  const noYear = (date ?? "").trim().toUpperCase().match(/^(\d{1,2})\s+([A-Z]{3})$/);
+  // A day and month alone: our own date phrase "(12 MAR)", or "12 MAR" as some programs write it.
+  const noYear = (date ?? "").trim().toUpperCase().match(/^\(?\s*(\d{1,2})\s+([A-Z]{3})\s*\)?$/);
   if (noYear) {
     const [day, month] = [Number(noYear[1]), GEDCOM_MONTHS.indexOf(noYear[2]) + 1];
     if (month > 0 && isRealDate(2000, month, day)) return { month, day };

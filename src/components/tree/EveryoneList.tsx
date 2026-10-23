@@ -146,6 +146,7 @@ function Row({
   const { person } = row;
   const years = formatYears(person.birthYear, person.deathYear);
   const life = formatLife(person); // full dates where known, for narrow screens without the Born column
+  const [born, died] = [formatDate(person.birthYear, person.birthMonth, person.birthDay), formatDate(person.deathYear, person.deathMonth, person.deathDay)];
   const summary = relationSummary(row);
   const married = marriageLines(row);
   return (
@@ -174,10 +175,8 @@ function Row({
         </div>
       </td>
       <td className="hidden px-3 py-3 @2xl:table-cell">
-        {formatDate(person.birthYear, person.birthMonth, person.birthDay) || none}
-        {formatDate(person.deathYear, person.deathMonth, person.deathDay) && (
-          <span className={`block text-xs ${muted}`}>Died {formatDate(person.deathYear, person.deathMonth, person.deathDay)}</span>
-        )}
+        {born || none}
+        {died && <span className={`block text-xs ${muted}`}>Died {died}</span>}
       </td>
       <td className="hidden px-3 py-3 @2xl:table-cell">
         {married.length

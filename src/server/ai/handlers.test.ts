@@ -108,6 +108,10 @@ describe("full dates (owner request)", () => {
     const update = runTool("update_person", { personId: steve, name: null, gender: null, ...none, birthMonth: 2, birthDay: 28 }, context());
     expect(update.pending).toEqual([{ op: "updatePerson", personId: steve, set: { birthMonth: 2, birthDay: 28 } }]);
     expect(describeOperations(update.pending, tree)).toEqual(["Change Steve Cruz (1985): birth date to 28 Feb 1985"]);
+    // A day and month for someone with no birth year (an owner request): not "remove the birth year".
+    const noYear = { ...tree, persons: tree.persons.map((p) => (p.id === steve ? { ...p, birthYear: undefined } : p)) };
+    expect(describeOperations(update.pending, noYear)).toEqual(["Change Steve Cruz: birth date to 28 Feb"]);
+    expect(describeOperations([{ op: "updatePerson", personId: steve, set: { birthYear: null } }], tree)).toEqual(["Change Steve Cruz (1985): remove the birth year"]);
     const impossible = runTool("update_person", { personId: steve, name: null, gender: null, ...none, birthMonth: 2, birthDay: 30 }, context());
     expect(impossible.isError).toBe(true);
     expect(impossible.content).toContain("30 Feb 1985 isn't a real date");

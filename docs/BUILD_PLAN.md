@@ -49,6 +49,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | A production look across the app (owner request) | Agreed 2026-10-23; built part by part on the `production-look` branch. Part 1 (the app shell): done 2026-10-23 (unit tests: 483 passed; e2e: 93 passed). Part 2 (the dashboard): done 2026-10-23 (unit tests: 490 passed; e2e: 96 passed). Part 3 (Members and Settings): done 2026-10-23 (unit tests: 500 passed; e2e: 99 passed). Part 4 (the tree page's frame): first half (the sheet row, toolbar, canvas controls, panels and forms) and second half (the chat, Import and ★ Everyone) done 2026-10-23 (unit tests: 500 passed; e2e: 99 passed). Children eldest first (owner request) and Part 5 (finish: toasts, loading shapes, pictures) done 2026-10-23 (unit tests: 502 passed; e2e: 99 passed). Then merged into `main`. See its section at the end |
 | – | Siblings eldest first on sheets (owner request) | Done 2026-10-23 on `siblings-eldest-first` (unit tests: 507 passed; e2e: 99 passed). See its section at the end |
 | – | ★ Everyone opens on the Network on computers and tablets (owner request) | Done 2026-10-23 on `everyone-network-first` (unit tests: 507 passed; e2e: 100 passed). See its section at the end |
+| – | Dates without a year (owner request) | Done 2026-10-23 on `date-without-year` (unit tests: 510 passed; e2e: 100 passed before the review fixes). See its section at the end |
 
 ## How we work
 
@@ -1661,3 +1662,11 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 - **What changes:** only the device's default in `chooseView` (`src/tree/everyone.ts`). The address's view still comes first, then the view last used on that device (`localStorage` `everyone-view`), so someone who already used ★ Everyone on a device keeps their last view there. A group still opens on its first pinned sheet.
 - **Tests:** unit: `chooseView` gives Network without an address or saved view on a computer or tablet, List on a phone. E2e: the desktop ★ Everyone tests open the Network from the tab and from a link without a view (tests that need the Tree now ask for it), and a new tablet test checks the tab opens the Network.
 
+## After the production look: dates without a year (owner request)
+- **Why:** families often know someone's birthday (or a couple's anniversary) but not the year. The owner wants a day and month saved on their own. Sorting by full birth date must treat them as no date, and cards show them only while selected.
+- **What changes:** the "a day and month need the year" rule is gone from `dateProblem` (`src/tree/years.ts`), so the form, the planner and imports all accept a day and month alone. A day without a year must exist in some year (29 February is allowed). Clearing a year now leaves its day and month.
+  - **Written** "12 Mar" (`formatDate`), in the selected card, the panels, the heart (only while selected), ★ Everyone's List and the assistant's roster.
+  - **Sorting:** `birthOrder` and `marriageOrder` still need a year, so a day and month alone sort with the undated people (the List's Born and Married sorts, eldest first, the layout).
+  - **Upcoming** lists them, "Birthday" or "Anniversary" with no age, count or milestone.
+  - **GEDCOM** 5.5.1 dates need a year, so a day and month alone are written as a date phrase, "2 DATE (12 MAR)"; imports read that and a bare "12 MAR".
+- **Notes (2026-10-23):** a review of the first commit found three bugs, each now with a test checked to fail without its fix: the proposal card said "remove the birth year" when the assistant added a day and month to someone with no year (`describe.ts`); exports wrote "12 MAR", which GEDCOM 5.5.1 forbids; and the JSON import's check for a single parent's marriage date looked only at the year. The Upcoming notes now say "no birthday (day and month) saved".

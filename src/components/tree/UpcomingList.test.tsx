@@ -34,7 +34,7 @@ describe("★ Everyone's Upcoming (owner request)", () => {
       "Mon 2 NovIn 12 daysARAsha RaoTurns 60Shashtipurti",
       "Wed 8 SepSCACSteve Cruz & Arham Chopra19th anniversary",
     ]);
-    expect(screen.getByText("2 living people have no full birth date, so their birthdays aren't shown.")).toBeDefined(); // Arham and Ravi
+    expect(screen.getByText("2 living people have no birthday (day and month) saved, so their birthdays aren't shown.")).toBeDefined(); // Arham and Ravi
   });
 
   test("a birthday chooses the person, an anniversary the couple; named like their card and heart", () => {
@@ -62,6 +62,6 @@ describe("★ Everyone's Upcoming (owner request)", () => {
     upcoming(undefined, { persons: [family.persons[3]], unions: [] });
     expect(screen.queryAllByTestId("upcoming-row")).toHaveLength(0);
     expect(screen.getByText(/No birthdays or anniversaries to show yet/)).toBeDefined();
-    expect(screen.getByText("1 living person has no full birth date, so their birthday isn't shown.")).toBeDefined();
+    expect(screen.getByText("1 living person has no birthday (day and month) saved, so their birthday isn't shown.")).toBeDefined();
   });
 });

@@ -495,7 +495,7 @@ test("Upcoming: birthdays and anniversaries nearest first; a row opens the perso
     "Wed 8 SepSCACSteve Cruz & Arham Chopra19th anniversary", // Jake Cruz has died: no birthday, no anniversary with Taylor
   ]);
   await expect(page.getByRole("tabpanel").getByRole("heading")).toHaveText(["October 2026", "November 2026", "September 2027"]);
-  await expect(page.getByText("21 living people have no full birth date, so their birthdays aren't shown.")).toBeVisible();
+  await expect(page.getByText("21 living people have no birthday (day and month) saved, so their birthdays aren't shown.")).toBeVisible();
   await page.screenshot({ path: "test-results/screenshots/everyone-upcoming.png" });
 
   // A birthday opens the person, with their age; an anniversary the couple.

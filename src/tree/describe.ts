@@ -36,10 +36,12 @@ export function describeOperations(ops: Operation[], tree: GroupTree): string[] 
           const [y, m, d] = (["Year", "Month", "Day"] as const).map((part) => `${what}${part}` as const);
           if ([y, m, d].every((key) => op.set[key] === undefined)) return false;
           const after = (key: typeof y | typeof m | typeof d) => (op.set[key] === undefined ? saved?.[key] : (op.set[key] ?? undefined));
-          if (after(y) === undefined) return `remove the ${what} year`;
-          if (op.set[m] === undefined && op.set[d] === undefined) return `${what} year to ${after(y)}`;
+          // A day and month can stand without a year (an owner request), so only the year can be removed.
+          if (op.set[m] === undefined && op.set[d] === undefined) return after(y) === undefined ? `remove the ${what} year` : `${what} year to ${after(y)}`;
+          const date = formatDate(after(y), after(m), after(d));
+          if (!date) return `remove the ${what} date`;
           if (after(m) === undefined) return `remove the ${what} day and month`;
-          return `${what} date to ${formatDate(after(y), after(m), after(d))}`;
+          return `${what} date to ${date}`;
         };
         const changes = [
           op.set.name !== undefined && `name to ${op.set.name}`,

@@ -49,7 +49,7 @@ export function UpcomingSoon({ groups }: { groups: UpcomingGroup[] }) {
         </ul>
       ) : rows.length === 0 ? (
         <p className={`border-t border-zinc-100 px-5 py-4 text-sm text-pretty dark:border-zinc-800 ${muted}`}>
-          Nothing in the next 30 days. Birthdays show for people with a full birth date, anniversaries for couples with a wedding date.
+          Nothing in the next 30 days. Birthdays show for people with a birth day and month, anniversaries for couples with a wedding day and month.
         </p>
       ) : (
         <ul className="divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">

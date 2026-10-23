@@ -54,7 +54,7 @@ function next(today: Day, since: number | undefined, month: number, day: number)
  * next 12 months, or the next `withinDays` days. Living people with a birth day and month; married couples
  * (not divorced) with a marriage day and month and both partners living. Without a year there is no age
  * or count of years. `withoutDate` counts the living
- * people with no full birth date, who can't be shown.
+ * people with no birth day and month, who can't be shown.
  */
 export function upcomingDates(family: FamilyData, today: Day, withinDays?: number): { events: Upcoming[]; withoutDate: number } {
   const byId = new Map(family.persons.map((p) => [p.id, p]));
@@ -91,7 +91,7 @@ export function upcomingDates(family: FamilyData, today: Day, withinDays?: numbe
 }
 
 /**
- * Only what upcomingDates needs, for sending to the dashboard: living people with a full birth date,
+ * Only what upcomingDates needs, for sending to the dashboard: living people with a birth day and month,
  * and dated married couples whose partners are both living (with those partners).
  */
 export function datedFamily(family: FamilyData): FamilyData {

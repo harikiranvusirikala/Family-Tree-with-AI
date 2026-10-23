@@ -48,7 +48,7 @@ export function UpcomingList({
     <div ref={scroller} className="absolute inset-0 overflow-y-auto">
       {events.length === 0 ? (
         <p className={`p-4 text-sm ${muted}`}>
-          No birthdays or anniversaries to show yet. Add a full birth date (the day and month) in someone&apos;s panel, or a marriage date from a couple&apos;s heart.
+          No birthdays or anniversaries to show yet. Add a birthday (the day and month, the year if known) in someone&apos;s panel, or a marriage date from a couple&apos;s heart.
         </p>
       ) : (
         months.map((month) => (
@@ -72,7 +72,7 @@ export function UpcomingList({
       )}
       {withoutDate > 0 && (
         <p className={`px-3 py-4 text-xs md:px-4 ${muted}`}>
-          {withoutDate} living {withoutDate === 1 ? "person has" : "people have"} no full birth date, so {withoutDate === 1 ? "their birthday isn't" : "their birthdays aren't"} shown.
+          {withoutDate} living {withoutDate === 1 ? "person has" : "people have"} no birthday (day and month) saved, so {withoutDate === 1 ? "their birthday isn't" : "their birthdays aren't"} shown.
         </p>
       )}
       {/* Room to scroll the last rows above a phone's panel, or clear of the round Ask AI button. */}

@@ -79,6 +79,25 @@ describe("round trips of the sample family", () => {
     expect(back.sheets.map((s) => s.title)).toEqual([`${tree.persons[0].name}'s family`]);
   });
 
+  test("a day and month without a year survive GEDCOM, as a date phrase (owner request)", () => {
+    const steve = tree.persons.find((p) => p.name === "Steve Cruz")!;
+    const couple = tree.unions.find((u) => u.partnerIds.includes(steve.id) && u.marriageMonth !== undefined)!;
+    const noYears = {
+      ...tree,
+      persons: tree.persons.map((p) => (p === steve ? { ...p, birthYear: undefined, birthMonth: 3, birthDay: 12 } : p)),
+      unions: tree.unions.map((u) => (u === couple ? { ...u, marriageYear: undefined } : u)),
+    };
+    const text = exportGedcom(noYears);
+    expect(text).toContain("1 BIRT\n2 DATE (12 MAR)");
+    expect(text).toContain("1 MARR\n2 DATE (8 SEP)");
+    const data = parseGedcom(text) as ImportData;
+    expect(data.notKept).toEqual([]);
+    const back = importIntoEmpty(data);
+    expect(back.persons.find((p) => p.name === "Steve Cruz")).toMatchObject({ birthMonth: 3, birthDay: 12 });
+    expect(back.persons.find((p) => p.name === "Steve Cruz")!.birthYear).toBeUndefined();
+    expect(back.unions.map(formatMarriage)).toContain("8 Sep");
+  });
+
   test("a same-sex couple survives GEDCOM (two HUSB lines)", () => {
     const alexander = tree.persons.find((p) => p.name === "Alexander Cruz")!;
     const jerry = tree.persons.find((p) => p.name === "Jerry Willow")!;
@@ -131,7 +150,7 @@ describe("reading GEDCOM files from other programs", () => {
   });
 
   test("a day and month without a year are kept (owner request)", () => {
-    expect([dateOf("12 MAR"), dateOf("30 FEB"), dateOf("29 FEB")]).toEqual([{ month: 3, day: 12 }, {}, { month: 2, day: 29 }]);
+    expect([dateOf("(12 MAR)"), dateOf("12 MAR"), dateOf("(30 FEB)"), dateOf("29 FEB")]).toEqual([{ month: 3, day: 12 }, { month: 3, day: 12 }, {}, { month: 2, day: 29 }]);
   });
 
   test("full dates (owner request): exact dates kept whole, others as a year; impossible days as a year", () => {
@@ -216,6 +235,8 @@ describe("reading GEDCOM files from other programs", () => {
     expect(parseJson(file.replace('"marriageDay": 29', '"marriageDay": 30'))).toBe("This file is damaged: a marriage date doesn't make sense.");
     const alone = exportJson({ persons: people, unions: [{ ...couple, partnerIds: [people[0].id] }], sheets: [] }, { id: "g", name: "Raos" });
     expect(parseJson(alone)).toBe("This file is damaged: a marriage date doesn't make sense.");
+    const aloneNoYear = exportJson({ persons: people, unions: [{ ...couple, partnerIds: [people[0].id], marriageYear: undefined }], sheets: [] }, { id: "g", name: "Raos" });
+    expect(parseJson(aloneNoYear)).toBe("This file is damaged: a marriage date doesn't make sense."); // a day and month alone too
   });
 
   test("files that can't be imported", () => {
