@@ -46,7 +46,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Google Tag Manager on the landing page (owner request) | Done 2026-10-22 (unit tests: 462 passed; e2e: 83 passed). `GTM_ID` set in Vercel's Production and checked on the live site by the owner, 2026-10-23. See its section at the end |
 | – | Search engines and the landing page (owner request) | Done 2026-10-22 (unit tests: 472 passed; e2e: 88 passed, with Google Tag Manager merged first). Checked on the live site by the owner, 2026-10-23: Search Console verified, the sitemap submitted, GitHub's social preview uploaded. See its section at the end |
 | – | CLAUDE.md and ESLint after the parallel worktree (owner request) | Done 2026-10-23 (lint clean; unit tests: 472 passed). See its section at the end |
-| – | A production look across the app (owner request) | Agreed 2026-10-23; built part by part on the `production-look` branch. Part 1 (the app shell): done 2026-10-23 (unit tests: 483 passed; e2e: 93 passed). Part 2 (the dashboard): done 2026-10-23 (unit tests: 490 passed; e2e: 96 passed). Part 3 (Members and Settings): done 2026-10-23 (unit tests: 500 passed; e2e: 99 passed). Part 4 (the tree page's frame): next. See its section at the end |
+| – | A production look across the app (owner request) | Agreed 2026-10-23; built part by part on the `production-look` branch. Part 1 (the app shell): done 2026-10-23 (unit tests: 483 passed; e2e: 93 passed). Part 2 (the dashboard): done 2026-10-23 (unit tests: 490 passed; e2e: 96 passed). Part 3 (Members and Settings): done 2026-10-23 (unit tests: 500 passed; e2e: 99 passed). Part 4 (the tree page's frame): first half (the sheet row, toolbar, canvas controls, panels and forms) done 2026-10-23 (unit tests: 500 passed; e2e: 99 passed); second half (the chat, Import and ★ Everyone) next. See its section at the end |
 
 ## How we work
 
@@ -1596,3 +1596,31 @@ The app is built in small steps. Each step ends with its tests passing, a check 
     - Unit: `MembersForms.test.tsx` (the role menu and its change shown at once, Remove's dialog, the invite form) and `SettingsForms.test.tsx` (the confirmations, Transfer, Leave).
     - Database: `joinedAt`.
     - E2e: Remove from group; the role menu; screenshots of the members and settings pages, with the side menu and the dialogs; the phone members and settings pages; and the transfer, delete and leave flows through their dialogs.
+- **Part 4, the tree page's frame, first half (notes, 2026-10-23):** this part is checked in two halves. This one covers the sheet row, the toolbar, the canvas controls, the panels and their forms; the chat, Import and ★ Everyone come next.
+  - **The sheet row** (`SheetTabs`):
+    - The tabs are a segmented control: a grey track with the open tab raised in white, and a pin icon on pinned sheets. ★ Everyone still comes first.
+    - The open sheet's options are now a drop-down `Menu`: the sheet's title, Rename…, Pin or Unpin, Move left and right (up and down beside a phone's picker), then Delete sheet… in red. On computers its ⋯ ("Sheet options") still comes first in the row, by the owner's earlier choice.
+    - **Dialogs** (decision 3): New sheet (with a plus icon, and no "+" in its name), Rename… and Delete sheet… open dialogs. Their forms keep the old names ("New sheet", "Rename sheet", "Delete sheet"). Each saves, then closes, so an error appears above the canvas as before.
+    - **Below 1024 px** the sheet menu (⋯) is the same `Menu`, now vertical with icons. Any item closes it, the page's tools included.
+    - **The eye** is the same square, bordered button on phones, tablets and computers (`outlineIconButton`). The owner asked for this during the part; it replaces the bigger plain eye they chose after the phones preview.
+  - **The toolbar** (computers): the eye, Export (a `Menu`, with a download icon) and Import… (with an upload icon) are outlined buttons. Ask AI is the main, dark button, with `GradientSparkle`: the gradient's only other use. The round AI button below 1024 px has the sparkle too.
+  - **Canvas controls:** React Flow's zoom buttons and minimap are floating cards in both themes, set through its CSS variables in `globals.css`. The buttons are 32 px on computers and 40 px on touch screens. The exported picture captures only the drawing, so it's unchanged.
+  - **The person panel**, from top to bottom:
+    - A header with the photo, the name, the dates and age, Add photo, and Close (an icon).
+    - The Wheel's relation box, then the "Go to" rows.
+    - ★ Everyone's views as tiles: Wheel, Network and List, still named "Relatives wheel", "Show in network" and "Find in list".
+    - Relatives as rows with their photos and years, under Parents, Partner(s) and Children. A partner's marriage shows under their name: "Married 8 Sep 2008", or "Married 2001 · divorced".
+    - Edit details first, Add partner and Add child side by side, then Add parents, Show on another sheet and Create their own sheet as rows.
+    - Delete <name>, apart at the bottom.
+    - On phones the panel slides up from the bottom of the screen, with a handle at the top.
+  - **The couple panel:** both photos and names, Married and Divorced as a segmented control, the marriage date with Add or Change marriage date, the children as rows, and Add child.
+  - **Forms** use the new fields, radios and buttons. The panels' parts are in `panel.ts` (`panelHeader`, `panelBody`, `panelFooter`, `panelHeading`, `panelNote`). The panels are 352 px wide from 1024 px, and still 320 px on tablets.
+  - **Names that changed:**
+    - Relatives' rows are named like their cards ("Jerry Willow, 1920 – 1989"), with a partner's marriage as the row's description.
+    - `PersonPhoto` is hidden from screen readers: the name is always beside it.
+    - "+ New sheet" is now "New sheet"; the menus say "Rename…" and "Delete sheet…"; the person panel's Delete is "Delete <name>".
+  - **Tests:**
+    - Unit: the sheet row and person panel tests follow the new names and order.
+    - E2e: screenshots of the dialogs (`new-sheet-dialog.png`, `sheet-options.png`). Menus are measured after their opening animation.
+    - E2e: the Network's circles are now compared by ratio, because the taller row zoomed the canvas out a little. A full birth date is read under the person's name, because a relative's row also says 1985.
+    - The first run's two members tests timed out on server actions that never answered (a slow database); the rerun passed.

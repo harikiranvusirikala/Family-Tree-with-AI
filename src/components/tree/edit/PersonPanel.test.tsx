@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { GroupTree } from "@/tree/types";
 import { PersonPanel, type WheelRelation } from "./PersonPanel";
 
@@ -21,6 +21,9 @@ const tree: GroupTree = {
     { id: "cruz-tab", title: "Cruz family", rootPersonId: "alexander", extraPersonIds: [], pinned: true, order: 0 },
   ],
 };
+
+/** A button's name: its aria-label (the views' tiles), else its words. */
+const named = (button: HTMLElement) => button.getAttribute("aria-label") ?? button.textContent;
 
 function panel(personId: string, currentSheetId: string, canEdit = true, onFindInList?: () => void, onShowInNetwork?: () => void, wheel: { onShowWheel?: () => void; relation?: WheelRelation } = {}) {
   const onOpenSheet = vi.fn();
@@ -225,7 +228,8 @@ describe("Find in list (★ Everyone, part 2, owner request)", () => {
   test("offered when given (on sheets and the Tree), after the Go to buttons, for Viewers too", () => {
     const onFindInList = vi.fn();
     panel("jerry", "cruz-tab", false, onFindInList);
-    expect(screen.getAllByRole("button", { name: /^(Go to |Find in list)/ }).map((b) => b.textContent)).toEqual(["Go to Jerry Willow's family", "Go to The Willows", "Find in list"]);
+    expect(screen.getAllByRole("button", { name: /^(Go to |Find in list)/ }).map(named)).toEqual(["Go to Jerry Willow's family", "Go to The Willows", "Find in list"]);
+    expect(findInList()!.textContent).toBe("List"); // a tile (the production look)
     fireEvent.click(findInList()!);
     expect(onFindInList).toHaveBeenCalled();
   });
@@ -237,10 +241,10 @@ describe("Find in list (★ Everyone, part 2, owner request)", () => {
 });
 
 describe("Show in network (★ Everyone, part 3, owner request)", () => {
-  test("offered when given (on sheets, the Tree and the List), after Find in list, for Viewers too", () => {
+  test("offered when given (on sheets, the Tree and the List), before Find in list, for Viewers too", () => {
     const onShowInNetwork = vi.fn();
     panel("cynthia", "cruz-tab", false, () => {}, onShowInNetwork);
-    expect(screen.getAllByRole("button", { name: /^(Go to |Find in list|Show in network)/ }).map((b) => b.textContent)).toEqual(["Find in list", "Show in network"]);
+    expect(screen.getAllByRole("button", { name: /^(Go to |Find in list|Show in network)/ }).map(named)).toEqual(["Show in network", "Find in list"]);
     fireEvent.click(screen.getByRole("button", { name: "Show in network" }));
     expect(onShowInNetwork).toHaveBeenCalled();
   });
@@ -252,10 +256,12 @@ describe("Show in network (★ Everyone, part 3, owner request)", () => {
 });
 
 describe("the Wheel in the panel (★ Everyone, part 4, owner request)", () => {
-  test("elsewhere: Relatives wheel, after the other views' shortcuts, for Viewers too", () => {
+  test("elsewhere: Relatives wheel, first of the views' tiles, for Viewers too", () => {
     const onShowWheel = vi.fn();
     panel("cynthia", "cruz-tab", false, () => {}, () => {}, { onShowWheel });
-    expect(screen.getAllByRole("button", { name: /^(Find in list|Show in network|Relatives wheel)/ }).map((b) => b.textContent)).toEqual(["Find in list", "Show in network", "Relatives wheel"]);
+    const tiles = screen.getAllByRole("button", { name: /^(Find in list|Show in network|Relatives wheel)/ });
+    expect(tiles.map(named)).toEqual(["Relatives wheel", "Show in network", "Find in list"]);
+    expect(tiles.map((tile) => tile.textContent)).toEqual(["Wheel", "Network", "List"]);
     fireEvent.click(screen.getByRole("button", { name: "Relatives wheel" }));
     expect(onShowWheel).toHaveBeenCalled();
   });
@@ -307,8 +313,9 @@ describe("marriage dates on the partner lines (owner request)", () => {
         onOpenSheet={() => {}}
       />,
     );
-    const partners = screen.getByText("Partners").nextElementSibling!;
-    expect([...partners.children].map((line) => line.textContent)).toEqual(["Sammie Chang, married 2001 (divorced)", "Arham Chopra, married 8 Sep 2008", "Jo Lee"]);
+    // Each a row selecting them: the photo's initials (hidden from screen readers), the name, then the line under it.
+    const partners = within(screen.getByText("Partners").nextElementSibling as HTMLElement).getAllByRole("button");
+    expect(partners.map((row) => row.textContent)).toEqual(["SCSammie ChangMarried 2001 · divorced", "ACArham ChopraMarried 8 Sep 2008", "JLJo LeeMarried"]);
   });
 });
 

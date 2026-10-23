@@ -22,6 +22,9 @@ import { PersonPanel } from "@/components/tree/edit/PersonPanel";
 import { widePanel } from "@/components/tree/edit/panel";
 import { SheetTabs, sheetMenuHeading, sheetMenuItem } from "@/components/tree/edit/SheetTabs";
 import { HidePhotosButton } from "@/components/tree/HidePhotosButton";
+import { button } from "@/components/ui/button";
+import { GradientSparkle } from "@/components/ui/GradientSparkle";
+import { LineIcon } from "@/components/ui/icons";
 import { CloudNameContext, PhotosHiddenContext } from "@/components/tree/photo";
 import type { Operation } from "@/server/operations/schema";
 import { deletePersonOps, restorePersonOps, tabOrder } from "@/tree/edits";
@@ -276,7 +279,7 @@ export function GroupSheets({
           everyone={everyone}
           // Below 1024 px the eye stays in the row, just before the sheet menu (the owner's choice), the
           // other tools are items in that menu, and Ask AI is a round button.
-          beforeMenu={cloudName && <HidePhotosButton plain hidden={photosHidden} onToggle={() => setPhotosHidden(!photosHidden)} />}
+          beforeMenu={cloudName && <HidePhotosButton hidden={photosHidden} onToggle={() => setPhotosHidden(!photosHidden)} />}
           menuItems={
             exportable && (
               <>
@@ -284,6 +287,7 @@ export function GroupSheets({
                 <ExportItems {...exportProps} itemClass={sheetMenuItem} headings={false} />
                 {canEdit && (
                   <button type="button" role="menuitem" onClick={() => setImportOpen(true)} className={sheetMenuItem}>
+                    <LineIcon name="upload" className="size-4 shrink-0" />
                     Import…
                   </button>
                 )}
@@ -299,18 +303,21 @@ export function GroupSheets({
                   type="button"
                   aria-expanded={importOpen}
                   onClick={() => setImportOpen(!importOpen)}
-                  className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium hover:bg-zinc-100 aria-expanded:bg-zinc-900 aria-expanded:text-white dark:border-zinc-700 dark:hover:bg-zinc-800 dark:aria-expanded:bg-white dark:aria-expanded:text-zinc-900"
+                  className={`${button("secondary")} aria-expanded:bg-zinc-100 dark:aria-expanded:bg-zinc-800`}
                 >
+                  <LineIcon name="upload" className="size-4" />
                   Import…
                 </button>
               )}
               {chat && (
+                // The main button, with the gradient's other use: its sparkle (the production look).
                 <button
                   type="button"
                   aria-expanded={chatOpen}
                   onClick={() => setChatOpen(!chatOpen)}
-                  className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium hover:bg-zinc-100 aria-expanded:bg-zinc-900 aria-expanded:text-white dark:border-zinc-700 dark:hover:bg-zinc-800 dark:aria-expanded:bg-white dark:aria-expanded:text-zinc-900"
+                  className={`${button("primary")} aria-expanded:ring-2 aria-expanded:ring-blue-400/60`}
                 >
+                  <GradientSparkle />
                   Ask AI
                 </button>
               )}
@@ -422,11 +429,9 @@ export function GroupSheets({
                 aria-label="Ask AI"
                 aria-expanded={chatOpen}
                 onClick={() => setChatOpen(!chatOpen)}
-                className="absolute bottom-9 right-3 z-10 flex h-14 w-14 flex-col items-center justify-center rounded-full bg-zinc-900 text-xs font-semibold text-white shadow-lg lg:hidden dark:bg-white dark:text-zinc-900"
+                className="absolute right-3 bottom-9 z-10 flex size-14 flex-col items-center justify-center gap-0.5 rounded-full bg-zinc-900 text-[11px] font-semibold text-white shadow-lg shadow-zinc-900/25 lg:hidden dark:bg-white dark:text-zinc-900 dark:shadow-black/50"
               >
-                <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-                  <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
-                </svg>
+                <GradientSparkle className="size-5" />
                 AI
               </button>
             )}

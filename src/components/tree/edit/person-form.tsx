@@ -6,6 +6,8 @@ import { day, month, personName, year } from "@/server/operations/schema";
 import type { NewPerson } from "@/tree/edits";
 import type { Gender } from "@/tree/types";
 import { datesProblem, marriageDate, marriageProblem, MONTHS, type LifeDates, type MarriageDate } from "@/tree/years";
+import { button } from "../../ui/button";
+import { choice, choiceLabel, field, fieldLabel } from "../../ui/field";
 
 // The server's own rules (schema.ts), so a form shows the same limits applyOperations enforces.
 const personFields = z.strictObject({
@@ -80,8 +82,6 @@ export function readMarriage(form: FormData): MarriageDate | string {
   return problem ? `${problem}.` : marriageDate(parsed.data);
 }
 
-export const input = "w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900";
-
 const WORDS = { birth: ["Birth", "Born"], death: ["Death", "Died"], marriage: ["Marriage", "Married on"] } as const;
 
 /** Day, month and year of a birth, death or marriage; the day and month only when known. */
@@ -97,18 +97,18 @@ export function DateFields({
   defaults?: LifeDates & MarriageDate;
 }) {
   const [word, legend] = WORDS[what];
-  const caption = "flex flex-col gap-0.5 text-xs text-zinc-500 dark:text-zinc-400";
+  const caption = "flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400";
   return (
-    <fieldset className="flex flex-col gap-1">
-      <legend className="mb-1 text-sm font-medium">{label(legend)}</legend>
+    <fieldset className="flex flex-col gap-1.5">
+      <legend className="mb-1.5 text-sm font-medium text-zinc-900 dark:text-zinc-100">{label(legend)}</legend>
       <div className="grid grid-cols-[4.5rem_1fr_6rem] gap-2">
         <label className={caption}>
           Day
-          <input name={`${prefix}${what}Day`} aria-label={label(`${word} day`)} type="number" inputMode="numeric" min={1} max={31} defaultValue={defaults?.[`${what}Day`]} className={input} />
+          <input name={`${prefix}${what}Day`} aria-label={label(`${word} day`)} type="number" inputMode="numeric" min={1} max={31} defaultValue={defaults?.[`${what}Day`]} className={field} />
         </label>
         <label className={caption}>
           Month
-          <select name={`${prefix}${what}Month`} aria-label={label(`${word} month`)} defaultValue={defaults?.[`${what}Month`] ?? ""} className={input}>
+          <select name={`${prefix}${what}Month`} aria-label={label(`${word} month`)} defaultValue={defaults?.[`${what}Month`] ?? ""} className={field}>
             <option value="">–</option>
             {MONTHS.map((m, i) => (
               <option key={m} value={i + 1}>
@@ -119,7 +119,7 @@ export function DateFields({
         </label>
         <label className={caption}>
           Year
-          <input name={`${prefix}${what}Year`} aria-label={label(`${word} year`)} type="number" inputMode="numeric" defaultValue={defaults?.[`${what}Year`]} className={input} />
+          <input name={`${prefix}${what}Year`} aria-label={label(`${word} year`)} type="number" inputMode="numeric" defaultValue={defaults?.[`${what}Year`]} className={field} />
         </label>
       </div>
     </fieldset>
@@ -146,27 +146,27 @@ export function PersonFields({
   const label = (text: string) => (who ? `${who}'s ${text.toLowerCase()}` : text);
   const [died, setDied] = useState(defaults?.deathYear !== undefined);
   return (
-    <div className="flex flex-col gap-2">
-      <label className="flex flex-col gap-1 text-sm font-medium">
+    <div className="flex flex-col gap-4">
+      <label className={fieldLabel}>
         {label("Name")}
-        <input name={`${prefix}name`} maxLength={120} defaultValue={defaults?.name} className={input} />
+        <input name={`${prefix}name`} maxLength={120} defaultValue={defaults?.name} className={field} />
       </label>
       {fixedGender ? (
         <input type="hidden" name={`${prefix}gender`} value={fixedGender} />
       ) : (
-        <fieldset className="flex gap-4 text-sm">
+        <fieldset className="flex gap-5">
           <legend className="sr-only">{label("Gender")}</legend>
           {(["male", "female"] as const).map((g) => (
-            <label key={g} className="flex items-center gap-1">
-              <input type="radio" name={`${prefix}gender`} value={g} defaultChecked={defaults?.gender === g} />
+            <label key={g} className={choiceLabel}>
+              <input type="radio" name={`${prefix}gender`} value={g} defaultChecked={defaults?.gender === g} className={choice} />
               {g === "male" ? "Male" : "Female"}
             </label>
           ))}
         </fieldset>
       )}
       <DateFields what="birth" prefix={prefix} label={label} defaults={defaults} />
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name={`${prefix}died`} checked={died} onChange={(event) => setDied(event.target.checked)} />
+      <label className={choiceLabel}>
+        <input type="checkbox" name={`${prefix}died`} checked={died} onChange={(event) => setDied(event.target.checked)} className={choice} />
         {who ? `${who} has died` : "Has died"}
       </label>
       {died && <DateFields what="death" prefix={prefix} label={label} defaults={defaults} />}
@@ -174,13 +174,14 @@ export function PersonFields({
   );
 }
 
+/** Save (or the form's own word) and Cancel, under a panel's form. */
 export function SubmitRow({ label, pending, onCancel }: { label: string; pending: boolean; onCancel: () => void }) {
   return (
-    <div className="flex gap-2">
-      <button type="submit" disabled={pending} className="rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 pointer-coarse:min-h-11 dark:bg-white dark:text-zinc-900">
+    <div className="flex gap-2 pt-1">
+      <button type="submit" disabled={pending} className={button("primary")}>
         {pending ? "Saving…" : label}
       </button>
-      <button type="button" onClick={onCancel} disabled={pending} className="rounded-full px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 pointer-coarse:min-h-11 dark:hover:bg-zinc-800 dark:text-zinc-400">
+      <button type="button" onClick={onCancel} disabled={pending} className={button("ghost")}>
         Cancel
       </button>
     </div>

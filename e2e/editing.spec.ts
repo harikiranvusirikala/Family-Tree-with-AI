@@ -307,10 +307,12 @@ test("a couple marked divorced shows a broken heart", async ({ page, signIn, sam
 
 test("new sheet, pin and move a tab; the order is still there after a reload", async ({ page, signIn, sampleGroup }) => {
   await openSampleGroup(page, signIn, sampleGroup);
-  await page.getByRole("button", { name: "+ New sheet" }).click();
+  await page.getByRole("button", { name: "New sheet", exact: true }).click();
   const create = form(page, "New sheet");
+  await expect(create.getByRole("combobox", { name: "Person" })).toBeFocused(); // in a dialog (the production look)
   await create.getByRole("combobox", { name: "Person" }).selectOption({ label: "Emma Young (1950)" });
   await expect(create.getByRole("textbox", { name: "Title" })).toHaveValue("Emma Young's family");
+  await page.screenshot({ path: "test-results/screenshots/new-sheet-dialog.png", animations: "disabled" });
   await create.getByRole("button", { name: "Create sheet" }).click();
 
   const tabs = page.getByRole("tab");
@@ -320,6 +322,7 @@ test("new sheet, pin and move a tab; the order is still there after a reload", a
   // Unpinned tabs stay after the pinned ones, so it can't move left until it's pinned.
   await page.getByRole("button", { name: "Sheet options" }).click();
   await expect(page.getByRole("menuitem", { name: "Move left" })).toBeDisabled();
+  await page.screenshot({ path: "test-results/screenshots/sheet-options.png", animations: "disabled" });
   await page.getByRole("menuitem", { name: "Pin" }).click();
   await expect(page.getByRole("menu")).toHaveCount(0);
   await page.getByRole("button", { name: "Sheet options" }).click();
@@ -331,7 +334,7 @@ test("new sheet, pin and move a tab; the order is still there after a reload", a
   await expect(tabs).toHaveText(["★ Everyone", "Cruz family", "Emma Young's family", "Jerry Willow's family"]);
 });
 
-test("with many sheets, + New sheet never covers the last tabs (found by the owner)", async ({ page, signIn, sampleGroup, database }) => {
+test("with many sheets, New sheet never covers the last tabs (found by the owner)", async ({ page, signIn, sampleGroup, database }) => {
   const owner = await signIn(page, "Carla Cruz");
   const { groupId, cruzSheet } = await sampleGroup(owner);
   await addManySheets(database, groupId, owner.id);
@@ -342,7 +345,7 @@ test("with many sheets, + New sheet never covers the last tabs (found by the own
   // On a computer the sheet options (⋯) come first, before the pinned tabs (the owner's choice).
   const options = (await page.getByRole("button", { name: "Sheet options" }).boundingBox())!;
   expect(options.x + options.width).toBeLessThanOrEqual((await tabs.first().boundingBox())!.x);
-  const newSheet = (await page.getByRole("button", { name: "+ New sheet" }).boundingBox())!;
+  const newSheet = (await page.getByRole("button", { name: "New sheet", exact: true }).boundingBox())!;
   for (const tab of await tabs.all()) {
     const box = (await tab.boundingBox())!;
     expect(box.x + box.width, await tab.textContent() ?? "").toBeLessThanOrEqual(newSheet.x);
@@ -395,7 +398,7 @@ test("a Viewer sees the tree but no edit controls", async ({ browser, page, sign
     await addMember(groupId, viewer, "view");
     await viewerPage.goto(`/g/${groupId}/s/${cruzSheet}`);
     await expect(cards(viewerPage)).toHaveCount(36);
-    await expect(viewerPage.getByRole("button", { name: "+ New sheet" })).toHaveCount(0);
+    await expect(viewerPage.getByRole("button", { name: "New sheet", exact: true })).toHaveCount(0);
     await expect(viewerPage.getByRole("button", { name: "Sheet options" })).toHaveCount(0);
 
     await card(viewerPage, "Jake Cruz").click();
@@ -424,7 +427,7 @@ test("a marriage date: the year above the heart, the full date while the heart o
   await expect(dateOf("Steve Cruz and Arham Chopra")).toHaveText("2008");
   await card(page, "Arham Chopra").click();
   await expect(dateOf("Steve Cruz and Arham Chopra")).toHaveText("8 Sep 2008");
-  await expect(personPanel(page)).toContainText("Steve Cruz, married 8 Sep 2008");
+  await expect(personPanel(page).getByRole("button", { name: /^Steve Cruz/ })).toContainText("Married 8 Sep 2008"); // his row, under Partner
   await personPanel(page).getByRole("button", { name: "Close" }).click();
   await expect(dateOf("Steve Cruz and Arham Chopra")).toHaveText("2008");
 
@@ -445,7 +448,7 @@ test("a marriage date: the year above the heart, the full date while the heart o
   await expect(dateOf("Marvin Young and Jazmine Brooke")).toHaveText("1999");
   await card(page, "Jazmine Brooke").click();
   await expect(dateOf("Marvin Young and Jazmine Brooke")).toHaveText("4 Jul 1999");
-  await expect(personPanel(page)).toContainText("Marvin Young, married 4 Jul 1999");
+  await expect(personPanel(page).getByRole("button", { name: /^Marvin Young/ })).toContainText("Married 4 Jul 1999");
   await page.screenshot({ path: "test-results/screenshots/marriage-date.png" });
 
   // Emptying the fields removes it.
@@ -490,6 +493,7 @@ test("a full birth date: the card shows the year, and the full date while select
   await edit.getByRole("spinbutton", { name: "Birth day" }).fill("");
   await edit.getByRole("combobox", { name: "Birth month" }).selectOption({ label: "–" });
   await edit.getByRole("button", { name: "Save" }).click();
-  await expect(personPanel(page).getByText("1985", { exact: true })).toBeVisible();
+  // Under his name (his relatives' rows have years too: Sammie Chang's is 1985).
+  await expect(personPanel(page).getByRole("heading", { name: "Steve Cruz" }).locator("..").getByText("1985", { exact: true })).toBeVisible();
   await expect(steve).not.toContainText("Mar");
 });

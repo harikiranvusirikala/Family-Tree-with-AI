@@ -1,28 +1,38 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { button, iconButton } from "@/components/ui/button";
+import { Dialog, DialogActions } from "@/components/ui/Dialog";
+import { field, fieldLabel, formError as formErrorClass } from "@/components/ui/field";
+import { LineIcon } from "@/components/ui/icons";
+import { dangerMenuItem, Menu, MenuLabel, MenuSeparator, menuItem } from "@/components/ui/Menu";
 import type { Operation } from "@/server/operations/schema";
 import { deleteSheetOps, moveSheetOps, newSheetOps, updateSheetOps } from "@/tree/edits";
 import { EVERYONE } from "@/tree/everyone";
 import type { GroupTree, NamedSheet } from "@/tree/types";
 import { nameWithYears } from "./PersonPanel";
 
-const input = "w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900";
-const small = "rounded px-2 py-1 text-sm hover:bg-zinc-100 disabled:opacity-50 pointer-coarse:min-h-11 dark:hover:bg-zinc-800";
-/** An item in the sheet menu (below 1024 px), and a heading over a group of them. */
-export const sheetMenuItem = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-zinc-100 disabled:opacity-50 pointer-coarse:min-h-11 dark:hover:bg-zinc-800";
-export const sheetMenuHeading = "px-2 pt-2 text-xs text-zinc-500 dark:text-zinc-400";
+/** An item in the sheet menu (below 1024 px), and a heading over a group of them: the app's menu items. */
+export const sheetMenuItem = menuItem;
+export const sheetMenuHeading = "px-2.5 pt-1.5 pb-1 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400";
+
+/** The tabs as a segmented control (the production look): the open one raised in white. */
 const tabClass =
-  "flex shrink-0 items-center gap-1 whitespace-nowrap rounded-t-md border border-b-0 border-transparent px-3 py-1.5 text-sm text-zinc-600 pointer-coarse:py-3 hover:text-zinc-900 aria-selected:border-zinc-200 aria-selected:bg-white aria-selected:font-medium aria-selected:text-zinc-900 dark:aria-selected:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 dark:aria-selected:bg-zinc-900 dark:aria-selected:text-zinc-100";
+  "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1 text-sm font-medium text-zinc-600 outline-none hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-blue-500/70 aria-selected:bg-white aria-selected:text-zinc-900 aria-selected:shadow-sm pointer-coarse:py-2.5 dark:text-zinc-400 dark:hover:text-zinc-100 dark:aria-selected:bg-zinc-800 dark:aria-selected:text-zinc-100";
+const icon = "size-4 shrink-0";
+
+type SheetDialog = "rename" | "new" | "delete";
 
 /**
- * The sheet tabs (F5), plus for Maintain and up: "+ New sheet", and the current tab's menu to rename,
- * pin, move or delete it. Buttons rather than drag-and-drop, so they work from the keyboard. `trailing` goes at
- * the right end of the row (Export, Ask AI…).
+ * The sheet tabs (F5), plus for Maintain and up: New sheet, and the open sheet's menu to rename, pin,
+ * move or delete it. Buttons rather than drag-and-drop, so they work from the keyboard. Renaming, a new
+ * sheet and deleting open dialogs (the production look); their errors appear above the canvas, like the
+ * menu's. `trailing` goes at the right end of the row (Export, Ask AI…).
  *
  * Below 1024 px (an owner request after the final check) the row keeps only the sheets, `beforeMenu`
  * (the eye that hides photos) and one menu (⋯, "Sheet menu"), which holds the sheet's options and
- * `menuItems` (the other trailing tools as menu items). Phones get a sheet picker instead of tabs.
+ * `menuItems` (the other trailing tools as menu items, closing it when chosen). Phones get a sheet
+ * picker instead of tabs.
  *
  * ★ Everyone (an owner request after the final check) comes first, before the pinned sheets; `onOpen`
  * gets EVERYONE for it. While it's open (`everyone`) there's no sheet to rename, pin, move or delete, so
@@ -53,8 +63,7 @@ export function SheetTabs({
   menuItems?: ReactNode;
   everyone?: boolean;
 }) {
-  const [tool, setTool] = useState<"menu" | "more" | "rename" | "new" | "delete" | null>(null);
-  const bar = useRef<HTMLDivElement>(null);
+  const [dialog, setDialog] = useState<SheetDialog | null>(null);
   const tabRow = useRef<HTMLDivElement>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const people = [...tree.persons].sort((a, b) => a.name.localeCompare(b.name) || (a.birthYear ?? 0) - (b.birthYear ?? 0));
@@ -62,19 +71,8 @@ export function SheetTabs({
   const [title, setTitle] = useState("");
   const [titleEdited, setTitleEdited] = useState(false);
 
-  const close = () => {
-    setTool(null);
-    setFormError(null);
-  };
-  const runThenClose = async (ops: Operation[] | null) => {
-    if (ops?.length === 0) return close(); // nothing changed
-    if (ops && (await run(ops))) close();
-  };
-  /** Menu items close the menu at once; the change shows when saved, and errors appear above the canvas. */
-  const runFromMenu = (ops: Operation[] | null) => {
-    close();
-    if (ops) void run(ops);
-  };
+  useLayoutEffect(() => () => setDialog(null), []); // its page hidden (kept for Back): closed when it comes back
+
   const options = canEdit && !everyone; // the open sheet's own: rename, pin, move, delete
   const left = moveSheetOps(sheets, current.id, -1);
   const right = moveSheetOps(sheets, current.id, 1);
@@ -85,34 +83,31 @@ export function SheetTabs({
       ? "A group needs at least one sheet."
       : null;
 
-  /** The page then shows the first sheet left, as for any sheet that's gone. */
-  async function deleteSheet(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await runThenClose(deleteSheetOps(current.id));
-  }
+  const open = (next: SheetDialog) => {
+    setFormError(null);
+    setDialog(next);
+  };
+  const closeDialog = () => {
+    setDialog(null);
+    setFormError(null);
+  };
+  /** Saves, then closes the dialog: the change shows when saved, and an error appears above the canvas. */
+  const save = async (ops: Operation[]) => {
+    if (ops.length) await run(ops);
+    closeDialog();
+  };
+  /** Menu items close the menu at once; the change shows when saved, and errors appear above the canvas. */
+  const runFromMenu = (close: () => void, ops: Operation[] | null) => {
+    close();
+    if (ops) void run(ops);
+  };
 
   function openNew() {
     setRootId("");
     setTitle("");
     setTitleEdited(false);
-    setFormError(null);
-    setTool("new");
+    open("new");
   }
-
-  // The sheet menu closes on a tap outside it or Escape. Pointer events: React Flow stops the mouse
-  // events a browser makes up after a touch on the canvas.
-  useEffect(() => {
-    if (tool !== "more") return;
-    const close = (event: PointerEvent | KeyboardEvent) => {
-      if (event instanceof KeyboardEvent ? event.key === "Escape" : !bar.current?.contains(event.target as Node)) setTool(null);
-    };
-    document.addEventListener("pointerdown", close);
-    document.addEventListener("keydown", close);
-    return () => {
-      document.removeEventListener("pointerdown", close);
-      document.removeEventListener("keydown", close);
-    };
-  }, [tool]);
 
   // The tab row scrolls sideways with no scrollbar (it covered the names; an owner request after the
   // final check), so a mouse wheel scrolls it too. Trackpads already scroll it sideways themselves.
@@ -142,7 +137,13 @@ export function SheetTabs({
     event.preventDefault();
     const next = String(new FormData(event.currentTarget).get("title") ?? "").trim();
     if (!next || next.length > 120) return setFormError("Enter a title of up to 120 characters.");
-    await runThenClose(next === current.title ? [] : updateSheetOps(current.id, { title: next }));
+    await save(next === current.title ? [] : updateSheetOps(current.id, { title: next }));
+  }
+
+  /** The page then shows the first sheet left, as for any sheet that's gone. */
+  async function deleteSheet(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await save(deleteSheetOps(current.id));
   }
 
   async function create(event: FormEvent<HTMLFormElement>) {
@@ -150,175 +151,141 @@ export function SheetTabs({
     if (!rootId) return setFormError("Choose the person the sheet is about.");
     if (!title.trim() || title.trim().length > 120) return setFormError("Enter a title of up to 120 characters.");
     const idMap = await run(newSheetOps(rootId, title.trim()));
-    if (idMap) {
-      close();
-      onOpen(idMap["new:sheet"]);
-    }
+    closeDialog();
+    if (idMap) onOpen(idMap["new:sheet"]);
   }
 
+  /** The open sheet's options, in the ⋯ menu (computers) or the sheet menu. Up and down beside a phone's picker. */
+  const optionItems = (close: () => void) => (
+    <>
+      <MenuLabel>
+        <span className="block truncate">{current.title}</span>
+      </MenuLabel>
+      <button type="button" role="menuitem" onClick={() => (close(), open("rename"))} className={menuItem}>
+        <LineIcon name="pencil" className={icon} />
+        Rename…
+      </button>
+      <button type="button" role="menuitem" disabled={pending} onClick={() => runFromMenu(close, updateSheetOps(current.id, { pinned: !current.pinned }))} className={menuItem}>
+        <LineIcon name="pin" className={icon} />
+        {current.pinned ? "Unpin" : "Pin"}
+      </button>
+      <button type="button" role="menuitem" disabled={pending || !left} onClick={() => runFromMenu(close, left)} className={menuItem}>
+        <LineIcon name="arrowLeft" className={`${icon} max-md:rotate-90`} />
+        <span className="md:hidden">Move up</span>
+        <span className="hidden md:inline">Move left</span>
+      </button>
+      <button type="button" role="menuitem" disabled={pending || !right} onClick={() => runFromMenu(close, right)} className={menuItem}>
+        <LineIcon name="arrowRight" className={`${icon} max-md:rotate-90`} />
+        <span className="md:hidden">Move down</span>
+        <span className="hidden md:inline">Move right</span>
+      </button>
+      <MenuSeparator />
+      <button type="button" role="menuitem" onClick={() => (close(), open("delete"))} className={dangerMenuItem}>
+        <LineIcon name="trash" className={icon} />
+        Delete sheet…
+      </button>
+    </>
+  );
+
   return (
-    <div ref={bar} className="relative border-b border-zinc-200 dark:border-zinc-800">
-      <div className="flex items-center gap-1 pr-2 md:items-end lg:gap-2 lg:pr-4">
+    <div className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex items-center gap-1.5 py-1 pr-2 pl-3 md:gap-2 lg:pr-4 lg:pl-4">
         {/* Computers: the sheet's options (⋯) come first, before the pinned tabs, and stay put while the
             tabs scroll (the owner's choice). */}
         {options && (
-          <div className="mb-1 hidden shrink-0 pl-4 lg:block">
-            <button type="button" aria-label="Sheet options" aria-haspopup="menu" aria-expanded={tool === "menu"} onClick={() => (tool === "menu" ? close() : setTool("menu"))} className={small}>
-              ⋯
-            </button>
+          <div className="hidden shrink-0 lg:block">
+            <Menu label="Sheet options" buttonLabel="Sheet options" align="start" buttonClassName={iconButton} button={<LineIcon name="more" className="size-5" />}>
+              {optionItems}
+            </Menu>
           </div>
         )}
         {/* Only the tabs scroll sideways: a scrolling box also cuts off what hangs below it, like a menu.
             The tab list never shrinks, and titles never wrap: otherwise Chrome shrinks the list to its
-            narrowest size, the tabs spill out of it, and "+ New sheet" lands on the last ones (found
-            by the owner with seven sheets). */}
-        <div
-          ref={tabRow}
-          className={`hidden min-w-0 flex-1 items-end gap-1 overflow-x-auto scrollbar-none pl-4 pt-2 md:flex ${options ? "lg:pl-0" : ""}`}
-        >
-          <div role="tablist" aria-label="Sheets" className="flex shrink-0 gap-1">
+            narrowest size, the tabs spill out of it, and New sheet lands on the last ones (found by the
+            owner with seven sheets). */}
+        <div ref={tabRow} className="hidden min-w-0 flex-1 items-center gap-2 overflow-x-auto scrollbar-none py-0.5 md:flex">
+          <div role="tablist" aria-label="Sheets" className="flex shrink-0 items-center gap-0.5 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900">
             <button type="button" role="tab" aria-selected={everyone} onClick={() => onOpen(EVERYONE)} className={tabClass}>
               ★ Everyone
             </button>
             {sheets.map((s) => (
               <button key={s.id} type="button" role="tab" aria-selected={!everyone && s.id === current.id} onClick={() => onOpen(s.id)} className={tabClass}>
-                {s.pinned && (
-                  <svg aria-hidden width="12" height="12" viewBox="0 0 24 24" className="fill-zinc-400">
-                    <path d="M16 3l5 5-3 1-4 4 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 4-4z" />
-                  </svg>
-                )}
+                {s.pinned && <LineIcon name="pin" className="size-3.5 shrink-0 text-zinc-400 dark:text-zinc-500" />}
                 {s.title}
               </button>
             ))}
           </div>
           {canEdit && (
-            <div className="mb-1 hidden shrink-0 lg:flex">
-              <button type="button" onClick={openNew} className={small}>
-                + New sheet
+            <div className="hidden shrink-0 lg:block">
+              <button type="button" onClick={openNew} className={button("ghost", "sm")}>
+                <LineIcon name="plus" className={icon} />
+                New sheet
               </button>
             </div>
           )}
         </div>
         <SheetPicker sheets={sheets} current={everyone ? EVERYONE : current.id} onOpen={onOpen} />
-        {beforeMenu && <div className="flex shrink-0 md:mb-1 lg:hidden">{beforeMenu}</div>}
+        {beforeMenu && <div className="flex shrink-0 lg:hidden">{beforeMenu}</div>}
         {/* Not when it would be empty: a Viewer on ★ Everyone's List, which has nothing to export. */}
         {(canEdit || menuItems) && (
-          <button
-            type="button"
-            aria-label="Sheet menu"
-            aria-haspopup="menu"
-            aria-expanded={tool === "more"}
-            onClick={() => (tool === "more" ? close() : setTool("more"))}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg hover:bg-zinc-100 aria-expanded:bg-zinc-100 md:mb-1 lg:hidden pointer-coarse:h-11 pointer-coarse:w-11 dark:hover:bg-zinc-800 dark:aria-expanded:bg-zinc-800"
-          >
-            ⋯
-          </button>
+          <div className="shrink-0 lg:hidden">
+            <Menu
+              label="Sheet menu"
+              buttonLabel="Sheet menu"
+              align="end"
+              menuClassName="w-72 max-h-[70dvh] overflow-y-auto overscroll-contain"
+              buttonClassName={iconButton}
+              button={<LineIcon name="more" className="size-6" />}
+            >
+              {(close) => (
+                // Any item closes it, the page's tools too; a dialog it opens shows over the page.
+                <div
+                  onClick={(event) => {
+                    if ((event.target as Element).closest('[role="menuitem"]')) close();
+                  }}
+                >
+                  {options && (
+                    <>
+                      {optionItems(close)}
+                      <MenuSeparator />
+                    </>
+                  )}
+                  {canEdit && (
+                    <button type="button" role="menuitem" onClick={() => (close(), openNew())} className={menuItem}>
+                      <LineIcon name="plus" className={icon} />
+                      New sheet
+                    </button>
+                  )}
+                  {menuItems}
+                </div>
+              )}
+            </Menu>
+          </div>
         )}
-        {trailing && <div className="mb-1 hidden shrink-0 pt-2 lg:block">{trailing}</div>}
+        {trailing && <div className="hidden shrink-0 lg:block">{trailing}</div>}
       </div>
 
-      {tool === "more" && (
-        // Any item closes the menu; a form it opens (Rename, New sheet, Delete) then shows below the row.
-        <div
-          role="menu"
-          aria-label="Sheet menu"
-          onClick={(event) => {
-            if ((event.target as Element).closest("button, a")) setTool((t) => (t === "more" ? null : t));
-          }}
-          className="absolute inset-x-0 top-full z-30 flex max-h-[70dvh] flex-col gap-0.5 overflow-y-auto border-b border-zinc-200 bg-white p-2 text-sm text-zinc-900 shadow-lg md:left-auto md:w-80 md:rounded-bl-lg md:border-l lg:hidden dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
-        >
-          {options && (
-            <>
-              <p className={sheetMenuHeading}>{current.title}</p>
-              <div className="flex flex-wrap gap-1">
-                <button type="button" role="menuitem" onClick={() => setTool("rename")} className={small}>
-                  Rename
-                </button>
-                <button type="button" role="menuitem" disabled={pending} onClick={() => runFromMenu(updateSheetOps(current.id, { pinned: !current.pinned }))} className={small}>
-                  {current.pinned ? "Unpin" : "Pin"}
-                </button>
-                {/* Up and down in a phone's sheet picker, left and right in a tablet's tabs. */}
-                <button type="button" role="menuitem" disabled={pending || !left} onClick={() => runFromMenu(left)} className={small}>
-                  <span className="md:hidden">Move up</span>
-                  <span className="hidden md:inline">Move left</span>
-                </button>
-                <button type="button" role="menuitem" disabled={pending || !right} onClick={() => runFromMenu(right)} className={small}>
-                  <span className="md:hidden">Move down</span>
-                  <span className="hidden md:inline">Move right</span>
-                </button>
-                <button type="button" role="menuitem" onClick={() => setTool("delete")} className={`${small} text-red-700 dark:text-red-400`}>
-                  Delete sheet
-                </button>
-              </div>
-            </>
-          )}
-          {canEdit && (
-            <button type="button" role="menuitem" onClick={openNew} className={sheetMenuItem}>
-              + New sheet
-            </button>
-          )}
-          {menuItems}
-        </div>
-      )}
-
-      {tool === "menu" && options && (
-        <div role="menu" aria-label="Sheet options" className="flex flex-wrap gap-1 px-4 py-2 text-sm">
-          <span className="self-center pr-2 text-zinc-500 dark:text-zinc-400">{current.title}:</span>
-          <button type="button" role="menuitem" onClick={() => setTool("rename")} className={small}>
-            Rename
-          </button>
-          <button type="button" role="menuitem" disabled={pending} onClick={() => runFromMenu(updateSheetOps(current.id, { pinned: !current.pinned }))} className={small}>
-            {current.pinned ? "Unpin" : "Pin"}
-          </button>
-          <button type="button" role="menuitem" disabled={pending || !left} onClick={() => runFromMenu(left)} className={small}>
-            Move left
-          </button>
-          <button type="button" role="menuitem" disabled={pending || !right} onClick={() => runFromMenu(right)} className={small}>
-            Move right
-          </button>
-          <button type="button" role="menuitem" onClick={() => setTool("delete")} className={`${small} text-red-700 dark:text-red-400`}>
-            Delete sheet
-          </button>
-        </div>
-      )}
-
-      {tool === "delete" && options && (
-        // Pinned sheets (the father's and mother's) and the last sheet can't go; the server says the same.
-        <form aria-label="Delete sheet" onSubmit={deleteSheet} className="flex flex-wrap items-center gap-2 px-4 py-2 text-sm">
-          {refusal ? (
-            <p>{refusal}</p>
-          ) : (
-            <>
-              <p>Delete the sheet {current.title}? Everyone on it stays in the family.</p>
-              <button type="submit" disabled={pending} className="rounded-full bg-red-700 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 dark:bg-red-500 dark:text-zinc-950">
-                {pending ? "Deleting…" : "Delete sheet"}
-              </button>
-            </>
-          )}
-          <button type="button" onClick={close} className={small}>
-            {refusal ? "Close" : "Cancel"}
-          </button>
-        </form>
-      )}
-
-      {tool === "rename" && options && (
-        <form aria-label="Rename sheet" onSubmit={rename} className="flex flex-wrap items-end gap-2 px-4 py-2">
-          <label className="flex min-w-64 flex-col gap-1 text-sm font-medium">
+      <Dialog open={dialog === "rename" && options} onClose={closeDialog} title="Rename sheet">
+        <form aria-label="Rename sheet" onSubmit={rename} className="flex flex-col gap-5">
+          <label className={fieldLabel}>
             Sheet title
-            <input name="title" defaultValue={current.title} maxLength={120} className={input} />
+            <input name="title" defaultValue={current.title} maxLength={120} className={field} />
           </label>
-          <button type="submit" disabled={pending} className="rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900">
-            Save
-          </button>
-          <button type="button" onClick={close} className={small}>
-            Cancel
-          </button>
+          <Problem error={formError} />
+          <DialogActions>
+            <button type="button" onClick={closeDialog} className={button("ghost")}>
+              Cancel
+            </button>
+            <button type="submit" disabled={pending} className={button("primary")}>
+              {pending ? "Saving…" : "Save"}
+            </button>
+          </DialogActions>
         </form>
-      )}
+      </Dialog>
 
-      {tool === "new" && (
-        <form aria-label="New sheet" onSubmit={create} className="flex flex-wrap items-end gap-2 px-4 py-2">
-          <label className="flex min-w-56 flex-col gap-1 text-sm font-medium">
+      <Dialog open={dialog === "new" && canEdit} onClose={closeDialog} title="New sheet" description="A tab around one person: their ancestors, all of those ancestors' descendants, and their partners.">
+        <form aria-label="New sheet" onSubmit={create} className="flex flex-col gap-5">
+          <label className={fieldLabel}>
             Person
             <select
               value={rootId}
@@ -327,7 +294,7 @@ export function SheetTabs({
                 const person = people.find((p) => p.id === e.target.value);
                 if (person && !titleEdited) setTitle(`${person.name}'s family`);
               }}
-              className={input}
+              className={field}
             >
               <option value="">Choose someone…</option>
               {people.map((p) => (
@@ -337,7 +304,7 @@ export function SheetTabs({
               ))}
             </select>
           </label>
-          <label className="flex min-w-56 flex-col gap-1 text-sm font-medium">
+          <label className={fieldLabel}>
             Title
             <input
               value={title}
@@ -346,25 +313,47 @@ export function SheetTabs({
                 setTitle(e.target.value);
                 setTitleEdited(true);
               }}
-              className={input}
+              className={field}
             />
           </label>
-          <button type="submit" disabled={pending} className="rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-zinc-900">
-            {pending ? "Creating…" : "Create sheet"}
-          </button>
-          <button type="button" onClick={close} className={small}>
-            Cancel
-          </button>
+          <Problem error={formError} />
+          <DialogActions>
+            <button type="button" onClick={closeDialog} className={button("ghost")}>
+              Cancel
+            </button>
+            <button type="submit" disabled={pending} className={button("primary")}>
+              {pending ? "Creating…" : "Create sheet"}
+            </button>
+          </DialogActions>
         </form>
-      )}
+      </Dialog>
 
-      {formError && (
-        <p role="alert" className="px-4 pb-2 text-sm text-red-700 dark:text-red-400">
-          {formError}
-        </p>
-      )}
+      {/* Pinned sheets (the father's and mother's) and the last sheet can't go; the server says the same. */}
+      <Dialog open={dialog === "delete" && options} onClose={closeDialog} title="Delete sheet">
+        <form aria-label="Delete sheet" onSubmit={deleteSheet} className="flex flex-col gap-5">
+          <p className="text-sm text-pretty text-zinc-700 dark:text-zinc-300">{refusal ?? `Delete the sheet ${current.title}? Everyone on it stays in the family.`}</p>
+          <DialogActions>
+            <button type="button" data-autofocus onClick={closeDialog} className={button(refusal ? "secondary" : "ghost")}>
+              {refusal ? "Close" : "Cancel"}
+            </button>
+            {!refusal && (
+              <button type="submit" disabled={pending} className={button("danger")}>
+                {pending ? "Deleting…" : "Delete sheet"}
+              </button>
+            )}
+          </DialogActions>
+        </form>
+      </Dialog>
     </div>
   );
+}
+
+function Problem({ error }: { error: string | null }) {
+  return error ? (
+    <p role="alert" className={formErrorClass}>
+      {error}
+    </p>
+  ) : null;
 }
 
 /**
@@ -381,12 +370,12 @@ function SheetPicker({ sheets, current, onOpen }: { sheets: NamedSheet[]; curren
   const pinned = sheets.filter((s) => s.pinned);
   const others = sheets.filter((s) => !s.pinned);
   return (
-    <div className="relative min-w-0 flex-1 py-1.5 pl-3 md:hidden">
+    <div className="relative min-w-0 flex-1 md:hidden">
       <select
         aria-label="Sheet"
         value={current}
         onChange={(event) => onOpen(event.target.value)}
-        className="h-10 w-full appearance-none truncate rounded-lg border border-zinc-300 bg-white pl-3 pr-9 text-sm font-medium pointer-coarse:h-11 dark:border-zinc-700 dark:bg-zinc-900"
+        className="h-10 w-full appearance-none truncate rounded-lg border border-zinc-300 bg-white pr-9 pl-3 text-sm font-medium text-zinc-900 shadow-sm outline-none focus:ring-2 focus:ring-blue-500/30 pointer-coarse:h-11 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
       >
         <option value={EVERYONE}>★ Everyone</option>
         {pinned.length && others.length ? (
@@ -398,9 +387,7 @@ function SheetPicker({ sheets, current, onOpen }: { sheets: NamedSheet[]; curren
           sheets.map(option)
         )}
       </select>
-      <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 dark:text-zinc-400">
-        <path d="M6 9l6 6 6-6" />
-      </svg>
+      <LineIcon name="chevronDown" className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-zinc-500 dark:text-zinc-400" />
     </div>
   );
 }

@@ -65,7 +65,7 @@ test("invite by email: the invitee sees it on the tree link and the dashboard, a
     await cousin.page.getByRole("button", { name: "Accept the invite to Cruz family" }).click();
     await expect(cousin.page).toHaveURL(new RegExp(`/g/${groupId}/s/`));
     await expect(cards(cousin.page)).toHaveCount(36);
-    await expect(cousin.page.getByRole("button", { name: "+ New sheet" })).toBeVisible(); // Maintain edits
+    await expect(cousin.page.getByRole("button", { name: "New sheet", exact: true })).toBeVisible(); // Maintain edits
 
     await cousin.page.getByRole("banner").getByRole("link", { name: "Family Tree", exact: true }).click();
     await expect(row(cousin.page, "Shared with me", "Cruz family")).toContainText("Maintain");
@@ -140,7 +140,7 @@ test("request access, approved as Maintain: the badge shows it, and the requeste
 
     await asker.page.goto(`/g/${groupId}/s/${cruzSheet}`);
     await expect(cards(asker.page)).toHaveCount(36);
-    await expect(asker.page.getByRole("button", { name: "+ New sheet" })).toBeVisible();
+    await expect(asker.page.getByRole("button", { name: "New sheet", exact: true })).toBeVisible();
     await asker.page.goto("/dashboard");
     await expect(row(asker.page, "Shared with me", "Cruz family")).toContainText("Maintain");
     await expect(region(asker.page, "My access requests")).toHaveCount(0);

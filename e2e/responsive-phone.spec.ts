@@ -189,16 +189,18 @@ test("a sheet opens zoomed in at its root, and the picker switches sheets", asyn
 
 test("the eye stays in the row before the sheet menu, which holds the sheet's options and the other tools", async ({ page, signIn, sampleGroup }) => {
   await openSampleGroup(page, signIn, sampleGroup);
-  for (const name of ["Export", "Import…", "Sheet options", "+ New sheet"]) await expect(page.getByRole("button", { name, exact: true })).toHaveCount(0);
+  for (const name of ["Export", "Import…", "Sheet options", "New sheet"]) await expect(page.getByRole("button", { name, exact: true })).toHaveCount(0);
 
   // The eye that hides photos: in the row, just before the menu (the owner's choice after the preview).
   const eye = page.getByRole("button", { name: "Hide photos" });
   const [eyeBox, menuButton] = [await box(eye), await box(page.getByRole("button", { name: "Sheet menu" }))];
   expect(eyeBox.x + eyeBox.width).toBeLessThanOrEqual(menuButton.x);
   expect(Math.abs(eyeBox.y + eyeBox.height / 2 - (menuButton.y + menuButton.height / 2))).toBeLessThan(2);
-  // A bigger eye than on a computer, with no circle around it (also the owner's choice).
-  expect(await eye.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe("0px");
-  expect((await box(eye.locator("svg"))).width).toBe(24);
+  // The same square, bordered button as on a computer (the owner's choice in the production look; it
+  // was a bigger eye with no border), 44 px on a touch screen.
+  expect(await eye.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe("1px");
+  expect(eyeBox.height).toBeGreaterThanOrEqual(44);
+  expect(Math.abs(eyeBox.width - eyeBox.height)).toBeLessThan(1);
   await eye.tap();
   await expect(eye).toHaveAttribute("aria-pressed", "true");
   await eye.tap();
@@ -206,7 +208,7 @@ test("the eye stays in the row before the sheet menu, which holds the sheet's op
 
   await page.getByRole("button", { name: "Sheet menu" }).click();
   const menu = sheetMenu(page);
-  for (const name of ["Rename", "Unpin", "Move up", "Delete sheet", "+ New sheet", "Picture (PNG)", "Data: whole group (JSON)", "Import…"]) {
+  for (const name of ["Rename…", "Unpin", "Move up", "Delete sheet…", "New sheet", "Picture (PNG)", "Data: whole group (JSON)", "Import…"]) {
     await expect(menu.getByRole("menuitem", { name, exact: true })).toBeVisible();
   }
   await expect(menu.getByText("Hide photos")).toHaveCount(0);
@@ -258,10 +260,10 @@ test("a person's panel opens over the bottom half, with their card above it", as
   await shot(page, "phone-panel");
 
   // Every button in it is big enough to tap.
-  for (const name of ["Close", "Edit details", "Add child", "Delete"]) expect((await box(panel.getByRole("button", { name, exact: true }))).height, name).toBeGreaterThanOrEqual(44);
+  for (const name of ["Close", "Edit details", "Add child", "Delete Olivia Cruz"]) expect((await box(panel.getByRole("button", { name, exact: true }))).height, name).toBeGreaterThanOrEqual(44);
 
   // Her father, from the panel: his card, now above the screen, comes into view too.
-  await panel.getByRole("button", { name: "Jerry Willow", exact: true }).click();
+  await panel.getByRole("button", { name: "Jerry Willow, 1920 – 1989" }).click(); // named like his card
   await expect(panel.getByRole("heading", { name: "Jerry Willow" })).toBeVisible();
   await expect.poll(() => inView("Jerry Willow")).toBe(true);
 
@@ -306,7 +308,8 @@ test("the main controls are big enough to tap", async ({ page, signIn, sampleGro
   ];
   for (const control of controls) expect((await box(control)).height).toBeGreaterThanOrEqual(44);
   await page.getByRole("button", { name: "Sheet menu" }).click();
-  for (const item of await sheetMenu(page).getByRole("menuitem").all()) expect((await box(item)).height).toBeGreaterThanOrEqual(44);
+  // Measured once the menu's opening animation (a slight scale) is over.
+  for (const item of await sheetMenu(page).getByRole("menuitem").all()) await expect.poll(async () => (await box(item)).height).toBeGreaterThanOrEqual(44);
   // Text fields have 16 px text, so the phone doesn't zoom in when one is tapped.
   await sheetMenu(page).getByRole("menuitem", { name: "Rename" }).click();
   const title = page.getByRole("form", { name: "Rename sheet" }).getByRole("textbox", { name: "Sheet title" });
@@ -325,7 +328,7 @@ test("a Viewer gets the eye, and a sheet menu with only the picture", async ({ b
     const menu = sheetMenu(viewerPage);
     await expect(menu.getByRole("menuitem", { name: "Picture (PNG)" })).toBeVisible();
     await expect(viewerPage.getByRole("button", { name: "Hide photos" })).toBeVisible();
-    for (const name of ["Rename", "+ New sheet", "Import…", "Data: whole group (JSON)"]) await expect(menu.getByRole("menuitem", { name, exact: true })).toHaveCount(0);
+    for (const name of ["Rename…", "New sheet", "Import…", "Data: whole group (JSON)"]) await expect(menu.getByRole("menuitem", { name, exact: true })).toHaveCount(0);
   } finally {
     await viewerPage.context().close();
   }

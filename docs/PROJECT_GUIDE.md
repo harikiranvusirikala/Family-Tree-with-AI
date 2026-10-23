@@ -311,10 +311,10 @@ The sheets page is the heart of the app. Here's how its screen is built:
 
 ```
 +------------------------------------------------------------------------+
-| AppHeader     Family Tree · group name    Members  Settings  Theme  HK |
+| AppHeader  Family Tree / group v   Tree  Members  Settings  Theme  HK  |
 +------------------------------------------------------------------------+
-| SheetTabs   * Everyone | Dad's family | Mum's family | +               |
-|                                  (eye)  Export  Import...  Ask AI      |
+| SheetTabs  ... [* Everyone | Dad's family | Mum's family]  + New sheet |
+|                                 (eye)  Export  Import...  [Ask AI]     |
 +--------------------------------------------+---------------------------+
 |                                            |  One side panel at a time |
 |  FamilyCanvas (drawn with React Flow)      |                           |
@@ -399,6 +399,7 @@ flowchart TB
 | [Avatar.tsx](../src/components/ui/Avatar.tsx) | An account's initials in a circle (the account menu, members, requests) |
 | [PageHeader.tsx](../src/components/ui/PageHeader.tsx) | A page's heading, the sentence under it and its main buttons |
 | [Skeleton.tsx](../src/components/ui/Skeleton.tsx) | Grey blocks in the page's shape while it loads |
+| [GradientSparkle.tsx](../src/components/ui/GradientSparkle.tsx) | Ask AI's sparkle, in the blue-to-pink gradient |
 | [MessagePage.tsx](../src/components/ui/MessagePage.tsx) | A card in the middle of the page, for pages that say one thing (no access, an invite, not found) |
 | [icons.tsx](../src/components/ui/icons.tsx) | The app's line icons |
 

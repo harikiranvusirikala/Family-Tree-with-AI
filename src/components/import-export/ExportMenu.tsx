@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { button } from "@/components/ui/button";
+import { LineIcon } from "@/components/ui/icons";
+import { Menu, MenuLabel, menuItem } from "@/components/ui/Menu";
 
 /**
  * F9: Export, at the end of the sheet tabs. Everyone can save the sheet as a picture or print it
@@ -23,48 +25,21 @@ export function ExportMenu({
   onPicture?: () => void;
   onPrint?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const menu = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent | KeyboardEvent) => {
-      if (event instanceof KeyboardEvent ? event.key === "Escape" : !menu.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", close);
-    return () => {
-      document.removeEventListener("mousedown", close);
-      document.removeEventListener("keydown", close);
-    };
-  }, [open]);
-
   return (
-    <div ref={menu} className="relative">
-      <button
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        disabled={busy}
-        onClick={() => setOpen(!open)}
-        className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-800"
-      >
-        {busy ? "Preparing…" : "Export"}
-      </button>
-      {open && (
-        <div role="menu" aria-label="Export" className="absolute right-0 z-30 mt-1 w-64 rounded-lg border border-zinc-200 bg-white p-1 text-zinc-900 shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
-          <ExportItems
-            groupId={groupId}
-            sheetId={sheetId}
-            canExportData={canExportData}
-            onPicture={onPicture}
-            onPrint={onPrint}
-            onDone={() => setOpen(false)}
-            itemClass="block w-full rounded-md px-3 py-1.5 text-left text-sm hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800"
-          />
-        </div>
-      )}
-    </div>
+    <Menu
+      label="Export"
+      disabled={busy}
+      menuClassName="w-64"
+      buttonClassName={button("secondary")}
+      button={
+        <>
+          <LineIcon name="download" className="size-4" />
+          {busy ? "Preparing…" : "Export"}
+        </>
+      }
+    >
+      {(close) => <ExportItems groupId={groupId} sheetId={sheetId} canExportData={canExportData} onPicture={onPicture} onPrint={onPrint} onDone={close} itemClass={menuItem} />}
+    </Menu>
   );
 }
 
@@ -95,9 +70,7 @@ export function ExportItems({
   const data = (format: "json" | "gedcom", sheet: boolean) => `/api/groups/${groupId}/export?format=${format}${sheet ? `&sheet=${sheetId}` : ""}`;
   return (
     <>
-      {headings && (onPicture || (canExportData && sheetId)) && (
-        <p className="px-3 pt-1 text-xs text-zinc-500 dark:text-zinc-400">{sheetId ? "This sheet" : "Everyone"}</p>
-      )}
+      {headings && (onPicture || (canExportData && sheetId)) && <MenuLabel>{sheetId ? "This sheet" : "Everyone"}</MenuLabel>}
       {onPicture && (
         <button type="button" role="menuitem" className={itemClass} onClick={() => (onDone(), onPicture())}>
           Picture (PNG)
@@ -120,7 +93,7 @@ export function ExportItems({
               </a>
             </>
           )}
-          {headings && <p className="px-3 pt-2 text-xs text-zinc-500 dark:text-zinc-400">The whole group</p>}
+          {headings && <MenuLabel>The whole group</MenuLabel>}
           <a role="menuitem" className={itemClass} href={data("gedcom", false)} download onClick={onDone}>
             Data: whole group (GEDCOM)
           </a>

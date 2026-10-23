@@ -31,3 +31,7 @@ export function button(variant: ButtonVariant = "secondary", size: keyof typeof 
 /** A square button holding only an icon (its accessible name comes from aria-label). */
 export const iconButton =
   "inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-zinc-600 transition-colors outline-none hover:bg-zinc-100 hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-blue-500/70 disabled:opacity-60 aria-expanded:bg-zinc-100 aria-expanded:text-zinc-900 pointer-coarse:size-11 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 dark:aria-expanded:bg-zinc-800 dark:aria-expanded:text-zinc-100";
+
+/** The same with a border, beside outlined buttons (the eye beside Export); dark while pressed. */
+export const outlineIconButton =
+  "inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-zinc-300 bg-white text-zinc-700 shadow-sm transition-colors outline-none hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-blue-500/70 aria-pressed:border-zinc-900 aria-pressed:bg-zinc-900 aria-pressed:text-white pointer-coarse:size-11 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:aria-pressed:border-white dark:aria-pressed:bg-white dark:aria-pressed:text-zinc-900";

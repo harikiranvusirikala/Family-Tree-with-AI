@@ -59,7 +59,7 @@ test("a group opens on its first pinned sheet; ★ Everyone, the first tab, show
   await expect(cards(page)).toHaveCount(36);
   await expect(page.getByText("36 people · 12 couples")).toBeVisible();
   await expect(page.getByRole("button", { name: "Sheet options" })).toHaveCount(0); // nothing to rename, pin, move or delete
-  await expect(page.getByRole("button", { name: "+ New sheet" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "New sheet", exact: true })).toBeVisible();
   await page.waitForTimeout(300); // let the tree settle for the picture
   await page.screenshot({ path: "test-results/screenshots/everyone-tree.png" });
 
@@ -285,7 +285,7 @@ test("the Network: everyone and every couple; choosing someone lights up their r
   await expect(page.getByRole("group", { name: "Key" })).toBeVisible();
   // Bigger circles have more relations: Steve Cruz (7) over Alex Cruz (2).
   const photo = (name: string) => circle(page, name).locator("div.rounded-full").first();
-  expect((await box(photo("Steve Cruz, 1985"))).width).toBeGreaterThan((await box(photo("Alex Cruz, 2021"))).width + 20);
+  expect((await box(photo("Steve Cruz, 1985"))).width / (await box(photo("Alex Cruz, 2021"))).width).toBeGreaterThan(1.4); // whatever the zoom
   await page.waitForTimeout(300); // let the network settle for the picture
   await page.screenshot({ path: "test-results/screenshots/everyone-network.png" });
 

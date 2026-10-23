@@ -171,7 +171,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 
 - The app works on phones and tablets as well as computers, mainly in phone browsers. Computers keep their layout.
 - Phones switch sheets with a sheet picker: the open sheet's title, opening a list of every sheet.
-- Below 1024 px (phones and tablets) the sheet's tools (Export, Import… and the sheet's own options) are in one ⋯ menu, with the eye that hides photos just before it in the sheet row (bigger, with no circle around it), and Ask AI is a round button over the tree.
+- Below 1024 px (phones and tablets) the sheet's tools (Export, Import… and the sheet's own options) are in one ⋯ menu, with the eye that hides photos just before it in the sheet row (the same square, bordered button as on computers since the production look; it was a bigger eye with no circle around it), and Ask AI is a round button over the tree.
 - On a phone, tapping a person opens their details over the bottom half of the screen, with the tree and their card above. Tablets keep the details beside the tree.
 - A sheet opens zoomed in at its root, names readable, on phones (the owner's choice) and tablets; ⛶ shows the whole tree.
 
@@ -196,7 +196,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 - Uploads go straight from the browser to Cloudinary, signed by the app for a random name in the group's folder.
 - Stored at most 1600 px on the long side; cards show a face crop. Automatic face crop only, no manual cropping for now.
 - Replacing or removing a photo deletes the old one from Cloudinary (Remove asks first: no Undo). Deleting a person keeps their photo, so Undo brings it back.
-- Hide photos (added after step 11): an eye button at the end of the sheet tabs, before Export (on phones and tablets, a bigger eye just before ⋯), shows initials instead of every photo on the cards, in the person panel, and in a saved or printed picture. It saves nothing and anyone can use it; it lasts until the next visit.
+- Hide photos (added after step 11): an eye button at the end of the sheet tabs, before Export (on phones and tablets, just before ⋯), shows initials instead of every photo on the cards, in the person panel, and in a saved or printed picture. It saves nothing and anyone can use it; it lasts until the next visit.
 
 ### AI chat behaviour
 
@@ -268,6 +268,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 - Create a group, Invite, New sheet and the type-the-name confirmations become dialogs. The family tree cards show people, couples and members counts, but no "last changed" time.
 - The dashboard and the header's switcher say "group", as the rest of the app does ("New group", "Your groups"). The cards show no member avatars: only Admins and the Owner see who is in a group. (Part 2, 2026-10-23.)
 - On the members page a role is a menu, each role saying what it allows; choosing one saves it straight away. Remove asks in a dialog; leaving stays in Settings. The type-the-name confirmations in Settings keep their button disabled until the name is typed. (Part 3, 2026-10-23.)
+- The sheet tabs are a segmented control, and the open sheet's options a drop-down menu, still first in the row on computers. New sheet, Rename and Delete sheet open dialogs. The eye that hides photos is the same square, bordered button on phones, tablets and computers (the owner's choice). (Part 4, 2026-10-23.)
 
 ### First build step
 

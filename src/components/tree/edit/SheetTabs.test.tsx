@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { standInModalDialogs } from "@test/dialogs";
 import type { GroupTree } from "@/tree/types";
 import { SheetTabs } from "./SheetTabs";
 
@@ -47,6 +48,8 @@ const openMenu = () => {
 };
 const items = (menu: HTMLElement) => within(menu).getAllByRole("menuitem").map((item) => item.textContent);
 
+beforeAll(standInModalDialogs);
+
 describe("the sheet row on phones and tablets (owner request)", () => {
   test("a phone's sheet picker lists the sheets in tab order, pinned ones first, and opens the one chosen", () => {
     const onOpen = tabs(false);
@@ -71,7 +74,7 @@ describe("the sheet row on phones and tablets (owner request)", () => {
   test("the sheet menu has the sheet's options for Maintain and up, then the tools", () => {
     tabs(true);
     const menu = openMenu();
-    expect(items(menu)).toEqual(["Rename", "Unpin", "Move upMove left", "Move downMove right", "Delete sheet", "+ New sheet", "Picture (PNG)"]);
+    expect(items(menu)).toEqual(["Rename…", "Unpin", "Move upMove left", "Move downMove right", "Delete sheet…", "New sheet", "Picture (PNG)"]);
   });
 
   test("a Viewer's sheet menu has only the tools", () => {
@@ -79,13 +82,14 @@ describe("the sheet row on phones and tablets (owner request)", () => {
     expect(items(openMenu())).toEqual(["Picture (PNG)"]);
   });
 
-  test("choosing an item closes the menu; Rename then shows its form", () => {
+  test("choosing an item closes the menu; Rename… then opens its dialog", () => {
     tabs(true);
     fireEvent.click(within(openMenu()).getByRole("menuitem", { name: "Picture (PNG)" }));
     expect(screen.queryByRole("menu", { name: "Sheet menu" })).toBeNull();
-    fireEvent.click(within(openMenu()).getByRole("menuitem", { name: "Rename" }));
+    fireEvent.click(within(openMenu()).getByRole("menuitem", { name: "Rename…" }));
     expect(screen.queryByRole("menu", { name: "Sheet menu" })).toBeNull();
-    expect(screen.getByRole("form", { name: "Rename sheet" })).toBeDefined();
+    const dialog = within(screen.getByRole("dialog", { name: "Rename sheet" }));
+    expect((dialog.getByRole("textbox", { name: "Sheet title" }) as HTMLInputElement).value).toBe("Cruz family");
   });
 });
 
@@ -101,13 +105,13 @@ describe("★ Everyone in the sheet row (owner request)", () => {
     expect(onOpen).toHaveBeenLastCalledWith("everyone");
   });
 
-  test("while it's open: selected, no sheet options, but + New sheet and the tools", () => {
+  test("while it's open: selected, no sheet options, but New sheet and the tools", () => {
     tabs(true, true);
     expect(screen.getByRole("tab", { name: "★ Everyone" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("tab", { name: "Cruz family" }).getAttribute("aria-selected")).toBe("false");
     expect((screen.getByRole("combobox", { name: "Sheet" }) as HTMLSelectElement).value).toBe("everyone");
     expect(screen.queryByRole("button", { name: "Sheet options" })).toBeNull();
-    expect(items(openMenu())).toEqual(["+ New sheet", "Picture (PNG)"]);
+    expect(items(openMenu())).toEqual(["New sheet", "Picture (PNG)"]);
   });
 
   test("a Viewer in the List, with nothing to export, gets no empty sheet menu", () => {

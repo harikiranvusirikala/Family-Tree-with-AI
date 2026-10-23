@@ -64,10 +64,49 @@ body {
     font-size: 16px;
   }
 
-  /* React Flow's zoom buttons, 26 px by default. */
+  /* React Flow's zoom buttons, 26 px by default (32 px on computers, below). */
   .react-flow .react-flow__controls-button {
     width: 40px;
     height: 40px;
+  }
+}
+
+/* The canvases' zoom buttons and minimap as floating cards (the production look). React Flow reads
+   these colours; `dark` is the class its colorMode gives it. Two classes, so they beat its own rules. */
+.react-flow {
+  --xy-controls-button-background-color: #ffffff;
+  --xy-controls-button-background-color-hover: #f4f4f5;
+  --xy-controls-button-color: #3f3f46;
+  --xy-controls-button-color-hover: #18181b;
+  --xy-controls-button-border-color: #e4e4e7;
+  --xy-controls-box-shadow: 0 1px 2px rgb(24 24 27 / 0.06), 0 6px 16px -4px rgb(24 24 27 / 0.14);
+  --xy-minimap-background-color: #ffffff;
+  --xy-minimap-mask-background-color: rgb(244 244 245 / 0.75);
+}
+
+.react-flow.dark {
+  --xy-controls-button-background-color: #18181b;
+  --xy-controls-button-background-color-hover: #27272a;
+  --xy-controls-button-color: #d4d4d8;
+  --xy-controls-button-color-hover: #fafafa;
+  --xy-controls-button-border-color: #27272a;
+  --xy-controls-box-shadow: 0 6px 18px -4px rgb(0 0 0 / 0.7);
+  --xy-minimap-background-color: #18181b;
+  --xy-minimap-mask-background-color: rgb(9 9 11 / 0.6);
+}
+
+.react-flow .react-flow__controls,
+.react-flow .react-flow__minimap {
+  overflow: hidden;
+  border: 1px solid var(--xy-controls-button-border-color);
+  border-radius: 12px;
+  box-shadow: var(--xy-controls-box-shadow);
+}
+
+@media (pointer: fine) {
+  .react-flow .react-flow__controls-button {
+    width: 32px;
+    height: 32px;
   }
 }
 
