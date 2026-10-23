@@ -37,8 +37,16 @@ export interface LayoutResult {
   height: number;
 }
 
+export interface LayoutOptions {
+  /**
+   * Every couple's children eldest first, left to right, each with their whole family (stored sheets,
+   * an owner request). Without it, avoiding crossing lines comes first (★ Everyone).
+   */
+  strictSiblings?: boolean;
+}
+
 /** ARCHITECTURE.md §7. Async because ELK.js only offers an async API. */
 export interface LayoutEngine {
   name: string;
-  layout(view: SheetView): Promise<LayoutResult>;
+  layout(view: SheetView, options?: LayoutOptions): Promise<LayoutResult>;
 }

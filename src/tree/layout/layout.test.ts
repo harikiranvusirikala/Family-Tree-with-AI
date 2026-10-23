@@ -5,7 +5,8 @@ import { buildSheetView } from "../sheet-view";
 import { computeGenerations } from "../generations";
 import type { FamilyData, SheetView } from "../types";
 import { CARD_HEIGHT, CARD_WIDTH, HEART_GAP, layoutEngine as engine, type LayoutResult } from ".";
-import { cruzYoung, wholeSampleSheet } from "@test/fixtures/cruz-young";
+import { cruzSheet, cruzYoung, wholeSampleSheet } from "@test/fixtures/cruz-young";
+import { birthOrder } from "../years";
 import { generateFamily } from "@test/fixtures/generated";
 
 function overlaps(result: LayoutResult): string[] {
@@ -173,5 +174,77 @@ describe(`layout engine: ${engine.name}`, () => {
     const elapsed = performance.now() - start;
     expect(r.persons).toHaveLength(300);
     expect(elapsed).toBeLessThan(limit);
+  });
+
+  test(`with siblings eldest first (two runs of ELK, stored sheets), a 300-person family in under ${2 * limit} ms`, async () => {
+    const big = generateFamily(300);
+    const bigView = buildSheetView(big.data, big.sheet);
+    await engine.layout(bigView, { strictSiblings: true }); // warm-up
+    const start = performance.now();
+    const r = await engine.layout(bigView, { strictSiblings: true });
+    const elapsed = performance.now() - start;
+    expect(overlaps(r)).toEqual([]);
+    expect(elapsed).toBeLessThan(2 * limit);
+  });
+});
+
+describe("siblings eldest first on stored sheets (owner request)", () => {
+  const birth = (r: LayoutResult, v: SheetView, id: string) => birthOrder(v.persons.find((p) => p.id === id)!) ?? Infinity;
+
+  /** No child line crosses another: on each row, every couple's children sit on their own side of the next couple's. */
+  function noCrossings(r: LayoutResult, v: SheetView): string[] {
+    const hearts = new Map(r.unions.map((u) => [u.id, u]));
+    const withKids = v.unions.filter((u) => u.childIds.length > 0);
+    const found: string[] = [];
+    for (const a of withKids) {
+      for (const b of withKids) {
+        if (a === b || hearts.get(a.id)!.y !== hearts.get(b.id)!.y || hearts.get(a.id)!.x >= hearts.get(b.id)!.x) continue;
+        const aRight = Math.max(...a.childIds.map((c) => at(r, c).x));
+        const bLeft = Math.min(...b.childIds.map((c) => at(r, c).x));
+        if (aRight > bLeft) found.push(`${a.id} / ${b.id}`);
+      }
+    }
+    return found;
+  }
+
+  // With the in-law parents (a sheet's extra people), Timothy Cruz (1940) is tied to Emma Young's parents
+  // too, so he keeps the crossing-free place: the planned exception.
+  for (const [name, sheet, tied] of [
+    ["the Cruz sheet", cruzSheet, []],
+    ["the Cruz sheet with the in-law parents", wholeSampleSheet, ["timothy-cruz-1940"]],
+  ] as const) {
+    test(`${name}: every couple's children eldest first, families together, no crossing lines`, async () => {
+      const v = buildSheetView(cruzYoung, sheet);
+      const r = await engine.layout(v, { strictSiblings: true });
+      expect(overlaps(r)).toEqual([]);
+      expect(noCrossings(r, v)).toEqual([]);
+      for (const u of v.unions) expectPartnersBesideUnion(r, v, u.id);
+      for (const u of v.unions) {
+        const free = u.childIds.filter((c) => !(tied as readonly string[]).includes(c));
+        const byX = [...free].sort((a, b) => at(r, a).x - at(r, b).x);
+        const name = (id: string) => v.persons.find((p) => p.id === id)!.name;
+        const byBirth = [...free].sort((a, b) => birth(r, v, a) - birth(r, v, b) || name(a).localeCompare(name(b)));
+        expect(byX, u.id).toEqual(byBirth);
+      }
+    });
+  }
+
+  test("born the same year: A to Z by name, whatever their ids (as in the panels)", async () => {
+    // The 2021 twins with ids in the other order: Alex Cruz still comes before William Cruz.
+    const data: FamilyData = {
+      persons: cruzYoung.persons.map((p) => (p.id === "alex-cruz" ? { ...p, id: "z-alex" } : p)),
+      unions: cruzYoung.unions.map((u) => ({ ...u, childIds: u.childIds.map((c) => (c === "alex-cruz" ? "z-alex" : c)) })),
+    };
+    const r = await engine.layout(buildSheetView(data, cruzSheet), { strictSiblings: true });
+    expect(at(r, "z-alex").x).toBeLessThan(at(r, "william-cruz-2021").x);
+  });
+
+  test("Jake Cruz's children: Marie (1973), Cullen (1975), Christina (1978) with her family", async () => {
+    const v = buildSheetView(cruzYoung, wholeSampleSheet);
+    const r = await engine.layout(v, { strictSiblings: true });
+    const xs = ["marie-cruz", "cullen-cruz", "christina-cruz"].map((id) => at(r, id).x);
+    expect(xs).toEqual([...xs].sort((a, b) => a - b));
+    // Her husband and children came with her, still below her.
+    expect(at(r, "carrie-young").y).toBeGreaterThan(at(r, "christina-cruz").y);
   });
 });

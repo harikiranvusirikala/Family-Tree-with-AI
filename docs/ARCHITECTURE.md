@@ -233,7 +233,7 @@ interface LayoutEngine {
 - Partners are grouped into **blocks** drawn side by side: a couple, or a chain such as ex-partner – person – partner. Each block is one ELK node, so partners can never be pulled apart.
 - Each block has fixed connection points: one under each heart, one above each person whose parents are on the sheet. ELK then arranges the blocks in generation rows and avoids crossing lines.
 - Hearts are placed from the final card positions by a shared helper, the same way for every engine.
-- **Sibling order:** avoiding crossing lines comes first, as in the sample image. Siblings with no family of their own below them are then re-packed eldest first, left to right. Siblings with families of their own keep the crossing-free position, so they may not be in birth order.
+- **Sibling order:** on a stored sheet (an owner request, 2026-10-23), every couple's children are eldest first, left to right, each with their whole family: a second ELK run keeps an order built from the first, crossing-free run (`strictSiblings`, `strictOrder()`). A child whose family is also tied to another family above (a partner whose parents are on the sheet, only through a sheet's extra people) keeps the crossing-free place. On ★ Everyone's Tree (and the dev pages), avoiding crossing lines comes first, as in the sample image; siblings with no family of their own below them are then re-packed eldest first, and siblings with families of their own keep the crossing-free position.
 - Node placement is `NETWORK_SIMPLEX`, which centres parents over their children. `BRANDES_KOEPF` is about 35% faster but hangs each family off one child, so it looks lopsided.
 
 Card design, from FEATURES.md and the sample:

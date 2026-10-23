@@ -126,9 +126,58 @@ function byBirth(persons: Map<string, Person>) {
     eldest(persons.get(a)) - eldest(persons.get(b));
 }
 
+/**
+ * Strict sibling order (stored sheets, an owner request): a model order for ELK's second pass in which
+ * every couple's children come eldest first, left to right, each carrying their whole family. Built from
+ * the first, crossing-free pass (`x`): a child's family is every block below them reached only through
+ * them. A child whose family is also tied to another family above (a partner whose parents are on the
+ * sheet, only possible through a sheet's extra people) keeps its place, so no line crosses.
+ */
+function strictOrder(view: SheetView, blocks: Block[], blockOf: Map<string, Block>, x: Map<string, number>, y: Map<string, number>, eldestFirst: (a: string, b: string) => number): Block[] {
+  const parentUnionOf = new Map<string, Union>();
+  for (const u of view.unions) for (const c of u.childIds) parentUnionOf.set(c, u);
+  const ties = (b: Block) => new Set(b.members.flatMap((m) => parentUnionOf.get(m)?.id ?? []));
+  /** The blocks each block's couples have children in. */
+  const below = new Map<Block, Block[]>(blocks.map((b) => [b, []]));
+  for (const u of view.unions) {
+    const parent = blockOf.get(u.partnerIds[0])!;
+    for (const c of u.childIds) {
+      const child = blockOf.get(c)!;
+      if (child !== parent && !below.get(parent)!.includes(child)) below.get(parent)!.push(child);
+    }
+  }
+  const family = (root: Block) => {
+    const all = [root];
+    for (let i = 0; i < all.length; i++) for (const b of below.get(all[i])!) if (!all.includes(b)) all.push(b);
+    return all;
+  };
+  const key = new Map(blocks.map((b) => [b, x.get(b.id)!]));
+  const right = (bs: Block[]) => Math.max(...bs.map((b) => key.get(b)! + widthOf(b)));
+  const left = (bs: Block[]) => Math.min(...bs.map((b) => key.get(b)!));
+
+  // From the top down, so a family moved with its parent is ordered again inside its new place.
+  const unions = [...view.unions].filter((u) => u.childIds.length > 1).sort((a, b) => y.get(blockOf.get(a.partnerIds[0])!.id)! - y.get(blockOf.get(b.partnerIds[0])!.id)!);
+  for (const u of unions) {
+    const parent = blockOf.get(u.partnerIds[0])!;
+    const movable = [...new Set(u.childIds)]
+      .map((c) => ({ c, block: blockOf.get(c)! }))
+      .filter(({ block }) => block !== parent && ties(block).size === 1)
+      .map((m) => ({ ...m, family: family(m.block) }))
+      .filter((m) => m.family.slice(1).every((b) => ties(b).size === 1));
+    if (movable.length < 2) continue;
+    let cursor = Math.min(...movable.map((m) => left(m.family)));
+    for (const m of [...movable].sort((a, b) => eldestFirst(a.c, b.c))) {
+      const shift = cursor - left(m.family);
+      for (const b of m.family) key.set(b, key.get(b)! + shift);
+      cursor = right(m.family) + 48;
+    }
+  }
+  return [...blocks].sort((a, b) => key.get(a)! - key.get(b)! || x.get(a.id)! - x.get(b.id)!);
+}
+
 export const elkEngine: LayoutEngine = {
   name: "ELK.js",
-  async layout(view) {
+  async layout(view, options = {}) {
     const personById = new Map(view.persons.map((p) => [p.id, p]));
     const parentUnionOf = new Map<string, Union>();
     for (const u of view.unions) for (const c of u.childIds) parentUnionOf.set(c, u);
@@ -165,27 +214,37 @@ export const elkEngine: LayoutEngine = {
       }
     }
 
-    const graph: ElkNode = {
-      id: "root",
-      layoutOptions: ELK_OPTIONS,
-      children: blocks.map((b) => ({
-        id: b.id,
-        width: widthOf(b),
-        height: CARD_HEIGHT,
-        ports: ports.get(b.id),
-        layoutOptions: { "elk.portConstraints": "FIXED_POS" },
-      })),
-      edges,
+    /** One ELK run over `ordered` blocks; `forced` keeps that order in every row. */
+    const run = async (ordered: Block[], forced: boolean) => {
+      const rank = new Map(ordered.map((b, i) => [b.id, i]));
+      const graph: ElkNode = {
+        id: "root",
+        layoutOptions: forced ? { ...ELK_OPTIONS, "elk.layered.crossingMinimization.forceNodeModelOrder": "true" } : ELK_OPTIONS,
+        children: ordered.map((b) => ({
+          id: b.id,
+          width: widthOf(b),
+          height: CARD_HEIGHT,
+          ports: ports.get(b.id),
+          layoutOptions: { "elk.portConstraints": "FIXED_POS" },
+        })),
+        edges: forced ? [...edges].sort((a, b) => rank.get(blockOf.get(a.targets[0].slice(3))!.id)! - rank.get(blockOf.get(b.targets[0].slice(3))!.id)!) : edges,
+      };
+      const result = await elk.layout(graph);
+      const x = new Map<string, number>();
+      const y = new Map<string, number>();
+      for (const n of result.children ?? []) {
+        x.set(n.id, n.x ?? 0);
+        y.set(n.id, n.y ?? 0);
+      }
+      return { x, y };
     };
 
-    const result = await elk.layout(graph);
-    const x = new Map<string, number>();
-    const y = new Map<string, number>();
-    for (const n of result.children ?? []) {
-      x.set(n.id, n.x ?? 0);
-      y.set(n.id, n.y ?? 0);
-    }
-    orderFreeSiblings(view, blocks, blockOf, x, y, (id) => eldest(personById.get(id)));
+    let { x, y } = await run(blocks, false);
+    const birth = (id: string) => eldest(personById.get(id));
+    // Eldest first; the same date (or none), A to Z by name, as the panels list children.
+    const byAge = (a: string, b: string) => birth(a) - birth(b) || (personById.get(a)?.name ?? "").localeCompare(personById.get(b)?.name ?? "");
+    if (options.strictSiblings) ({ x, y } = await run(strictOrder(view, blocks, blockOf, x, y, byAge), true));
+    orderFreeSiblings(view, blocks, blockOf, x, y, birth);
 
     const persons: PositionedPerson[] = view.persons.map((p) => {
       const block = blockOf.get(p.id)!;

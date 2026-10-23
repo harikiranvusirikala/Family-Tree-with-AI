@@ -15,6 +15,7 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { EVERYONE } from "@/tree/everyone";
 import { CARD_HEIGHT, CARD_WIDTH, HEART_GAP, ROW_GAP, layoutEngine } from "@/tree/layout";
 import type { SheetView } from "@/tree/types";
 import { marriageDate } from "@/tree/years";
@@ -73,7 +74,10 @@ function Canvas({ view, sheetId, focus, captureRef }: { view: SheetView; sheetId
   // Lay the sheet out again whenever its people change: the "auto adjust" requirement.
   useEffect(() => {
     let cancelled = false;
-    layoutEngine.layout(view).then((result) => {
+    // A stored sheet keeps each couple's children eldest first (an owner request); ★ Everyone and the dev
+    // pages put crossing-free lines first.
+    const strictSiblings = sheetId !== undefined && sheetId !== EVERYONE;
+    layoutEngine.layout(view, { strictSiblings }).then((result) => {
       if (cancelled) return;
       const personById = new Map(view.persons.map((p) => [p.id, p]));
       const unionById = new Map(view.unions.map((u) => [u.id, u]));
