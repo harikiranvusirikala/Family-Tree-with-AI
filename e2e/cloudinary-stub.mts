@@ -1,6 +1,6 @@
 // A stand-in for Cloudinary's upload API during e2e runs (playwright.config.ts starts it), so no test
 // reaches Cloudinary. Like Cloudinary, it refuses requests whose signature doesn't match, and it
-// remembers what was uploaded and deleted: GET /calls.
+// remembers what was uploaded (with each photo's size in pixels) and deleted: GET /calls.
 import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { Readable } from "node:stream";
@@ -8,7 +8,21 @@ import { Readable } from "node:stream";
 const port = Number(process.env.PORT);
 const apiKey = process.env.CLOUDINARY_API_KEY;
 const apiSecret = process.env.CLOUDINARY_API_SECRET;
-const calls = { uploaded: [] as string[], deleted: [] as string[] };
+const calls = { uploaded: [] as string[], sizes: {} as Record<string, { width: number; height: number } | null>, deleted: [] as string[] };
+
+/** A PNG's or JPEG's size in pixels (the header, or a JPEG's frame marker), or null. */
+function imageSize(bytes: Buffer): { width: number; height: number } | null {
+  if (bytes.subarray(1, 4).toString() === "PNG") return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  for (let at = 2; at + 9 < bytes.length; ) {
+    if (bytes[at] !== 0xff) return null;
+    const marker = bytes[at + 1];
+    // SOF0–SOF15, apart from DHT (C4), JPG (C8) and DAC (CC), hold the frame's size.
+    if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) return { width: bytes.readUInt16BE(at + 7), height: bytes.readUInt16BE(at + 5) };
+    at += 2 + bytes.readUInt16BE(at + 2);
+  }
+  return null;
+}
 
 /** Cloudinary's check, written separately from the app's signParams so a mistake there shows up here. */
 function signedCorrectly({ signature, api_key, ...params }: Record<string, string>) {
@@ -40,8 +54,10 @@ createServer(async (request, response) => {
   if (!signedCorrectly(fields)) return send(401, { error: { message: "Invalid Signature" } });
 
   if (action === "upload") {
-    if (!(form.get("file") instanceof Blob)) return send(400, { error: { message: "Missing required parameter - file" } });
+    const file = form.get("file");
+    if (!(file instanceof Blob)) return send(400, { error: { message: "Missing required parameter - file" } });
     calls.uploaded.push(fields.public_id);
+    calls.sizes[fields.public_id] = imageSize(Buffer.from(await file.arrayBuffer()));
     return send(200, { public_id: fields.public_id, resource_type: "image", format: "png" });
   }
   calls.deleted.push(fields.public_id);

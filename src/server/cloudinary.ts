@@ -42,6 +42,12 @@ export interface UploadTicket {
   publicId: string;
 }
 
+/**
+ * The long side Cloudinary keeps (1600 px until an owner request raised it, so a small face in a group
+ * photo is still sharp on a card). The browser shrinks larger photos to this before uploading.
+ */
+export const STORED_PIXELS = 2400;
+
 /** Image formats Cloudinary accepts for a photo (HEIC: iPhone photos). */
 export const PHOTO_FORMATS = "jpg,png,webp,heic";
 
@@ -56,7 +62,7 @@ export function uploadTicket(config: CloudinaryConfig, groupId: string, tag: str
     timestamp: timestamp(now),
     tags: tag,
     allowed_formats: PHOTO_FORMATS,
-    transformation: "c_limit,w_1600,h_1600", // store at most 1600 px on the long side
+    transformation: `c_limit,w_${STORED_PIXELS},h_${STORED_PIXELS}`, // store at most 2400 px on the long side
   };
   return {
     url: `${config.apiUrl}/v1_1/${config.cloudName}/image/upload`,

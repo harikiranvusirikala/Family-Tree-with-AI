@@ -363,7 +363,7 @@ flowchart TB
         NetworkCanvas; WheelCanvas; EveryoneList; UpcomingList
     end
     subgraph edit["tree/edit/ — changing it"]
-        SheetTabs; PersonPanel; CouplePanel; PhotoControls
+        SheetTabs; PersonPanel; CouplePanel; PhotoMenu --> PhotoCropper
     end
     subgraph chat["chat/"]
         ChatWidget --> ProposalCard
@@ -452,7 +452,8 @@ flowchart TB
 | [PersonPanel.tsx](../src/components/tree/edit/PersonPanel.tsx) | Opens when you click a card: details, Edit, Add parents / partner / child, Delete… |
 | [CouplePanel.tsx](../src/components/tree/edit/CouplePanel.tsx) | Opens when you click a heart: married or divorced, wedding date, Add child |
 | [person-form.tsx](../src/components/tree/edit/person-form.tsx) | The name, gender and dates form, reused by every "add" and "edit" |
-| [PhotoControls.tsx](../src/components/tree/edit/PhotoControls.tsx), [upload-photo.ts](../src/components/tree/edit/upload-photo.ts) | Add, change or remove a photo; sends the file straight to Cloudinary |
+| [PhotoMenu.tsx](../src/components/tree/edit/PhotoMenu.tsx), [upload-photo.ts](../src/components/tree/edit/upload-photo.ts) | The panel's photo, which opens a menu: upload, change, adjust or remove a photo; shrinks a large one and sends it straight to Cloudinary |
+| [PhotoCropper.tsx](../src/components/tree/edit/PhotoCropper.tsx), [TreePhotos.tsx](../src/components/tree/edit/TreePhotos.tsx) | "Which one is …?": the rectangle around someone in a group photo; and the tree's photos, to use one for someone else |
 | [panel.ts](../src/components/tree/edit/panel.ts) | Where panels go: beside the tree on big screens, over it on phones |
 
 **`chat/` and `import-export/`**
@@ -495,6 +496,7 @@ flowchart LR
 | [generations.ts](../src/tree/generations.ts) | Which row (generation) each person sits on |
 | [edits.ts](../src/tree/edits.ts) | Turns form actions into operations: `addChildOps`, `addParentsOps`, `editPersonOps`… |
 | [years.ts](../src/tree/years.ts) | Birth, death and wedding dates: checking them and showing them ("12 Mar 1985") |
+| [photo-crop.ts](../src/tree/photo-crop.ts) | The rectangle around someone in a group photo: drawing, moving and resizing it, in fractions of the photo |
 | [describe.ts](../src/tree/describe.ts) | Writes operations in plain words, for the AI's proposal card |
 | [everyone.ts](../src/tree/everyone.ts) | ★ Everyone: the whole family as one view, the List's rows and filters |
 | [network.ts](../src/tree/network.ts) | ★ Everyone's Network: arranges circles with physics-like forces (d3-force) |

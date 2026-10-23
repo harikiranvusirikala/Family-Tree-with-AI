@@ -1,7 +1,7 @@
 // MongoDB document shapes (ARCHITECTURE.md §5). Every content record carries groupId.
 // References are ObjectIds; audit fields (createdBy, addedBy, …) hold the acting user's id as a string.
 import { MongoServerError, type Db, type ObjectId } from "mongodb";
-import type { Gender, Union } from "@/tree/types";
+import type { Gender, PhotoCrop, Union } from "@/tree/types";
 import type { GrantableRole } from "../members-rules";
 import type { Role } from "../roles";
 
@@ -89,6 +89,8 @@ export interface PersonDoc extends Audit {
   deathMonth?: number;
   deathDay?: number;
   photoId?: string;
+  /** The rectangle around them in their photo (an owner request); only with photoId. */
+  photoCrop?: PhotoCrop;
   notes?: string;
   deletedAt?: Date;
 }

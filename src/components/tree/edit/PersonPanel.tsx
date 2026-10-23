@@ -15,7 +15,7 @@ import { LineIcon, type IconName } from "../../ui/icons";
 import { PersonPhoto } from "../PersonPhoto";
 import { detailsPanel, panelBody, panelFooter, panelHeader, panelHeading, panelNote } from "./panel";
 import { PersonFields, readPerson, SubmitRow } from "./person-form";
-import { PhotoControls, type SignPhotoUpload } from "./PhotoControls";
+import { PhotoMenu, type SignPhotoUpload } from "./PhotoMenu";
 
 type Mode = "details" | "edit" | "parents" | "partner" | "child" | "sheet" | "ownSheet";
 
@@ -198,6 +198,10 @@ export function PersonPanel({
   // a partner who married in) go on the person's own sheet, which opens once they're saved (an owner
   // request after the full dates).
   const currentSheet = tree.sheets.find((s) => s.id === currentSheetId);
+  // Who a new photo can be offered to as well (an owner request): this sheet's people, or everyone's on ★ Everyone.
+  const sheetPeople = (currentSheet ? buildSheetView(tree, currentSheet).persons : tree.persons)
+    .filter((p) => p.id !== person.id)
+    .sort((a, b) => a.name.localeCompare(b.name));
   const parentsOn =
     mode === "parents" && currentSheet && !showsNewParentsOf(tree, currentSheet, person.id)
       ? tabOrder(tree.sheets).find((s) => s.rootPersonId === person.id)
@@ -207,16 +211,23 @@ export function PersonPanel({
     <aside aria-label="Person details" className={detailsPanel(mode !== "details")}>
       {mode === "details" && <div aria-hidden className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-zinc-300 md:hidden dark:bg-zinc-700" />}
       <div className={panelHeader}>
-        <PersonPhoto person={person} size={64} />
+        {mode === "details" && canEdit && signPhotoUpload ? (
+          <PhotoMenu
+            person={person}
+            tree={tree}
+            people={sheetPeople}
+            signUpload={signPhotoUpload}
+            pending={pending}
+            run={run}
+            onError={setFormError}
+          />
+        ) : (
+          <PersonPhoto person={person} size={64} />
+        )}
         <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-0.5">
           <h2 className="text-lg leading-snug font-semibold tracking-tight">{person.name}</h2>
           {dates && <p className="text-sm text-zinc-500 dark:text-zinc-400">{dates}</p>}
           {age && <p className="text-sm text-zinc-500 dark:text-zinc-400">{age}</p>}
-          {mode === "details" && canEdit && signPhotoUpload && (
-            <div className="mt-1.5">
-              <PhotoControls person={person} signUpload={signPhotoUpload} pending={pending} run={run} onError={setFormError} />
-            </div>
-          )}
         </div>
         <button type="button" onClick={onClose} aria-label="Close" className={`${iconButton} -mt-1 -mr-2`}>
           <LineIcon name="x" className="size-5" />

@@ -69,7 +69,7 @@ export function importOperations(data: ImportData, choices: ImportChoices, tree:
     if (!gender) return `Choose male or female for ${p.name}.`;
     const tempId = ref(p.id);
     ops.push({ op: "createPerson", tempId, name: p.name, gender, ...lifeDates(p) });
-    if (keepPhotos && p.photoId) ops.push({ op: "setPhoto", personId: tempId, photoId: p.photoId });
+    if (keepPhotos && p.photoId) ops.push({ op: "setPhoto", personId: tempId, photoId: p.photoId, ...(p.photoCrop && { crop: p.photoCrop }) });
   }
 
   // A couple whose partners are all existing people may already be a couple in the group: use it.

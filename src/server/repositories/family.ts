@@ -50,6 +50,7 @@ export function toGroupTree(docs: { persons: PersonDoc[]; unions: UnionDoc[]; sh
         gender: p.gender,
         ...lifeDates(p),
         ...(p.photoId !== undefined && { photoId: p.photoId }),
+        ...(p.photoId !== undefined && p.photoCrop && { photoCrop: p.photoCrop }),
       }),
     ),
     unions: docs.unions.flatMap((u): Union[] => {

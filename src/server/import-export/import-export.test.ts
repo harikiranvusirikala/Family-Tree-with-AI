@@ -312,6 +312,18 @@ describe("JSON files", () => {
     expect(photos(new ObjectId().toHexString())).toHaveLength(0);
   });
 
+  test("where someone is in their photo goes with the photo (owner request)", () => {
+    const crop = { x: 0.25, y: 0.1, w: 0.3, h: 0.6 };
+    const photoId = `groups/${group.id}/abcdefghijklm`;
+    const withBox = toGroupTree({ ...state, persons: state.persons.map((p, i) => (i === 0 ? { ...p, photoId, photoCrop: crop } : p)) });
+    const data = parseJson(exportJson(withBox, group)) as ImportData;
+    expect(data.persons[0]).toMatchObject({ photoId, photoCrop: crop });
+    const batch = importOperations(data, { ...fresh, targetGroupId: group.id }, empty);
+    expect(typeof batch === "string" ? [] : batch.operations.filter((op) => op.op === "setPhoto")).toEqual([{ op: "setPhoto", personId: "new:p0", photoId, crop }]);
+    const outside = exportJson(withBox, group).replace('"w": 0.3', '"w": 0.9');
+    expect(parseJson(outside)).toBe("This file is damaged or from a newer version of the app.");
+  });
+
   test("a batch may add at most 2,000 people", () => {
     const people = Array.from({ length: 2001 }, (_, i) => ({ op: "createPerson" as const, tempId: `new:${i}`, name: `P${i}`, gender: "male" as const }));
     expect(operationsSchema.safeParse(people).success).toBe(false);

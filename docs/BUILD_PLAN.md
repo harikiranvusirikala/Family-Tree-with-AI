@@ -50,6 +50,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Siblings eldest first on sheets (owner request) | Done 2026-10-23 on `siblings-eldest-first` (unit tests: 507 passed; e2e: 99 passed). See its section at the end |
 | – | ★ Everyone opens on the Network on computers and tablets (owner request) | Done 2026-10-23 on `everyone-network-first` (unit tests: 507 passed; e2e: 100 passed). See its section at the end |
 | – | Dates without a year (owner request) | Done 2026-10-23 on `date-without-year` (unit tests: 510 passed; e2e: 100 passed). See its section at the end |
+| – | Choose the face in a photo, then one photo for several people (owner request) | Agreed 2026-10-23; both parts (and larger photos, and the photo menu) built on `photo-crop` (unit tests: 543 passed; database: 43 passed; e2e: 103 passed), waiting for the owner's check. See its section at the end |
 
 ## How we work
 
@@ -1670,3 +1671,65 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - **Upcoming** lists them, "Birthday" or "Anniversary" with no age, count or milestone.
   - **GEDCOM** 5.5.1 dates need a year, so a day and month alone are written as a date phrase, "2 DATE (12 MAR)"; imports read that and a bare "12 MAR".
 - **Notes (2026-10-23):** a review of the first commit found three bugs, each now with a test checked to fail without its fix: the proposal card said "remove the birth year" when the assistant added a day and month to someone with no year (`describe.ts`); exports wrote "12 MAR", which GEDCOM 5.5.1 forbids; and the JSON import's check for a single parent's marriage date looked only at the year. The Upcoming notes now say "no birthday (day and month) saved".
+
+## After the production look: choose the face in a photo (owner request)
+- **Why:** a photo's round crop is Cloudinary's `g_face`, which centres on the largest face it finds. In a photo with several people, a card can show someone else's face, and nothing says so; with no face found, it falls back to the middle of the picture. The owner wants to mark which person in the photo it is (part 1), and then use one group photo for several people (part 2).
+- **The idea (owner, 2026-10-23):** draw a rectangle around the whole person, not their face; Cloudinary still finds the face, but only inside that rectangle, so it can't pick someone else's. No exact face placing.
+- **Kept as they are:** the whole photo is uploaded and stored, and only the rectangle is saved, on the person. Redrawing it never uploads again. Signing, the group's folder rule and deleting unused photos don't change.
+
+### Part 1: choose the face
+- **Data:** a person's optional `photoCrop: { x, y, w, h }`, fractions (0–1) of the stored photo's width and height, so they hold whatever size Cloudinary keeps (1600 px photos from before, 2400 px from now on). Only with a `photoId`. Without it, the card keeps today's automatic face crop of the whole photo.
+- **Write path:** `setPhoto { personId, photoId, crop }`, with `crop` the box or `null` (automatic). zod: each value between 0 and 1, `x + w ≤ 1`, `y + h ≤ 1`, a box at least 2% wide and high. Planner: a crop without a photo is refused; the same photo with a new box saves the box and deletes nothing (today "the same photo again changes nothing"); a new photo with no box clears the old box. `setPhotoOps(personId, photoId, crop?)` in `edits.ts`; `describeOperations` adds "Change the photo of …" for a new box too.
+- **Copied wherever person fields are copied:** `PersonDoc`, `Person`, `toGroupTree`, the JSON export and import (photos are only kept in the same group's import, and the box goes with them), `operationsFromFamily`. GEDCOM has no box and ignores it. Undo of a deleted person brings back the photo and the box, as the box is on the person.
+- **Showing it:** `photoUrl(cloudName, photoId, crop?)`. With a rectangle: `c_crop,x_…,y_…,w_…,h_…/c_thumb,g_face,w_168,h_168/f_auto,q_auto/{photoId}`: cut out the rectangle, then today's face crop inside it (with no face found, the rectangle's middle). Without one: today's URL. Before building, check in the `cloudinary` npm package's source (unpacked under `/tmp`, as in step 7) how relative `x`/`y`/`w`/`h` are written; if they must be pixels, the upload's returned `width` and `height` are stored with the photo instead. Cards, the panel, the Network, the Wheel, the List and the picture all use `PersonPhoto`, so they all follow.
+- **Choosing it:** after a photo uploads, a dialog "Which one is <name>?" shows the whole photo, loaded from Cloudinary as a JPEG (so iPhone HEIC photos show in every browser):
+  - drag on the photo to draw a rectangle around the person; drag inside it to move it, its corners to resize it (any shape, kept inside the photo); a new drag outside it draws a new one;
+  - "Save" saves the photo with the rectangle; "Whole photo" saves it with none (today's automatic crop, right for a photo of one person); Escape or Close also saves it with none, since it's already uploaded;
+  - no live preview of the circle (each one would be a new Cloudinary image); the card shows it once saved, and "Adjust photo" (in the photo menu, below) opens the same dialog, with the saved rectangle, to fix it.
+  - Phones: the dialog fills the screen; the corners are 44 px to touch, and dragging on the photo never scrolls the page.
+- **The photo menu** (replaces the Add, Change and Remove links under the name, so the header stops growing; Maintain and up, as today; Viewers get the plain photo):
+  - The panel's 64 px photo becomes a button named "Photo options for <name>". With a mouse, hovering (or keyboard focus) darkens it and shows a camera in the middle. A small round badge sits on its bottom-right edge, always shown, so phones and tablets (no hover) can find it: a camera with a photo, a "+" without one. The badge is part of the same button, which grows to 44 px to touch on touch screens.
+  - Clicking it opens a `Menu` under the photo:
+    - with a photo: "Change photo…" (the file picker), "Adjust photo…" (the "Which one is <name>?" dialog), a separator, then "Remove photo…" (`dangerMenuItem`);
+    - without one: "Upload a photo…". Until part 2 that's the only item, so the click opens the file picker straight away, with no menu.
+  - "Remove photo…" opens a `Dialog` "Remove photo?" (Cancel takes the focus) in place of today's red box in the panel; the Remove button is `danger`.
+  - While uploading, the photo shows a spinner and the button is disabled; "Uploading photo…" stays as a status line under the name. Errors show where they do today.
+  - The menu and the dialog close when the panel changes person or the page is left (`Menu`'s and `Dialog`'s own rules).
+- **Tests:**
+  - Unit: the zod limits; the planner rules above; `photoUrl` with and without a box (the fractions written as Cloudinary expects); the box survives a JSON round trip and Undo of a deletion (`test/planning.ts`); the rectangle's maths (`src/tree/photo-crop.ts`, pure: drawing in any direction, moving and resizing stay inside the photo, a minimum size).
+  - Unit: the photo button's name, badge and items with and without a photo, none for a Viewer; without a photo, the click opens the file picker (no menu).
+  - E2E: `photos.spec.ts` moves to the menu ("Photo options for Jake Cruz" → "Upload a photo…", "Change photo…", "Remove photo…" and the dialog); the owner adds a photo, draws a rectangle and saves, and the card's image URL has that rectangle and the face crop; "Adjust photo" changes it with no new upload (the stand-in's `GET /calls`) and nothing deleted; "Whole photo" gives today's URL; a phone test of the dialog; `photo-crop.png` and `night-photo-crop.png`.
+  - Owner check: a real group photo on `npm run dev`, marking each of two people in turn.
+
+### Part 2: one photo for several people
+- Built after part 1 is agreed and checked, on the same branch or a new one (the owner's choice).
+- **Nothing new is stored:** several people with the same `photoId`, each with their own `photoCrop`. The planner already deletes a photo only once nobody in the group uses it (deleted people included, for Undo), so Change or Remove on one person never deletes a photo another person still shows.
+- **Choosing a photo already in the tree:** the photo menu gets "Use a photo from this tree…" (after Change, or after "Upload a photo…" for someone with no photo, which makes that a real menu): a dialog with every photo the group's people use (one tile per photo, the whole photo, not the face), then the "Which one is <name>?" dialog on the picked one. Only Maintain and up, like the other photo buttons.
+- **After an upload**, the dialog offers "Also use for someone else…" once saved: pick a person on the current sheet, then draw around them; repeat for as many as needed. Each save is its own change through `run`.
+- **Remove photo** always takes it off this person's card; the dialog says what else happens. Nobody else uses it: "It will be deleted, so this can't be undone." Others do: "It stays for the N others who use it." N counts only people in the tree; deleted people still count for keeping the photo in Cloudinary (so Undo brings it back, as today), but the dialog doesn't mention them.
+- **Tests:** unit: two people share a photo, removing it from one deletes nothing, removing it from the last deletes it (`unusedPhotoIds`); the tiles list each photo once and leave out deleted people's. E2E: one upload used for two people with different rectangles (two URLs, one upload), Remove on one keeps the photo, Remove on the other deletes it.
+
+### Larger photos (with part 1)
+- **Any size can be chosen:** the browser shrinks a photo over 2400 px on the long side before uploading (`createImageBitmap`, which turns it upright from its camera orientation, then a canvas, saved as JPEG at 0.9 quality), so a 25 MB camera original uploads as about 1–2 MB. Re-encoding also drops the photo's hidden details (camera, place). The 10 MB check then applies to what's uploaded; a file over 50 MB is refused before reading it (a phone's memory).
+- **HEIC:** only Safari can read it in the browser, so elsewhere a HEIC photo uploads as it is, and one over 10 MB still gets the "over 10 MB" message.
+- **Kept at 2400 px** (`c_limit,w_2400,h_2400` in the signed upload, and the e2e stand-in), so a small face in a group photo is still sharp on a card; about twice the storage per photo. Photos already uploaded stay at 1600 px.
+- **Tests:** unit: the target size for wide, tall and small photos (pure); a large photo is shrunk before uploading and a small one isn't (a stubbed canvas); the signed transformation. E2E: a generated 4000 × 3000 photo uploads at 2400 px wide (the stand-in records the size).
+
+- **Decisions (owner, 2026-10-23):**
+  1. A free rectangle around the whole person, not a circle on the face.
+  2. Cloudinary still looks for the face inside the rectangle (`c_thumb,g_face`).
+  3. Part 2 has both "Use a photo from this tree" and "Also use for someone else…".
+  4. Large photos are shrunk in the browser, and Cloudinary keeps 2400 px instead of 1600.
+  5. The panel's photo opens a menu (hover camera on computers, an always-shown badge for touch), instead of links under the name or hover-only icons.
+  6. The Remove dialog counts only people in the tree; a deleted person's use still keeps the photo in Cloudinary, for Undo, without saying so.
+  7. Both parts in one go (owner, 2026-10-24).
+- **Notes (as built, 2026-10-24):**
+  - Cloudinary's relative values were checked in its npm package (2.11.0, unpacked under `/tmp`, not installed): its URL builder treats a width or height below 1 as relative (`parseFloat(width) < 1`). `photoUrl` always writes four decimals, because `w_1` would be one pixel and `w_1.0000` is the whole width. Relative `x` and `y` follow Cloudinary's documentation as remembered; the owner's real group photo checks them.
+  - Deviation: after an upload, the photo is saved on the person straight away (the whole photo), and "Which one is …?" then saves the rectangle as a second change. Closing the dialog or a closed tab still leaves the person with their photo, as the plan wanted.
+  - Deviation (from the owner's question about a 600 KB photo): a photo is shrunk only when the shrunk copy is a smaller file. A heavily compressed photo over 2400 px is uploaded as it is, and Cloudinary's 2400 px limit shrinks it on arrival.
+  - With no photo and no photos in the tree, the photo is a plain button named "Add a photo of <name>" that opens the file picker; otherwise it's "Photo options for <name>", whose menu has Upload a photo… and Use a photo from this tree… for someone without one.
+  - "Uploading photo…" is now a screen-reader status, with a spinner over the photo, instead of a line under the name.
+  - "Also use for someone else…" offers the current sheet's people (everyone on ★ Everyone), A to Z, saying when it would replace their photo.
+  - The phone's dialog is the app's usual dialog width (the screen less 12 px each side), not the whole screen.
+  - The e2e tests share one Cloudinary stand-in, so photo tests count only their own group's uploads and deletions. The stand-in now records each upload's size in pixels (from the PNG or JPEG header).
+  - Tests: unit 543 passed (planner, schema, the rectangle's geometry, URLs, shrinking, the photo menu, JSON round trip, Undo); database 43 passed; e2e 103 passed (a group photo marked for two people, adjusted, shared, removed one at a time; a 4800 × 3600 camera photo uploaded at 2400 × 1800; a phone test of the menu and dialog).

@@ -143,7 +143,7 @@ The full design (code layout, data model, sheet rules, permissions table, flows 
 |---|---|---|
 | MongoDB Atlas M0 | 512 MB, shared and throttled | Hundreds of thousands of people (photos aren't stored there) |
 | Vercel Hobby | Personal, non-commercial use; going over the usage limits pauses the site instead of billing | Any commercial use |
-| Cloudinary free | Monthly credits shared by storage, bandwidth and transformations | Tens of thousands of photos or heavy traffic (photos are stored at most 1600 px, cards load 168 px crops) |
+| Cloudinary free | Monthly credits shared by storage, bandwidth and transformations | Tens of thousands of photos or heavy traffic (photos are stored at most 2400 px, cards load 168 px crops) |
 | Claude API | Paid per use (Haiku: roughly under $1 a month at ~200 messages) | Many chat users; capped per person per day and by your Anthropic spend limit |
 | GitHub Actions | Free for public repositories; 2,000 minutes a month for private ones | A private copy pushing often (a CI run takes about ten minutes) |
 

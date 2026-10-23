@@ -40,6 +40,9 @@ export interface Plan {
 
 type Kind = "person" | "union" | "sheet";
 
+type Crop = { x: number; y: number; w: number; h: number };
+const sameCrop = (a: Crop | null, b: Crop | null) => (a && b ? a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h : a === b);
+
 /**
  * Validates a batch of operations against the group's current state and works out the writes.
  * Pure: nothing is saved here, and the input state is not modified. Throws OperationError on the
@@ -296,11 +299,16 @@ export function planOperations(groupId: ObjectId, state: GroupState, ops: Operat
         if (op.photoId !== null && !op.photoId.startsWith(`groups/${groupId.toHexString()}/`)) {
           throw fail("that photo isn't in this group's folder");
         }
-        if ((p.photoId ?? null) === op.photoId) break;
+        const crop = op.crop ?? null;
+        if (op.photoId === null && crop) throw fail("a rectangle in a photo needs the photo");
+        if ((p.photoId ?? null) === op.photoId && sameCrop(p.photoCrop ?? null, crop)) break;
         const copy = edit("person", p);
         if (op.photoId === null) delete copy.photoId;
         else copy.photoId = op.photoId;
-        if (p.photoId) replacedPhotos.add(p.photoId);
+        if (crop) copy.photoCrop = { x: crop.x, y: crop.y, w: crop.w, h: crop.h };
+        else delete copy.photoCrop;
+        // A new rectangle in the same photo (Adjust photo) frees nothing.
+        if (p.photoId && p.photoId !== op.photoId) replacedPhotos.add(p.photoId);
         break;
       }
       case "deletePerson": {

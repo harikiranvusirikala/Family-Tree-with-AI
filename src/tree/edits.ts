@@ -1,7 +1,7 @@
 // Edits made by hand (F6), turned into operations (ARCHITECTURE.md §10). Pure, so they run in the
 // browser and in tests. The server validates every batch again in applyOperations.
 import type { Operation } from "@/server/operations/schema";
-import type { FamilyData, Gender, NamedSheet, Person, Union } from "./types";
+import type { FamilyData, Gender, NamedSheet, Person, PhotoCrop, Union } from "./types";
 import { DATE_FIELDS, lifeDates, MARRIAGE_FIELDS, type LifeDates, type MarriageDate } from "./years";
 
 /** A person to add or the details to save: the name, gender, and years with full dates where known. */
@@ -136,8 +136,13 @@ export function marriageDateOps(union: Union, next: MarriageDate): Operation[] {
 }
 export const deletePersonOps = (personId: string): Operation[] => [{ op: "deletePerson", personId }];
 export const restorePersonOps = (personId: string): Operation[] => [{ op: "restorePerson", personId }];
-/** A photo uploaded to Cloudinary (F8), or null to remove it. The replaced photo is deleted once saved. */
-export const setPhotoOps = (personId: string, photoId: string | null): Operation[] => [{ op: "setPhoto", personId, photoId }];
+/**
+ * A photo uploaded to Cloudinary (F8), or null to remove it, with the rectangle around the person in it
+ * (an owner request; none: the whole photo). A replaced photo is deleted once nobody uses it.
+ */
+export const setPhotoOps = (personId: string, photoId: string | null, crop?: PhotoCrop | null): Operation[] => [
+  { op: "setPhoto", personId, photoId, ...(photoId && crop && { crop }) },
+];
 /**
  * A sheet rooted at someone. `hideChildrenOf`: one of their couples whose children it leaves out, as a
  * mother's own sheet does (Create their own sheet, an owner request after the final check).

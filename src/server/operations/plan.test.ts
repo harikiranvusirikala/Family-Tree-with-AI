@@ -394,9 +394,65 @@ describe("planOperations: photos (step 7)", () => {
   });
 });
 
+describe("planOperations: where someone is in their photo (owner request)", () => {
+  const folder = `groups/${groupId.toHexString()}`;
+  const box = { x: 0.1, y: 0.2, w: 0.3, h: 0.4 };
+  const setPhoto = (name: string, photoId: string | null, crop?: typeof box | null): Operation => ({ op: "setPhoto", personId: idOf(name), photoId, crop });
+  const personNamed = (state: GroupState, name: string) => state.persons.find((p) => p.name === name)!;
+  const group = `${folder}/group-photo`;
+  const withBox = after(sample, plan(sample, [setPhoto("Jake Cruz", group, box)]));
+
+  test("a photo is saved with the rectangle around the person", () => {
+    expect(personNamed(withBox, "Jake Cruz")).toMatchObject({ photoId: group, photoCrop: box });
+  });
+
+  test("a new rectangle in the same photo (Adjust photo) saves it and deletes nothing", () => {
+    const moved = plan(withBox, [setPhoto("Jake Cruz", group, { ...box, x: 0.5 })]);
+    expect(moved.persons.updated[0].photoCrop).toEqual({ ...box, x: 0.5 });
+    expect(moved.unusedPhotoIds).toEqual([]);
+    const whole = plan(withBox, [setPhoto("Jake Cruz", group, null)]); // Whole photo
+    expect(whole.persons.updated[0]).not.toHaveProperty("photoCrop");
+    expect(whole.unusedPhotoIds).toEqual([]);
+    expect(plan(withBox, [setPhoto("Jake Cruz", group, { ...box })]).persons.updated).toEqual([]); // the same rectangle
+  });
+
+  test("a new photo without a rectangle, or no photo, leaves no rectangle behind", () => {
+    expect(personNamed(after(withBox, plan(withBox, [setPhoto("Jake Cruz", `${folder}/portrait`)])), "Jake Cruz")).not.toHaveProperty("photoCrop");
+    expect(personNamed(after(withBox, plan(withBox, [setPhoto("Jake Cruz", null)])), "Jake Cruz")).not.toHaveProperty("photoCrop");
+    expectRejected(sample, [setPhoto("Jake Cruz", null, box)], /needs the photo/);
+  });
+
+  test("one photo for several people, each with their own rectangle; it's deleted only when the last one lets it go", () => {
+    const shared = after(withBox, plan(withBox, [setPhoto("Taylor Humes", group, { x: 0.6, y: 0.1, w: 0.3, h: 0.5 })]));
+    expect(personNamed(shared, "Taylor Humes").photoCrop).toEqual({ x: 0.6, y: 0.1, w: 0.3, h: 0.5 });
+    expect(personNamed(shared, "Jake Cruz").photoCrop).toEqual(box);
+    const jakeRemoved = after(shared, plan(shared, [setPhoto("Jake Cruz", null)]));
+    expect(plan(shared, [setPhoto("Jake Cruz", null)]).unusedPhotoIds).toEqual([]);
+    expect(plan(jakeRemoved, [setPhoto("Taylor Humes", `${folder}/another`)]).unusedPhotoIds).toEqual([group]);
+  });
+});
+
 describe("operationsSchema", () => {
   test("accepts the sample family's operations", () => {
     expect(operationsSchema.safeParse(sampleOps).success).toBe(true);
+  });
+
+  test.each([
+    ["outside the photo", { x: 0.8, y: 0, w: 0.3, h: 0.5 }],
+    ["below the photo", { x: 0, y: 0.6, w: 0.5, h: 0.5 }],
+    ["too small to see", { x: 0.5, y: 0.5, w: 0.01, h: 0.2 }],
+    ["in pixels", { x: 10, y: 20, w: 300, h: 400 }],
+    ["with an extra field", { x: 0, y: 0, w: 0.5, h: 0.5, angle: 90 }],
+  ])("rejects a rectangle %s", (_label, crop) => {
+    const op = { op: "setPhoto", personId: "new:1", photoId: `groups/${new ObjectId().toHexString()}/abcdefghijklm`, crop };
+    expect(operationsSchema.safeParse([op]).success).toBe(false);
+  });
+
+  test("accepts a rectangle reaching the photo's edges, and a photo without one", () => {
+    const photoId = `groups/${new ObjectId().toHexString()}/abcdefghijklm`;
+    for (const crop of [{ x: 0, y: 0, w: 1, h: 1 }, { x: 0.7, y: 0.4, w: 0.3, h: 0.6 }, null, undefined]) {
+      expect(operationsSchema.safeParse([{ op: "setPhoto", personId: "new:1", photoId, crop }]).success).toBe(true);
+    }
   });
 
   test.each([

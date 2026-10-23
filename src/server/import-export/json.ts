@@ -2,7 +2,7 @@
 import { z } from "zod";
 import type { GroupTree, NamedSheet } from "@/tree/types";
 import { datesProblem, formatMarriage, marriageProblem } from "@/tree/years";
-import { day, month, personName, year } from "../operations/schema";
+import { day, month, personName, photoCropSchema, year } from "../operations/schema";
 import { exportPart, MAX_IMPORT_PEOPLE, type ImportData } from "./types";
 
 export const FORMAT = "family-tree-with-ai";
@@ -51,6 +51,7 @@ const fileSchema = z.object({
         deathMonth: month.optional(),
         deathDay: day.optional(),
         photoId: z.string().max(200).optional(),
+        photoCrop: photoCropSchema.optional(), // where they are in the photo (an owner request)
       }),
     )
     .max(MAX_IMPORT_PEOPLE, `This file has more than ${MAX_IMPORT_PEOPLE} people. Split it into smaller files.`),

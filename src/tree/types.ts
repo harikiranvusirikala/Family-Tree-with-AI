@@ -15,6 +15,19 @@ export interface Person {
   deathMonth?: number;
   deathDay?: number;
   photoId?: string; // Cloudinary public ID
+  /** Where they are in their photo, when it shows several people (an owner request); only with a photo. */
+  photoCrop?: PhotoCrop;
+}
+
+/**
+ * A rectangle around a person in their photo, as fractions (0–1) of its width and height, so it fits
+ * the photo at any size. The card's face crop is looked for only inside it.
+ */
+export interface PhotoCrop {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 /** A couple (the heart), or a single parent when there is one partner. */

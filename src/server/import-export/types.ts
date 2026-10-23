@@ -2,7 +2,7 @@
 // files and shows the preview, and the server re-checks the operations on the single write path.
 import type { LifeDates } from "@/tree/years";
 import { buildSheetView } from "@/tree/sheet-view";
-import type { Gender, GroupTree, NamedSheet, Person, Union } from "@/tree/types";
+import type { Gender, GroupTree, NamedSheet, Person, PhotoCrop, Union } from "@/tree/types";
 
 /** People per imported file (decided in step 10): one import stays one quick transaction. */
 export const MAX_IMPORT_PEOPLE = 2000;
@@ -13,6 +13,7 @@ export interface ImportPerson extends LifeDates {
   name: string;
   gender: Gender | null;
   photoId?: string;
+  photoCrop?: PhotoCrop;
 }
 
 export interface ImportSheet {

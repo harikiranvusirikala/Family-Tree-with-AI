@@ -248,6 +248,20 @@ describe("edits against the sample family", () => {
     expect(toGroupTree(applyPlan(withPhoto, setPhotoOps(jake, null), groupId)).persons.find((p) => p.id === jake)).not.toHaveProperty("photoId");
   });
 
+  test("where someone is in a group photo goes with them, also through deleting and Undo (owner request)", () => {
+    const groupId = new ObjectId();
+    const [jake, taylor] = [idOf(tree, "Jake Cruz"), idOf(tree, "Taylor Humes")];
+    const photoId = `groups/${groupId.toHexString()}/family-photo`;
+    let state = applyPlan(start, [...setPhotoOps(jake, photoId, { x: 0, y: 0, w: 0.5, h: 1 }), ...setPhotoOps(taylor, photoId, { x: 0.5, y: 0, w: 0.5, h: 1 })], groupId);
+    const shown = (id: string) => toGroupTree(state).persons.find((p) => p.id === id);
+    expect(shown(jake)).toMatchObject({ photoId, photoCrop: { x: 0, y: 0, w: 0.5, h: 1 } });
+    expect(shown(taylor)).toMatchObject({ photoId, photoCrop: { x: 0.5, y: 0, w: 0.5, h: 1 } });
+    state = applyPlan(state, deletePersonOps(jake), groupId);
+    state = applyPlan(state, restorePersonOps(jake), groupId);
+    expect(shown(jake)).toMatchObject({ photoId, photoCrop: { x: 0, y: 0, w: 0.5, h: 1 } });
+    expect(setPhotoOps(jake, null, { x: 0, y: 0, w: 1, h: 1 })).toEqual([{ op: "setPhoto", personId: jake, photoId: null }]); // no photo, no rectangle
+  });
+
   test("a sheet's root can't be deleted", () => {
     expect(() => apply(deletePersonOps(idOf(tree, "Jerry Willow")))).toThrow(OperationError);
     expect(() => apply(deletePersonOps(idOf(tree, "Jerry Willow")))).toThrow(/Jerry Willow is the root of the sheet Jerry Willow's family/);

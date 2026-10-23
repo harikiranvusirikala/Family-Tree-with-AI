@@ -39,7 +39,7 @@ describe("upload tickets", () => {
       timestamp: String(Date.UTC(2026, 9, 18) / 1000),
       tags: "familytree_preview",
       allowed_formats: "jpg,png,webp,heic",
-      transformation: "c_limit,w_1600,h_1600",
+      transformation: "c_limit,w_2400,h_2400",
     });
     expect(api_key).toBe("1234");
     expect(signature).toBe(signParams(signed, "shh"));

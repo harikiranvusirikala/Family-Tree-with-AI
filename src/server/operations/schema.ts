@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MIN_CROP } from "@/tree/photo-crop";
 
 // ARCHITECTURE.md §10. Manual edits, confirmed AI proposals and imports all become these operations.
 
@@ -17,6 +18,12 @@ const unionStatus = z.enum(["married", "divorced"]);
 const sheetTitle = z.string().trim().min(1, "Title is required").max(120);
 /** A Cloudinary public ID in a group's folder (F8): groups/<group id>/<random part>. */
 export const PHOTO_ID = /^groups\/[a-f\d]{24}\/[\w-]{10,64}$/;
+const fraction = z.number().min(0).max(1);
+const inside = (start: number, size: number) => start + size <= 1 + 1e-9;
+/** A rectangle around a person in their photo (Person.photoCrop), inside the photo. */
+export const photoCropSchema = z
+  .strictObject({ x: fraction, y: fraction, w: fraction.min(MIN_CROP), h: fraction.min(MIN_CROP) })
+  .refine((c) => inside(c.x, c.w) && inside(c.y, c.h), "The rectangle must be inside the photo");
 
 export const operationSchema = z.discriminatedUnion("op", [
   z.strictObject({
@@ -75,7 +82,12 @@ export const operationSchema = z.discriminatedUnion("op", [
     hideChildrenOf: ref.optional(), // one of the root's couples: its children aren't shown on this sheet
   }),
   z.strictObject({ op: z.literal("addToSheet"), sheetId: ref, personId: ref }),
-  z.strictObject({ op: z.literal("setPhoto"), personId: ref, photoId: z.string().regex(PHOTO_ID, "Not a photo id").nullable() }), // null removes it
+  z.strictObject({
+    op: z.literal("setPhoto"),
+    personId: ref,
+    photoId: z.string().regex(PHOTO_ID, "Not a photo id").nullable(), // null removes it
+    crop: photoCropSchema.nullable().optional(), // the rectangle around them; absent or null: none
+  }),
   // UI only, never offered to the AI:
   z.strictObject({ op: z.literal("deletePerson"), personId: ref }),
   z.strictObject({ op: z.literal("deleteSheet"), sheetId: ref }), // never a pinned sheet, nor the last one

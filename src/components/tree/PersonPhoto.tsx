@@ -24,12 +24,12 @@ const CIRCLE = {
  * 2 px ring, for small circles in rows and lists. Hidden from screen readers: the name is always
  * beside it, and the initials would be read before it.
  */
-export function PersonPhoto(props: { person: Pick<Person, "name" | "gender" | "photoId">; size: number; lazy?: boolean; thin?: boolean }) {
+export function PersonPhoto(props: { person: Pick<Person, "name" | "gender" | "photoId" | "photoCrop">; size: number; lazy?: boolean; thin?: boolean }) {
   const { person, size, lazy = false, thin = false } = props;
   const cloudName = useContext(CloudNameContext);
   const hidden = useContext(PhotosHiddenContext);
   const [failed, setFailed] = useState<string>(); // the photo that didn't load
-  const src = cloudName && !hidden && person.photoId && person.photoId !== failed ? photoUrl(cloudName, person.photoId) : undefined;
+  const src = cloudName && !hidden && person.photoId && person.photoId !== failed ? photoUrl(cloudName, person.photoId, person.photoCrop) : undefined;
   return (
     <div
       aria-hidden

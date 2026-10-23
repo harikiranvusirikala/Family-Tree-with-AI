@@ -35,6 +35,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 
 - Allow Image upload for the person name
 - To have an eye icon that is used hide the photos of every person and display only initials. This may be usefully when taking a png of the tree and want to share with someone without revealing the faces. (added 2026-10-20)
+- In a photo with several people, choose which one is the person, and use one group photo for several people, each showing their own face. A large camera photo (25 MB) should upload too. The photo's buttons in the panel shouldn't take more room as options are added. (added 2026-10-23)
 
 ### AI chat behaviour
 
@@ -108,7 +109,7 @@ This is a Family Tree Web Application that can be accessed via Web.
   memberships    { _id, groupId, userId, role: owner | admin | maintain | view }   (one per group+user)
   invites        { _id, groupId, email, role, invitedBy, status: pending | accepted | declined | revoked, expiresAt }
   accessRequests { _id, groupId, userId, email, message?, status: pending | approved | denied, decidedBy?, createdAt }
-  persons        { _id, groupId, name, gender, birthYear, deathYear?, photoId (Cloudinary public ID) }
+  persons        { _id, groupId, name, gender, birthYear, deathYear?, photoId (Cloudinary public ID), photoCrop? }
   unions         { _id, groupId, partnerIds: [a, b], status: married | divorced, childIds: [] }
   sheets         { _id, groupId, title, rootPersonId, pinned, extraPersonIds: [], hideChildrenOf?, deletedAt? }
   chatUsage      { _id, userId, day, count }   (per-user daily AI message cap)
@@ -192,9 +193,14 @@ This is a Family Tree Web Application that can be accessed via Web.
 
 ### Photos (step 7)
 
-- Maintain and up add, change or remove a person's photo from their panel. JPEG, PNG, WebP or HEIC (iPhone), up to 10 MB.
+- Maintain and up add, change or remove a person's photo from their panel. JPEG, PNG, WebP or HEIC (iPhone), up to 10 MB uploaded (since 2026-10-23, files up to 50 MB can be chosen: the browser shrinks them first).
 - Uploads go straight from the browser to Cloudinary, signed by the app for a random name in the group's folder.
-- Stored at most 1600 px on the long side; cards show a face crop. Automatic face crop only, no manual cropping for now.
+- Stored at most 1600 px on the long side; cards show a face crop. Automatic face crop only, no manual cropping for now. (Changed 2026-10-23, below.)
+- Choosing who's who (an owner request, 2026-10-23):
+  - The panel's photo is a button: hovering shows a camera, a badge on its edge is always there for touch screens, and it opens a menu (Change, Adjust, Use a photo from this tree, Remove). With no photo and none in the tree, it opens the file picker.
+  - After an upload, "Which one is <name>?": draw a rectangle around the whole person, not their face; Cloudinary still finds the face, but only inside it. Whole photo keeps the automatic crop. Adjust photo redraws it without uploading again.
+  - One photo for several people, each with their own rectangle: after an upload ("Also use for someone else…", people on the current sheet) or from "Use a photo from this tree". A shared photo is deleted from Cloudinary only when the last person using it lets it go (deleted people count, for Undo); Remove says when it stays for others.
+  - Large photos are shrunk in the browser to 2400 px on the long side before uploading, and Cloudinary keeps 2400 px (was 1600), so small faces in group photos stay sharp.
 - Replacing or removing a photo deletes the old one from Cloudinary (Remove asks first: no Undo). Deleting a person keeps their photo, so Undo brings it back.
 - Hide photos (added after step 11): an eye button at the end of the sheet tabs, before Export (on phones and tablets, just before ⋯), shows initials instead of every photo on the cards, in the person panel, and in a saved or printed picture. It saves nothing and anyone can use it; it lasts until the next visit.
 

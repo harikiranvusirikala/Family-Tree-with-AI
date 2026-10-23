@@ -283,6 +283,49 @@ test("a person's panel opens over the bottom half, with their card above it", as
   await expect(cards(page)).toHaveCount(33);
 });
 
+test("a photo on a phone: the photo opens its menu, and Which one is …? fits the screen with big enough buttons (owner request)", async ({ page, signIn, sampleGroup }) => {
+  // A 600 × 400 "group photo" for every photo URL, so no test reaches Cloudinary.
+  const png = Buffer.from(
+    await page.evaluate(async () => {
+      const canvas = Object.assign(document.createElement("canvas"), { width: 600, height: 400 });
+      const context = canvas.getContext("2d")!;
+      context.fillStyle = "#3b82f6";
+      context.fillRect(0, 0, 300, 400);
+      context.fillStyle = "#f97316";
+      context.fillRect(300, 0, 300, 400);
+      return [...new Uint8Array(await (await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/png"))).arrayBuffer())];
+    }),
+  );
+  await page.route("https://res.cloudinary.com/**", (route) => route.fulfill({ contentType: "image/png", body: png }));
+  await openSampleGroup(page, signIn, sampleGroup);
+  const viewport = page.viewportSize()!;
+
+  await card(page, "Olivia Cruz").tap();
+  const chooser = page.waitForEvent("filechooser");
+  await personPanel(page).getByRole("button", { name: "Add a photo of Olivia Cruz" }).tap();
+  await (await chooser).setFiles({ name: "photo.png", mimeType: "image/png", buffer: png });
+  const dialog = page.getByRole("dialog", { name: "Which one is Olivia Cruz?" });
+  await expect(dialog.getByRole("group", { name: "The photo: where is Olivia Cruz?" }).locator("img")).toHaveJSProperty("naturalWidth", 600);
+  await expect.poll(async () => (await box(dialog)).width).toBeGreaterThan(viewport.width * 0.85); // the app's dialog width on phones
+  for (const name of ["Whole photo", "Save", "Close"]) {
+    await expect.poll(async () => (await box(dialog.getByRole("button", { name, exact: true }))).height, name).toBeGreaterThanOrEqual(44); // once grown in
+  }
+  await fitsWidth(page);
+  await page.screenshot({ path: "test-results/screenshots/phone-photo-crop.png", animations: "disabled" });
+  await dialog.getByRole("button", { name: "Whole photo" }).tap();
+  await page.getByRole("dialog", { name: "Also use this photo for someone else?" }).getByRole("button", { name: "Done" }).tap();
+  await expect(cardBox(page, "Olivia Cruz").locator("img")).toHaveCount(1);
+
+  // The badge says there's a menu; its items are big enough and on the screen.
+  await personPanel(page).getByRole("button", { name: "Photo options for Olivia Cruz" }).tap();
+  const menu = page.getByRole("menu", { name: "Photo options" });
+  for (const item of ["Change photo…", "Adjust photo…", "Remove photo…"]) {
+    const row = menu.getByRole("menuitem", { name: item });
+    await expect.poll(async () => (await box(row)).height, item).toBeGreaterThanOrEqual(44);
+    expect(await onScreen(row), item).toBe(true);
+  }
+});
+
 test("Ask AI opens the chat over the tree, and Close comes back", async ({ page, signIn, sampleGroup }) => {
   await openSampleGroup(page, signIn, sampleGroup);
   const ask = page.getByRole("button", { name: "Ask AI" });

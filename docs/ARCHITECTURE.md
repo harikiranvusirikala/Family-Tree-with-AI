@@ -125,7 +125,7 @@ src/
     auth/                                SignInButton, UserMenu, Better Auth's browser client, safeReturnTo
     landing/                             the landing page's parts (header, hero, spotlights, features, privacy, questions, footer), its words (content.ts: title, description, questions, structured data) and pictures (images/, made by scripts/site-images.mts)
     tree/                                FamilyCanvas, PersonNode, UnionNode (heart), PersonPhoto, photoUrl; HidePhotosButton (the eye: initials only); framing.ts (phones' and tablets' views, Find someone's centring); FindSomeone; ★ Everyone's ViewSwitcher, EveryoneList, NetworkCanvas, WheelCanvas (name-style.ts: the Wheel's తె/En choice) and UpcomingList
-      edit/                              PersonPanel, CouplePanel, SheetTabs (with the phone's sheet picker and the sheet menu), person form (F6); PhotoControls, upload (F8); panel.ts (panel layouts)
+      edit/                              PersonPanel, CouplePanel, SheetTabs (with the phone's sheet picker and the sheet menu), person form (F6); PhotoMenu (the panel's photo and its menu), PhotoCropper ("Which one is …?"), TreePhotos (Use a photo from this tree), upload-photo.ts (shrinking and uploading) (F8); panel.ts (panel layouts)
       sheet-picture.ts                   the whole sheet as a PNG (html-to-image), download or print (F9)
     chat/                                ChatWidget (the conversation, kept in the browser), ProposalCard, the event-stream reader
     import-export/                       ExportMenu, ImportPanel (the preview)
@@ -162,7 +162,7 @@ erDiagram
 | `memberships` | `groupId`, `userId` (Better Auth's `users._id`), `role` (`owner` · `admin` · `maintain` · `view`), `addedBy`, `createdAt` | unique `{groupId, userId}` · `{userId}` |
 | `invites` | `groupId`, `email`, `emailNormalized`, `role`, `token`, `invitedBy`, `status` (`pending` · `accepted` · `declined` · `revoked`), `expiresAt`, `createdAt`, `decidedBy?`, `decidedAt?` | unique `{token}` · unique `{groupId, emailNormalized}` where `status = pending` · `{emailNormalized, status}` · `{groupId, status}` |
 | `accessRequests` | `groupId` (not always a real group, see F4), `userId`, `email`, `message?`, `status` (`pending` · `approved` · `denied`), `decidedBy?`, `decidedAt?`, `createdAt` | unique `{groupId, userId}`: one per person per group · `{groupId, status}` · `{userId, status}` |
-| `persons` | `groupId`, `name`, `gender` (`male` · `female`), `birthYear?`, `birthMonth?`, `birthDay?`, `deathYear?`, `deathMonth?`, `deathDay?` (a day and month only together, with or without the year), `photoId?`, `notes?`, audit fields, `deletedAt?` | `{groupId}` |
+| `persons` | `groupId`, `name`, `gender` (`male` · `female`), `birthYear?`, `birthMonth?`, `birthDay?`, `deathYear?`, `deathMonth?`, `deathDay?` (a day and month only together, with or without the year), `photoId?`, `photoCrop?` (`{x, y, w, h}`: where they are in the photo, only with `photoId`), `notes?`, audit fields, `deletedAt?` | `{groupId}` |
 | `unions` | `groupId`, `partnerIds` (1 or 2), `status` (`married` · `divorced`), `marriageYear?`, `marriageMonth?`, `marriageDay?` (when they married: only couples of two, a day and month only together, with or without the year), `childIds`, audit fields, `deletedAt?` | `{groupId}` (the partner and child indexes were retired: couples are loaded whole and checked in memory) |
 | `sheets` | `groupId`, `title`, `rootPersonId`, `pinned`, `order`, `extraPersonIds`, `hideChildrenOf?` (one of the root's couples, [§6](#6-sheets-views-not-copies)), `deletedAt?`, audit fields | `{groupId}` |
 | `chatUsage` | `userId`, `day` (`YYYY-MM-DD`, UTC), `count`, `expiresAt` | unique `{userId, day}` · TTL on `expiresAt` (30 days) |
@@ -171,6 +171,7 @@ Notes:
 - Audit fields are `createdBy`, `createdAt`, `updatedBy` and `updatedAt`.
 - A **union** is a couple: the heart in the sample. A union with one partner is a single parent. A person is a child of at most one union. Unions mirror GEDCOM family (`FAM`) records, so GEDCOM import and export map directly.
 - `photoId` is the Cloudinary public ID, not a URL. URLs are built when the page renders, with the size and face crop needed.
+- `photoCrop` (an owner request, 2026-10-23) is a rectangle around the person in their photo, as fractions (0–1) of its width and height, so it fits the photo at any size. Several people can share one `photoId`, each with their own rectangle.
 - Deleting is a soft delete: `deletedAt` hides the record and Undo clears it.
 - `groups`, `memberships`, `invites` and `accessRequests` are our own collections, not Better Auth's organization plugin (decided in step 5, [§15](#15-open-questions) question 3).
 - References between records are `ObjectId`s. Audit fields (`createdBy`, `updatedBy`, `addedBy`) hold the acting user's id as a string.
@@ -237,7 +238,7 @@ interface LayoutEngine {
 - Node placement is `NETWORK_SIMPLEX`, which centres parents over their children. `BRANDES_KOEPF` is about 35% faster but hangs each family off one child, so it looks lopsided.
 
 Card design, from FEATURES.md and the sample:
-- Round photo using a Cloudinary face crop (`c_thumb,g_face`, 168 px for the 84 px circle), or initials when there is no photo or it doesn't load. A plain `<img>`: Cloudinary resizes, and `next/image` would use Vercel's image quota.
+- Round photo using a Cloudinary face crop (`c_thumb,g_face`, 168 px for the 84 px circle; with `photoCrop`, inside that rectangle of the photo), or initials when there is no photo or it doesn't load. A plain `<img>`: Cloudinary resizes, and `next/image` would use Vercel's image quota.
 - Border: light blue for male, light pink for female.
 - Name, then years. Living people show `1985`; people who have died show `1945 – 2022`. Unknown years are left out.
 - Partners side by side with ♥ between them (a broken heart if divorced). Children hang from the heart, eldest first where that adds no crossing lines (see Sibling order above).
@@ -501,23 +502,27 @@ sequenceDiagram
     participant CL as Cloudinary
     participant DB as MongoDB
     M->>B: Choose a photo for a person
-    B->>B: Check it: JPEG, PNG, WebP or HEIC, up to 10 MB
+    B->>B: Check it: JPEG, PNG, WebP or HEIC, up to 50 MB; shrink it to 2400 px; then at most 10 MB
     B->>App: Server action signPhotoUploadAction(groupId)
     App->>DB: requireRole(maintain)
-    App-->>B: Signed upload to groups/{groupId}/{random id}, at most 1600 px
+    App-->>B: Signed upload to groups/{groupId}/{random id}, at most 2400 px
     B->>CL: Upload the file directly
     CL-->>B: Public ID
     B->>App: applyChangesAction([setPhoto(personId, publicId)])
     App->>DB: requireRole(maintain), then the planner checks the ID is inside groups/{groupId}/ and saves photoId
     App-->>B: Saved: the sheets show the new photo
     App->>CL: After the response: delete the replaced photo (if nobody else uses it)
-    B->>CL: Display through a face-cropped URL (c_thumb, g_face)
+    M->>B: "Which one is …?": a rectangle around them, or Whole photo
+    B->>App: applyChangesAction([setPhoto(personId, publicId, crop)])
+    B->>CL: Display through a face-cropped URL (c_crop to the rectangle, then c_thumb, g_face)
 ```
 
 - Large photos never pass through Vercel, so its request size limit doesn't apply.
 - Signing is a server action, the same pattern as every other change (decided in step 7). The server picks the public ID, so the browser can't choose where a photo goes.
 - When a photo is replaced or removed, the old one is deleted from Cloudinary to stay within the free tier, unless another person in the group still uses it. Deleted people count, so Undo brings their photo back. Deleting happens after the response (`after()`); a failure is logged and the save stands.
-- Remove photo asks for confirmation, because the photo is deleted and there's no Undo.
+- Remove photo asks for confirmation, because the photo is deleted and there's no Undo. When others use the same photo, it says the photo stays for them.
+- **Choosing who's who** (an owner request, 2026-10-23): the panel's photo is a button opening a menu (Change, Adjust, Use a photo from this tree, Remove). After an upload, "Which one is <name>?" shows the whole photo: a rectangle drawn around the person becomes `photoCrop`, and Cloudinary looks for the face only inside it (`c_crop` with relative values, always written with a decimal point, then `c_thumb,g_face`). It then offers the photo to others on the sheet, one rectangle each. Adjust photo redraws the rectangle without uploading again.
+- **Large photos** are shrunk in the browser to 2400 px on the long side (a JPEG, which also drops the camera's hidden details) unless that doesn't make the file smaller, and Cloudinary keeps at most 2400 px. A HEIC photo is only shrunk in Safari, the only browser that reads it.
 - Uploads are tagged with the database name, so local and preview photos can be told apart in Cloudinary's Media Library.
 
 ### F9. Export
@@ -624,7 +629,7 @@ type Operation =
   | { op: "addChild"; unionId: Ref; childId: Ref }
   | { op: "createSheet"; tempId?: string; title: string; rootPersonId: Ref; pinned?: boolean; hideChildrenOf?: Ref } // hideChildrenOf: one of the root's couples (§6)
   | { op: "addToSheet"; sheetId: Ref; personId: Ref }
-  | { op: "setPhoto"; personId: Ref; photoId: string | null } // a public ID in groups/{groupId}/; null removes it
+  | { op: "setPhoto"; personId: Ref; photoId: string | null; crop?: { x: number; y: number; w: number; h: number } | null } // a public ID in groups/{groupId}/; null removes it; crop: where they are in it
   | { op: "deletePerson"; personId: Ref } // UI only, never offered to the AI (soft delete)
   | { op: "restorePerson"; personId: Ref } // UI only: Undo for deletePerson
   | { op: "addPartner"; unionId: Ref; personId: Ref } // UI only: a single parent's partner (the other parent)
@@ -637,7 +642,7 @@ How `applyOperations` works (`src/server/operations/`, built in step 3):
 - The batch is validated with zod. Then, inside one transaction, the group's records are loaded and a pure planner (`planOperations`) checks every operation against them before anything is written. Errors name the failing change ("Change 3: …").
 - Rules: references must exist in the same group; a couple has 1–2 different people and can't be created twice; a person has at most one set of parents and can't become their own ancestor; a day and month go together, with or without their year, the date must exist (29 February only in leap years, or with no year), and a death can't be before the birth (`datesProblem` in `src/tree/years.ts`, which the person form uses too). A marriage date follows a birth date's rules (`marriageProblem`) and only a couple of two can be given one; it isn't compared with the partners' dates. Repeating `addChild` or `addToSheet` changes nothing.
 - Added in step 6: `addPartner` only for a couple with one partner, and the new partner can't be one of the couple's descendants; `reorderSheets` must list every sheet exactly once; a person who is a sheet's root can't be deleted (the sheet would be empty). Tabs show pinned sheets first, then the saved order.
-- Added in step 7: `setPhoto`'s photo must be in the group's folder (`groups/{groupId}/`). The plan lists the photos a batch replaced or removed that nobody in the group uses any more (`unusedPhotoIds`), and `applyChangesAction` deletes them from Cloudinary once the batch is committed.
+- Added in step 7: `setPhoto`'s photo must be in the group's folder (`groups/{groupId}/`). The plan lists the photos a batch replaced or removed that nobody in the group uses any more (`unusedPhotoIds`), and `applyChangesAction` deletes them from Cloudinary once the batch is committed. Added by an owner request (2026-10-23): `crop`, fractions inside the photo (at least 2% each way), only with a photo; the same photo with a new rectangle frees nothing.
 - Deleted people stay in their couples (so Undo restores them fully) but count as absent, exactly as the browser shows them (`toGroupTree`): a couple whose partners are all deleted isn't anyone's parents, so its children can be given new parents (they leave the old couple, so restoring the old parents can't give them two sets); and a new partner can take a deleted partner's place (`addPartner`).
 - All or nothing: one invalid operation rejects the batch. Concurrent edits are safe: on a write conflict MongoDB retries the transaction, which re-reads the group.
 - Added after step 11 (owner requests): `createSheet`'s `hideChildrenOf` must be a couple the root is in; `deleteSheet` refuses a pinned sheet and the group's last sheet; deleted sheets are treated as absent (not found, not counted by `reorderSheets`, and no longer stop their root being deleted).
@@ -738,7 +743,7 @@ Model and prompt (built in step 9):
 |---|---|---|---|
 | MongoDB Atlas M0 | 512 MB storage | Hundreds of thousands of people (photos aren't stored here) | A paid Atlas tier |
 | Vercel Hobby | Personal, non-commercial use; going over usage limits pauses the site rather than billing | Any commercial use | Vercel Pro |
-| Cloudinary | Monthly credits shared by storage, bandwidth and transformations; images up to 10 MB | Tens of thousands of photos or heavy traffic (photos are stored at most 1600 px, and cards load 168 px crops) | A paid plan |
+| Cloudinary | Monthly credits shared by storage, bandwidth and transformations; images up to 10 MB | Tens of thousands of photos or heavy traffic (photos are stored at most 2400 px, and cards load 168 px crops) | A paid plan |
 | Claude API | Paid per use | Many active chat users | Daily cap and spend limit already in place |
 | Data per page | The whole group is loaded at once | Several thousand people in one group | Load each sheet's people from the server |
 | Atlas M0 speed | Shared, throttled cluster | Slow saves from far away; many editors at once | Functions in the cluster's region; a paid tier |
@@ -750,7 +755,7 @@ Limits built into the app:
 |---|---|---|
 | Names, sheet titles, group names | 120 characters | `operations/schema.ts`, `new-group.ts` |
 | One import | 2,000 people; one batch, 20,000 changes; server action bodies 4 MB | `import-export/types.ts`, `operations/schema.ts`, `next.config.ts` |
-| Photos | JPEG, PNG, WebP or HEIC up to 10 MB, stored at most 1600 px | `upload-photo.ts`, `cloudinary.ts` |
+| Photos | JPEG, PNG, WebP or HEIC up to 50 MB chosen, shrunk in the browser to 2400 px, then up to 10 MB uploaded; stored at most 2400 px | `upload-photo.ts`, `cloudinary.ts` |
 | AI chat | `CHAT_DAILY_LIMIT` messages per person per day (50); the first 300 people go to the model as its family list; requests up to 400,000 characters | `chat-usage.ts`, `ai/prompt.ts`, `ai/request.ts` |
 | Invites | Last 14 days | `repositories/invites.ts` |
 | Access requests | 20 waiting per person | `repositories/access-requests.ts` |
