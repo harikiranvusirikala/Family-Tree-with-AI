@@ -7,10 +7,11 @@ import { parseJson } from "@/server/import-export/json";
 import type { ImportData } from "@/server/import-export/types";
 import type { Gender, GroupTree } from "@/tree/types";
 import { formatYears } from "@/tree/years";
+import { button, iconButton } from "../ui/button";
+import { compactField, field, fieldLabel, formError } from "../ui/field";
+import { LineIcon } from "../ui/icons";
 
-const input = "rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900";
-const button = "rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 pointer-coarse:min-h-11 dark:bg-white dark:text-zinc-900";
-const quiet = "rounded-full px-3 py-1.5 text-sm hover:bg-zinc-100 disabled:opacity-60 pointer-coarse:min-h-11 dark:hover:bg-zinc-800";
+const quiet = button("ghost", "sm");
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const withYears = (p: { name: string; birthYear?: number; deathYear?: number }) => {
   const years = formatYears(p.birthYear, p.deathYear);
@@ -90,10 +91,10 @@ export function ImportPanel({
 
   return (
     <section aria-label="Import a family file" className="flex flex-col gap-4 text-sm">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">Import a family file</h2>
-        <button type="button" onClick={onClose} className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 pointer-coarse:min-h-11 dark:text-zinc-400 dark:hover:bg-zinc-800">
-          Close
+      <div className="flex items-start justify-between gap-2">
+        <h2 className="text-lg font-semibold tracking-tight">Import a family file</h2>
+        <button type="button" onClick={onClose} aria-label="Close" className={`${iconButton} -mt-1 -mr-2`}>
+          <LineIcon name="x" className="size-5" />
         </button>
       </div>
       <p className="text-zinc-600 dark:text-zinc-400">
@@ -101,14 +102,15 @@ export function ImportPanel({
       </p>
       <div>
         <input ref={picker} type="file" accept=".ged,.gedcom,.json" hidden onChange={(e) => e.target.files?.[0] && read(e.target.files[0])} />
-        <button type="button" onClick={() => picker.current?.click()} disabled={busy} className={quiet + " border border-zinc-300 dark:border-zinc-700"}>
+        <button type="button" onClick={() => picker.current?.click()} disabled={busy} className={button("secondary")}>
+          <LineIcon name="upload" className="size-4" />
           {data ? "Choose another file" : "Choose a file"}
         </button>
       </div>
 
       {data && (
         <div className="flex flex-col gap-4">
-          <p role="status" className="font-medium">
+          <p role="status" className="rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 font-medium dark:border-zinc-800 dark:bg-zinc-950/50">
             {plural(data.persons.length, "person", "people")}, {plural(data.unions.length, "couple", "couples")}
             {data.sheets.length > 0 && `, ${plural(data.sheets.length, "sheet", "sheets")}`}
           </p>
@@ -125,15 +127,15 @@ export function ImportPanel({
           )}
 
           {newGroup && (
-            <label className="flex flex-col gap-1 font-medium">
+            <label className={fieldLabel}>
               Name of the new group
-              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className={input} />
+              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className={field} />
             </label>
           )}
 
           {duplicates.length > 0 && (
             <fieldset className="flex flex-col gap-2">
-              <legend className="mb-1 font-medium">Possibly already in this group ({duplicates.length})</legend>
+              <legend className="mb-1 font-semibold">Possibly already in this group ({duplicates.length})</legend>
               <p className="text-zinc-600 dark:text-zinc-400">They&apos;re linked to the person already here. Choose Keep both to add them as someone new.</p>
               {duplicates.map(({ imported, existing }) => (
                 <label key={imported.id} className="flex flex-wrap items-center justify-between gap-2">
@@ -150,7 +152,7 @@ export function ImportPanel({
                         return next;
                       });
                     }}
-                    className={input}
+                    className={compactField}
                   >
                     {existing.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -166,7 +168,7 @@ export function ImportPanel({
 
           {unknownSex.length > 0 && (
             <fieldset className="flex flex-col gap-2">
-              <legend className="mb-1 font-medium">No sex recorded ({unknownSex.length})</legend>
+              <legend className="mb-1 font-semibold">No sex recorded ({unknownSex.length})</legend>
               <p className="text-zinc-600 dark:text-zinc-400">The tree shows men and women with different colours, so choose for each.</p>
               {unknownSex.length > 3 && (
                 <div className="flex items-center gap-2">
@@ -181,7 +183,7 @@ export function ImportPanel({
               {unknownSex.map((p) => (
                 <label key={p.id} className="flex flex-wrap items-center justify-between gap-2">
                   <span>{withYears(p)}</span>
-                  <select aria-label={`Sex of ${p.name}`} value={genders[p.id] ?? ""} onChange={(e) => setGenders((all) => ({ ...all, [p.id]: e.target.value as Gender }))} className={input}>
+                  <select aria-label={`Sex of ${p.name}`} value={genders[p.id] ?? ""} onChange={(e) => setGenders((all) => ({ ...all, [p.id]: e.target.value as Gender }))} className={compactField}>
                     <option value="" disabled>
                       Choose…
                     </option>
@@ -194,9 +196,9 @@ export function ImportPanel({
           )}
 
           {data.sheets.length === 0 && (
-            <label className="flex flex-col gap-1 font-medium">
+            <label className={fieldLabel}>
               The new sheet shows the family of
-              <select value={root} onChange={(e) => setRoot(e.target.value)} className={input}>
+              <select value={root} onChange={(e) => setRoot(e.target.value)} className={field}>
                 {people.map((p) => (
                   <option key={p.id} value={p.id}>
                     {withYears(p)}
@@ -207,17 +209,17 @@ export function ImportPanel({
           )}
 
           <div className="flex gap-2">
-            <button type="button" onClick={submit} disabled={busy} className={button}>
+            <button type="button" onClick={submit} disabled={busy} className={button("primary")}>
               {busy ? "Importing…" : "Import"}
             </button>
-            <button type="button" onClick={onClose} disabled={busy} className={quiet}>
+            <button type="button" onClick={onClose} disabled={busy} className={button("ghost")}>
               Cancel
             </button>
           </div>
         </div>
       )}
       {problem && (
-        <p role="alert" className="text-red-700 dark:text-red-400">
+        <p role="alert" className={formError}>
           {problem}
         </p>
       )}

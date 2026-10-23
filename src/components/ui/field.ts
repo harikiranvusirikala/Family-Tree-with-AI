@@ -32,3 +32,8 @@ export const formError = "rounded-lg border border-red-200 bg-red-50 px-3 py-2 t
 /** A message under a form: it worked (and, say, here's the link). */
 export const formSuccess =
   "rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-sm text-green-900 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-200";
+
+/** A search box (Find someone), with `searchIcon` placed in it: both inside a `relative` box. */
+export const searchField =
+  "h-9 w-full rounded-lg border border-zinc-300 bg-white pr-3 pl-9 text-sm text-zinc-900 shadow-sm outline-none placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-blue-500/30 pointer-coarse:h-11 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-500";
+export const searchIcon = "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500";

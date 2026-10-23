@@ -3,6 +3,8 @@
 import { useId, useMemo, useState } from "react";
 import { findPeople } from "@/tree/everyone";
 import type { Person } from "@/tree/types";
+import { searchField, searchIcon } from "../ui/field";
+import { LineIcon } from "../ui/icons";
 import { nameWithYears } from "./edit/PersonPanel";
 
 /**
@@ -49,10 +51,11 @@ export function FindSomeone({ persons, onChoose }: { persons: Person[]; onChoose
           else return;
           event.preventDefault();
         }}
-        className="h-9 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm pointer-coarse:h-11 dark:border-zinc-700 dark:bg-zinc-900"
+        className={searchField}
       />
+      <LineIcon name="search" className={searchIcon} />
       {showing && (
-        <div className="absolute right-0 z-30 mt-1 w-full overflow-hidden rounded-lg border border-zinc-200 bg-white text-sm text-zinc-900 shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
+        <div className="absolute right-0 z-30 mt-2 w-full animate-menu-in overflow-hidden rounded-xl border border-zinc-200 bg-white p-1.5 text-sm text-zinc-900 shadow-xl shadow-zinc-900/10 motion-reduce:animate-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-black/50">
           {matches.length ? (
             <ul id={list} role="listbox" aria-label="People found">
               {matches.map((person, i) => (
@@ -67,14 +70,14 @@ export function FindSomeone({ persons, onChoose }: { persons: Person[]; onChoose
                     choose(person);
                   }}
                   onPointerEnter={() => setActive(i)}
-                  className="cursor-pointer px-3 py-2 aria-selected:bg-zinc-100 pointer-coarse:py-3 dark:aria-selected:bg-zinc-800"
+                  className="cursor-pointer rounded-lg px-2.5 py-2 aria-selected:bg-zinc-100 pointer-coarse:py-3 dark:aria-selected:bg-zinc-800"
                 >
                   {nameWithYears(person)}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="px-3 py-2 text-zinc-500 dark:text-zinc-400">Nobody by that name.</p>
+            <p className="px-2.5 py-2 text-zinc-500 dark:text-zinc-400">Nobody by that name.</p>
           )}
         </div>
       )}

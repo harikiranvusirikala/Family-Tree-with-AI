@@ -24,6 +24,7 @@ import { SheetTabs, sheetMenuHeading, sheetMenuItem } from "@/components/tree/ed
 import { HidePhotosButton } from "@/components/tree/HidePhotosButton";
 import { button } from "@/components/ui/button";
 import { GradientSparkle } from "@/components/ui/GradientSparkle";
+import { searchField, searchIcon } from "@/components/ui/field";
 import { LineIcon } from "@/components/ui/icons";
 import { CloudNameContext, PhotosHiddenContext } from "@/components/tree/photo";
 import type { Operation } from "@/server/operations/schema";
@@ -331,11 +332,11 @@ export function GroupSheets({
         )}
         {everyone && (
           // The views, the count and Find someone; on phones the views get a row of their own.
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-zinc-200 px-3 py-2 md:px-4 dark:border-zinc-800">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-zinc-200 bg-white px-3 py-2 md:px-4 dark:border-zinc-800 dark:bg-zinc-950">
             <ViewSwitcher shown={shownView} onShow={showView} />
             {wheelShown && (
               // The Wheel's relation names: Telugu names in English letters, or English (the owner's choice).
-              <div role="group" aria-label="Relation names" className="flex shrink-0 rounded-full border border-zinc-300 p-0.5 text-sm font-medium dark:border-zinc-700">
+              <div role="group" aria-label="Relation names" className="flex shrink-0 gap-0.5 rounded-xl bg-zinc-100 p-1 text-sm font-medium dark:bg-zinc-900">
                 {(
                   [
                     ["te", "తె", "Telugu names"],
@@ -348,7 +349,7 @@ export function GroupSheets({
                     aria-label={name}
                     aria-pressed={nameStyle === style}
                     onClick={() => setNameStyle(style)}
-                    className="rounded-full px-3 py-1 hover:bg-zinc-100 aria-pressed:bg-zinc-900 aria-pressed:text-white pointer-coarse:min-h-11 dark:hover:bg-zinc-800 dark:aria-pressed:bg-white dark:aria-pressed:text-zinc-900"
+                    className="rounded-lg px-3 py-1 text-zinc-600 outline-none hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-blue-500/70 aria-pressed:bg-white aria-pressed:text-zinc-900 aria-pressed:shadow-sm pointer-coarse:min-h-11 dark:text-zinc-400 dark:hover:text-zinc-100 dark:aria-pressed:bg-zinc-800 dark:aria-pressed:text-zinc-100"
                   >
                     {label}
                   </button>
@@ -358,17 +359,20 @@ export function GroupSheets({
             <p className="hidden shrink-0 text-sm text-zinc-500 sm:block dark:text-zinc-400">
               {view.persons.length} {view.persons.length === 1 ? "person" : "people"} · {couples} {couples === 1 ? "couple" : "couples"}
             </p>
-            <div className="w-full sm:ml-auto sm:w-72">
+            <div className="relative w-full sm:ml-auto sm:w-72">
               {listShown ? (
                 // In the List, Find someone narrows the rows as you type (the owner's choice).
-                <input
-                  type="search"
-                  aria-label="Find someone"
-                  placeholder="Find someone…"
-                  value={listQuery}
-                  onChange={(event) => setListQuery(event.target.value)}
-                  className="h-9 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm pointer-coarse:h-11 dark:border-zinc-700 dark:bg-zinc-900"
-                />
+                <>
+                  <input
+                    type="search"
+                    aria-label="Find someone"
+                    placeholder="Find someone…"
+                    value={listQuery}
+                    onChange={(event) => setListQuery(event.target.value)}
+                    className={searchField}
+                  />
+                  <LineIcon name="search" className={searchIcon} />
+                </>
               ) : (
                 <FindSomeone
                   persons={view.persons}

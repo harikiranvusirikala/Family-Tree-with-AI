@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { filterRows, LIST_FILTERS, LIST_SORTS, marriageLines, relationSummary, sortRows, type ListFilter, type ListRow, type ListSort } from "@/tree/everyone";
 import { formatDate, formatLife, formatYears } from "@/tree/years";
+import { button } from "../ui/button";
+import { compactField } from "../ui/field";
 import { PersonPhoto } from "./PersonPhoto";
 
 const muted = "text-zinc-500 dark:text-zinc-400";
@@ -65,7 +67,7 @@ export function EveryoneList({
               type="button"
               aria-pressed={filter === f.id}
               onClick={() => onFilter(f.id)}
-              className="shrink-0 whitespace-nowrap rounded-full border border-zinc-300 px-3 py-1 text-sm hover:bg-zinc-100 aria-pressed:border-zinc-900 aria-pressed:bg-zinc-900 aria-pressed:text-white pointer-coarse:min-h-11 dark:border-zinc-700 dark:hover:bg-zinc-800 dark:aria-pressed:border-white dark:aria-pressed:bg-white dark:aria-pressed:text-zinc-900"
+              className="shrink-0 rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm font-medium whitespace-nowrap text-zinc-700 transition-colors outline-none hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-blue-500/70 aria-pressed:border-zinc-900 aria-pressed:bg-zinc-900 aria-pressed:text-white pointer-coarse:min-h-11 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:aria-pressed:border-white dark:aria-pressed:bg-white dark:aria-pressed:text-zinc-900"
             >
               {f.label} ({counts[i]})
             </button>
@@ -75,7 +77,7 @@ export function EveryoneList({
           aria-label="Sort"
           value={sort}
           onChange={(event) => onSort(event.target.value as ListSort)}
-          className="shrink-0 rounded-full border border-zinc-300 bg-white px-3 py-1 text-sm pointer-coarse:min-h-11 dark:border-zinc-700 dark:bg-zinc-900"
+          className={`${compactField} shrink-0`}
         >
           {LIST_SORTS.map((s) => (
             <option key={s.id} value={s.id}>
@@ -88,7 +90,7 @@ export function EveryoneList({
         {shown.length > 0 ? (
           // Fixed layout: a long line under a name is cut short (…) instead of widening the table.
           <table aria-label="People" className="w-full table-fixed text-left text-sm">
-            <thead className={`sticky top-0 z-10 hidden bg-white text-xs @2xl:table-header-group dark:bg-zinc-900 ${muted}`}>
+            <thead className={`sticky top-0 z-10 hidden bg-white text-[11px] tracking-wide uppercase @2xl:table-header-group dark:bg-zinc-900 ${muted}`}>
               <tr className="shadow-[inset_0_-1px_0] shadow-zinc-200 dark:shadow-zinc-800">
                 <th scope="col" className="w-[22%] py-2 pl-4 pr-3 font-medium">Person</th>
                 <th scope="col" aria-sort={!byBirth ? "none" : sort === "oldest" ? "ascending" : "descending"} className="w-[12%] px-3 py-2 font-medium">
@@ -118,7 +120,7 @@ export function EveryoneList({
         ) : (
           <div className={`flex flex-col items-start gap-2 p-4 text-sm ${muted}`}>
             <p>Nobody matches.</p>
-            <button type="button" onClick={onShowAll} className="rounded-full border border-zinc-300 px-3 py-1 font-medium text-zinc-900 hover:bg-zinc-100 pointer-coarse:min-h-11 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-800">
+            <button type="button" onClick={onShowAll} className={button("secondary", "sm")}>
               Show everyone
             </button>
           </div>
@@ -149,12 +151,12 @@ function Row({
   return (
     // The whole row chooses the person; the name is its button for keyboards and screen readers (the
     // button's click reaches the row). The scroll margins keep a chosen row clear of the sticky column
-    // names and of a phone's panel.
+    // names and of a phone's panel, and a little off the bottom edge (scrolling stops on whole pixels).
     <tr
       data-person-id={person.id}
       aria-current={selected || undefined}
       onClick={() => onPerson(person.id)}
-      className={`cursor-pointer scroll-mt-10 border-b border-zinc-100 align-top dark:border-zinc-800/70 ${
+      className={`cursor-pointer scroll-mt-10 scroll-mb-2 border-b border-zinc-100 align-top dark:border-zinc-800/70 ${
         selected ? "bg-amber-50 max-md:scroll-mb-[56dvh] dark:bg-amber-950/40" : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
       }`}
     >

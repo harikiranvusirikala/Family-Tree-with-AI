@@ -46,7 +46,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Google Tag Manager on the landing page (owner request) | Done 2026-10-22 (unit tests: 462 passed; e2e: 83 passed). `GTM_ID` set in Vercel's Production and checked on the live site by the owner, 2026-10-23. See its section at the end |
 | – | Search engines and the landing page (owner request) | Done 2026-10-22 (unit tests: 472 passed; e2e: 88 passed, with Google Tag Manager merged first). Checked on the live site by the owner, 2026-10-23: Search Console verified, the sitemap submitted, GitHub's social preview uploaded. See its section at the end |
 | – | CLAUDE.md and ESLint after the parallel worktree (owner request) | Done 2026-10-23 (lint clean; unit tests: 472 passed). See its section at the end |
-| – | A production look across the app (owner request) | Agreed 2026-10-23; built part by part on the `production-look` branch. Part 1 (the app shell): done 2026-10-23 (unit tests: 483 passed; e2e: 93 passed). Part 2 (the dashboard): done 2026-10-23 (unit tests: 490 passed; e2e: 96 passed). Part 3 (Members and Settings): done 2026-10-23 (unit tests: 500 passed; e2e: 99 passed). Part 4 (the tree page's frame): first half (the sheet row, toolbar, canvas controls, panels and forms) done 2026-10-23 (unit tests: 500 passed; e2e: 99 passed); second half (the chat, Import and ★ Everyone) next. See its section at the end |
+| – | A production look across the app (owner request) | Agreed 2026-10-23; built part by part on the `production-look` branch. Part 1 (the app shell): done 2026-10-23 (unit tests: 483 passed; e2e: 93 passed). Part 2 (the dashboard): done 2026-10-23 (unit tests: 490 passed; e2e: 96 passed). Part 3 (Members and Settings): done 2026-10-23 (unit tests: 500 passed; e2e: 99 passed). Part 4 (the tree page's frame): first half (the sheet row, toolbar, canvas controls, panels and forms) and second half (the chat, Import and ★ Everyone) done 2026-10-23 (unit tests: 500 passed; e2e: 99 passed). Part 5 (finish) next. See its section at the end |
 
 ## How we work
 
@@ -1624,3 +1624,13 @@ The app is built in small steps. Each step ends with its tests passing, a check 
     - E2e: screenshots of the dialogs (`new-sheet-dialog.png`, `sheet-options.png`). Menus are measured after their opening animation.
     - E2e: the Network's circles are now compared by ratio, because the taller row zoomed the canvas out a little. A full birth date is read under the person's name, because a relative's row also says 1985.
     - The first run's two members tests timed out on server actions that never answered (a slow database); the rerun passed.
+- **Part 4, second half (notes, 2026-10-23):**
+  - **The chat** (`ChatWidget`, `ProposalCard`):
+    - A header with the sparkle, "Ask about your family", New chat and Close (an icon).
+    - Messages as bubbles: yours on the right, the assistant's beside a small sparkle, the app's ("Saved.", "Discarded.") as pills in the middle. Animated dots while it thinks.
+    - Before the first message, a card with two examples that fill the box when chosen.
+    - The proposal as an amber card with dots, then Confirm (with a tick) and Discard.
+    - The message box is rounded, with a round Send button (named "Send").
+  - **Import:** Close is an icon, Choose a file has an upload icon, the file's counts are in a box, and fields and buttons are the shared ones.
+  - **★ Everyone:** the view switcher and the Telugu/English toggle are segmented controls like the sheet tabs, Find someone and the List's search box have a search icon (`searchField`, `searchIcon` in `field.ts`), and Find someone's list looks like a menu. The List's filters are chips on white, its sort uses the shared field, and its column names match the members page's. Upcoming already matched, so it's unchanged.
+  - **A bug the tests found:** with the new bar's heights, a row the List scrolled into view (`block: "nearest"`) was cut off by a fraction of a pixel, because scrolling stops on whole pixels. The rows now keep a small margin from the bottom edge (`scroll-mb-2`).

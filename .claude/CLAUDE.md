@@ -220,6 +220,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
   - The sheet row: "Sheet options" (⋯, computers) and "Sheet menu" (⋯, below 1024 px) open menus with "Rename…", "Pin" or "Unpin", "Move left"/"Move right" ("Move up"/"Move down" on phones) and "Delete sheet…"; "New sheet" (no "+"). They open the dialogs "Rename sheet", "New sheet" and "Delete sheet", whose forms have the same names.
   - The person panel: Close is an icon button named "Close"; the views are tiles named "Relatives wheel", "Show in network" and "Find in list" (their words are Wheel, Network, List); relatives are rows named like their cards ("Jerry Willow, 1920 – 1989"), a partner's "Married 8 Sep 2008" as the description; Delete is "Delete <name>". `PersonPhoto` is `aria-hidden`.
   - The canvases' zoom buttons and minimap are cards styled through React Flow's CSS variables in `globals.css` (`.react-flow` and `.react-flow.dark`).
+  - The chat: Close is an icon named "Close", Send a round button named "Send"; the log "Conversation", the region "Proposed changes" with Confirm and Discard. Search boxes use `searchField` and `searchIcon` (`field.ts`).
 - **The dashboard's names:**
   - the regions "Invitations", "Get started" (the first visit only), "My groups", "Shared with me", "My access requests" and "Coming up";
   - the buttons "New group" (match it with `exact: true`, as the dashed card "Start a new group" contains it) and "Import a file";
