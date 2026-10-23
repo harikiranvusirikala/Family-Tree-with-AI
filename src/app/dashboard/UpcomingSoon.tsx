@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { useToday } from "@/components/today";
 import { PersonPhoto } from "@/components/tree/PersonPhoto";
+import { card } from "@/components/ui/card";
 import { everyoneHref } from "@/tree/everyone";
 import type { FamilyData } from "@/tree/types";
 import { formatDay, formatInDays, ordinal, upcomingDates, type Upcoming } from "@/tree/upcoming";
@@ -32,7 +33,7 @@ export function UpcomingSoon({ groups }: { groups: UpcomingGroup[] }) {
   }, [groups, today]);
 
   return (
-    <section aria-label="Coming up" className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+    <section aria-label="Coming up" className={`${card} overflow-hidden`}>
       <div className="flex items-baseline justify-between gap-3 px-5 pt-4 pb-3">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Coming up</h2>
         <span className={`text-xs ${muted}`}>Next 30 days</span>

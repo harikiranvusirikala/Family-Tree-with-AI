@@ -46,7 +46,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Google Tag Manager on the landing page (owner request) | Done 2026-10-22 (unit tests: 462 passed; e2e: 83 passed). `GTM_ID` set in Vercel's Production and checked on the live site by the owner, 2026-10-23. See its section at the end |
 | – | Search engines and the landing page (owner request) | Done 2026-10-22 (unit tests: 472 passed; e2e: 88 passed, with Google Tag Manager merged first). Checked on the live site by the owner, 2026-10-23: Search Console verified, the sitemap submitted, GitHub's social preview uploaded. See its section at the end |
 | – | CLAUDE.md and ESLint after the parallel worktree (owner request) | Done 2026-10-23 (lint clean; unit tests: 472 passed). See its section at the end |
-| – | A production look across the app (owner request) | Agreed 2026-10-23; built part by part on the `production-look` branch. Part 1 (the app shell): done 2026-10-23 (unit tests: 483 passed; e2e: 93 passed). Part 2 (the dashboard): done 2026-10-23 (unit tests: 490 passed; e2e: 96 passed). Part 3 (Members and Settings): next. See its section at the end |
+| – | A production look across the app (owner request) | Agreed 2026-10-23; built part by part on the `production-look` branch. Part 1 (the app shell): done 2026-10-23 (unit tests: 483 passed; e2e: 93 passed). Part 2 (the dashboard): done 2026-10-23 (unit tests: 490 passed; e2e: 96 passed). Part 3 (Members and Settings): done 2026-10-23 (unit tests: 500 passed; e2e: 99 passed). Part 4 (the tree page's frame): next. See its section at the end |
 
 ## How we work
 
@@ -1567,3 +1567,32 @@ The app is built in small steps. Each step ends with its tests passing, a check 
     - Unit: `Dialog.test.tsx`, `familyCounts` in `everyone.test.ts`, and the `<Activity>` cases for `Dialog` and `Menu`.
     - Database: `memberCounts` in `members.db.test.ts`.
     - E2e: `dashboard.spec.ts` covers the cards and counts, the dialog by keyboard (focus in the first field, Escape gives it back), the first visit, and Import's dialog. A phone check makes sure the dialog fits, with 44 px buttons and 16 px fields. `groups.spec.ts`, `app-shell.spec.ts` and `import-export.spec.ts` open the dialogs, and in `members.spec.ts` someone who leaves their only group gets the welcome.
+- **Part 3, Members and Settings (notes, 2026-10-23):**
+  - **Building blocks** in `src/components/ui/`:
+    - `card.ts` (cards, a red one for what can't be taken back, title rows and lists), `badge.ts` (roles, moved from the dashboard; counts; "You"), `Avatar.tsx` (an account's initials in a neutral ring, the account menu's too), `PageHeader.tsx` (a page's heading, its sentence and its buttons), `Skeleton.tsx` (`skeleton`, and `LoadingPage`: the header's bar and the page's shape while it loads) and `page.ts` (`pageFrame`).
+    - `field.ts` gains `compactField`, `menuField`, `fieldHint` and `formSuccess`, and fields are now 36 px like the buttons. `button.ts` gains `dangerOutline` and `dangerGhost`, `Menu.tsx` gains `dangerMenuItem`, and `Dialog.tsx` gains `DialogActions`.
+    - **No class string is combined with a conflicting utility** (such as `${field} w-auto`): which one wins depends on the order of Tailwind's CSS, not the order in the class. The base styles get variants instead. Part 2's loading cards had this bug (`rounded-md` with `rounded-2xl`); it's fixed.
+  - **Members** (Admin and up):
+    - **The heading** says how many people can see the group. Beside it, Invite people opens a dialog with the email and the three roles as choices, each saying what it allows (`ROLE_HINTS` in `members-rules.ts`). The new link appears there with Copy, and Done closes the dialog.
+    - **Three cards:**
+      - Access requests: avatar, email, the message, a role, Deny and Approve, or "No requests waiting."
+      - People: avatar, the name (with "You"), email, the role, Joined, and ⋯.
+      - Invites waiting: Copy link and Revoke. If the browser won't copy, the row shows the link.
+    - **A role is a menu** (named "Role for <name>: <role>"): each role says what it allows, and the current one is ticked. Choosing one saves it straight away and shows it while it saves (`useOptimistic`). It replaces the dropdown and its Change role button.
+    - **Removing:** ⋯ → Remove from group… asks in a dialog, with Cancel focused. The Owner's row and your own have no ⋯ (leaving is in Settings).
+    - **Viewers and Maintainers** get a card saying only Admins and the Owner manage members, with Back to the tree.
+    - **The data:** `listMembers` now returns `joinedAt` (the membership's `createdAt`).
+  - **Settings:**
+    - **The Owner** gets cards for the group's name, transferring ownership and deleting the group. From 1024 px a side menu (General, Ownership, Danger zone) sits beside them: it marks the card in view, and choosing one scrolls to that card and moves the focus there. It looks for the cards inside its own page, because Next.js keeps other visited settings pages in the document, hidden, with the same ids.
+    - **The dialogs:** the new owner is chosen in the card. Transfer ownership… opens a dialog naming that member, and Delete group… one with the member count; both ask for the group's name. Their buttons wait until the name is typed (the server still checks). The dialogs submit without React's form reset, so a refused attempt keeps what was typed.
+    - **Everyone else** gets the sentence about the owner, and Leave this group… in a red card, which asks in a dialog.
+  - **Loading:** the dashboard, Members and Settings show their shapes while they load, instead of "Loading…".
+  - **Full-page phone screenshots** end with a thin white band under the grey page. Filling `<body>` (`flex-1` in `pageFrame`) didn't remove it, and on a phone `min-h-dvh` covers the screen, so it comes from how Playwright captures the whole page.
+  - **Names that changed, with their tests:**
+    - The members page's regions are named after their headings: "Access requests", "People" and "Invites waiting".
+    - Invites choose a radio button, and roles use the menu.
+    - "Transfer ownership…", "Delete group…" and "Leave this group…" open the dialogs. Inside, the buttons are "Transfer ownership", "Delete group" and "Leave".
+  - **Tests:**
+    - Unit: `MembersForms.test.tsx` (the role menu and its change shown at once, Remove's dialog, the invite form) and `SettingsForms.test.tsx` (the confirmations, Transfer, Leave).
+    - Database: `joinedAt`.
+    - E2e: Remove from group; the role menu; screenshots of the members and settings pages, with the side menu and the dialogs; the phone members and settings pages; and the transfer, delete and leave flows through their dialogs.

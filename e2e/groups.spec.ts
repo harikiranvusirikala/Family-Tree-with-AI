@@ -118,11 +118,13 @@ test("rename and delete show everywhere, including pages the browser kept", asyn
   await page.goBack();
   await expect(page.getByRole("heading", { name: "Group settings" })).toBeVisible();
 
+  // Deleting waits for the group's name, typed in a dialog: the old name isn't enough.
+  await page.getByRole("button", { name: "Delete group…" }).click();
+  const confirm = page.getByRole("dialog", { name: "Delete this group" });
   await textbox(page, "Confirm the group's name").fill("Rao family");
-  await page.getByRole("button", { name: "Delete group" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "to confirm" })).toBeVisible();
+  await expect(confirm.getByRole("button", { name: "Delete group", exact: true })).toBeDisabled();
   await textbox(page, "Confirm the group's name").fill("Rao family tree");
-  await page.getByRole("button", { name: "Delete group" }).click();
+  await confirm.getByRole("button", { name: "Delete group", exact: true }).click();
   await expect(page).toHaveURL("/dashboard");
   await expect(page.getByText(NO_GROUPS)).toBeVisible();
   await expect(mine.getByRole("link")).toHaveCount(0);

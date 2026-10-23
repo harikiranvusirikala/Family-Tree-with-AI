@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { button } from "@/components/ui/button";
-import { DialogButton } from "@/components/ui/Dialog";
+import { DialogActions, DialogButton } from "@/components/ui/Dialog";
 import { choice, choiceLabel, field, fieldLabel, formError } from "@/components/ui/field";
 import { LineIcon } from "@/components/ui/icons";
 import { createGroupAction, type NewGroupFormState } from "./actions";
@@ -62,7 +62,7 @@ export function NewGroupForm({ myName, onCancel }: { myName: string; onCancel?: 
           {state.error}
         </p>
       )}
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <DialogActions>
         {onCancel && (
           <button type="button" onClick={onCancel} className={button("ghost")}>
             Cancel
@@ -71,7 +71,7 @@ export function NewGroupForm({ myName, onCancel }: { myName: string; onCancel?: 
         <button type="submit" disabled={pending} className={button("primary")}>
           {pending ? "Creating…" : "Create group"}
         </button>
-      </div>
+      </DialogActions>
     </form>
   );
 }

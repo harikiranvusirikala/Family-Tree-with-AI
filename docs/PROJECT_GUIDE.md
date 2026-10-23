@@ -280,8 +280,8 @@ flowchart TB
 | `/dashboard` | [dashboard/page.tsx](../src/app/dashboard/page.tsx), plus `NewGroupForm.tsx`, `ImportNewGroup.tsx`, `UpcomingSoon.tsx`, `actions.ts` | Anyone signed in |
 | `/g/{groupId}` | [g/[groupId]/page.tsx](../src/app/g/[groupId]/page.tsx) | Members (View and up) |
 | `/g/{groupId}/s/{sheetId}` | [s/layout.tsx](../src/app/g/[groupId]/s/layout.tsx) loads the data, [s/GroupSheets.tsx](../src/app/g/[groupId]/s/GroupSheets.tsx) runs the editor. The `[sheetId]/page.tsx` is empty on purpose: the layout stays on screen while you switch tabs | View to look, Maintain to edit |
-| `/g/{groupId}/members` | [members/page.tsx](../src/app/g/[groupId]/members/page.tsx), `MembersForms.tsx`, `actions.ts` | Admin and Owner (other members see a short note) |
-| `/g/{groupId}/settings` | [settings/page.tsx](../src/app/g/[groupId]/settings/page.tsx), `SettingsForms.tsx`, `actions.ts` | Members (the Owner sees rename, hand over and delete; others see Leave) |
+| `/g/{groupId}/members` | [members/page.tsx](../src/app/g/[groupId]/members/page.tsx), `MembersForms.tsx`, `columns.ts`, `actions.ts` | Admin and Owner (other members see a short note) |
+| `/g/{groupId}/settings` | [settings/page.tsx](../src/app/g/[groupId]/settings/page.tsx), `SettingsForms.tsx`, `SettingsNav.tsx`, `actions.ts` | Members (the Owner sees rename, hand over and delete; others see Leave) |
 | `/invite/{token}` | [invite/[token]/page.tsx](../src/app/invite/[token]/page.tsx), `InviteAnswer.tsx`, `actions.ts` | The person invited |
 | `/dev/tree` | [dev/](../src/app/dev/) | Developers only (404 on the real site) |
 
@@ -395,6 +395,10 @@ flowchart TB
 | [Menu.tsx](../src/components/ui/Menu.tsx) | Drop-down menus that work with the mouse, a finger and the keyboard |
 | [Dialog.tsx](../src/components/ui/Dialog.tsx) | Dialogs over the page (create a group, import a file): Escape, a click outside or Close end them |
 | [field.ts](../src/components/ui/field.ts) | The look of text fields, their labels, checkboxes, radios and form errors |
+| [card.ts](../src/components/ui/card.ts), [badge.ts](../src/components/ui/badge.ts), [page.ts](../src/components/ui/page.ts) | The look of cards (white panels on the grey page), badges (roles, counts) and a page's frame |
+| [Avatar.tsx](../src/components/ui/Avatar.tsx) | An account's initials in a circle (the account menu, members, requests) |
+| [PageHeader.tsx](../src/components/ui/PageHeader.tsx) | A page's heading, the sentence under it and its main buttons |
+| [Skeleton.tsx](../src/components/ui/Skeleton.tsx) | Grey blocks in the page's shape while it loads |
 | [MessagePage.tsx](../src/components/ui/MessagePage.tsx) | A card in the middle of the page, for pages that say one thing (no access, an invite, not found) |
 | [icons.tsx](../src/components/ui/icons.tsx) | The app's line icons |
 
@@ -768,6 +772,7 @@ The [test/](../test/) folder holds what the tests share:
 | [fixtures/generated.ts](../test/fixtures/generated.ts) | Builds large made-up families (for speed tests) |
 | [planning.ts](../test/planning.ts) | Applies operations to a family in memory, with the real planner, without a database |
 | [db.ts](../test/db.ts) | `createTestDatabase()`: a fresh database for each test file |
+| [dialogs.ts](../test/dialogs.ts) | Stand-ins for the browser's modal dialogs, which jsdom doesn't have |
 | [server-checks.test.ts](../test/server-checks.test.ts) | Reads every server action and API route and fails if one forgets to check who's calling |
 
 ---

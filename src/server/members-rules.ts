@@ -8,6 +8,13 @@ export type GrantableRole = (typeof GRANTABLE_ROLES)[number];
 
 export const ROLE_LABELS: Record<Role, string> = { owner: "Owner", admin: "Admin", maintain: "Maintain", view: "View" };
 
+/** What each role that can be given lets someone do (§8), where a role is chosen. */
+export const ROLE_HINTS: Record<GrantableRole, string> = {
+  view: "Sees the tree and its people",
+  maintain: "Also adds and edits people, photos and sheets",
+  admin: "Also lets people in and changes their roles",
+};
+
 /** A rule was broken; the message is shown to the person who tried. */
 export class MemberError extends Error {
   constructor(message: string) {

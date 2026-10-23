@@ -23,16 +23,20 @@ async function someoneElse(browser: Browser, signIn: SignIn, name: string): Prom
   return { page, user: await signIn(page, name) };
 }
 
-/** Invites an email from the members page; the new invite's token, from the link shown to share. */
+/** Invites an email from the members page's dialog; the new invite's token, from the link shown to share. */
 async function invite(page: Page, groupId: string, email: string, role: string) {
   await page.goto(`/g/${groupId}/members`);
+  await page.getByRole("button", { name: "Invite people" }).click();
   const form = page.getByRole("form", { name: "Invite someone" });
   await form.getByRole("textbox", { name: "Email" }).fill(email);
-  await form.getByRole("combobox", { name: "Role", exact: true }).selectOption({ label: role });
-  await form.getByRole("button", { name: "Invite" }).click();
+  await form.getByRole("radio", { name: role, exact: true }).check();
+  await form.getByRole("button", { name: "Invite", exact: true }).click();
   const link = form.getByRole("textbox", { name: "New invite link" });
   await expect(link).toHaveValue(/\/invite\/[\w-]{43}$/);
-  return (await link.inputValue()).split("/invite/")[1];
+  const token = (await link.inputValue()).split("/invite/")[1];
+  await form.getByRole("button", { name: "Done" }).click();
+  await expect(form).toBeHidden();
+  return token;
 }
 
 /** Asks for access from a tree link, with a message. */
@@ -67,8 +71,8 @@ test("invite by email: the invitee sees it on the tree link and the dashboard, a
     await expect(row(cousin.page, "Shared with me", "Cruz family")).toContainText("Maintain");
     await expect(region(cousin.page, "Invitations")).toHaveCount(0);
     await page.goto(`/g/${groupId}/members`);
-    await expect(row(page, "Members", "Cousin Ravi").getByRole("combobox")).toHaveValue("maintain");
-    await expect(region(page, "Invites").getByRole("listitem")).toHaveCount(0);
+    await expect(row(page, "People", "Cousin Ravi").getByRole("button", { name: "Role for Cousin Ravi: Maintain" })).toBeVisible();
+    await expect(region(page, "Invites waiting").getByRole("listitem")).toHaveCount(0);
   } finally {
     await cousin.page.context().close();
   }
@@ -87,8 +91,8 @@ test("an invite works only for its email, until it's revoked or expires; Decline
     expect(await other.page.getByTestId("invite").textContent()).not.toContain("Cruz"); // nothing about the group
     await expect(other.page.getByRole("button", { name: "Sign in with another account" })).toBeVisible();
 
-    await row(page, "Invites", invited.user.email).getByRole("button", { name: "Revoke" }).click();
-    await expect(row(page, "Invites", invited.user.email)).toHaveCount(0);
+    await row(page, "Invites waiting", invited.user.email).getByRole("button", { name: "Revoke" }).click();
+    await expect(row(page, "Invites waiting", invited.user.email)).toHaveCount(0);
     await invited.page.goto(`/invite/${token}`);
     await invalid(invited.page);
 
@@ -132,7 +136,7 @@ test("request access, approved as Maintain: the badge shows it, and the requeste
     await request.getByRole("combobox", { name: "Role for Priya Sharma" }).selectOption({ label: "Maintain" });
     await request.getByRole("button", { name: "Approve" }).click();
     await expect(region(page, "Access requests")).toContainText("No requests waiting.");
-    await expect(row(page, "Members", "Priya Sharma").getByRole("combobox")).toHaveValue("maintain");
+    await expect(row(page, "People", "Priya Sharma").getByRole("button", { name: "Role for Priya Sharma: Maintain" })).toBeVisible();
 
     await asker.page.goto(`/g/${groupId}/s/${cruzSheet}`);
     await expect(cards(asker.page)).toHaveCount(36);
@@ -180,7 +184,7 @@ test("Viewers and Maintainers get no members page or badge; Admins do", async ({
       await expect(cards(p)).toHaveCount(36);
       await expect(p.getByRole("banner").getByRole("link", { name: /^Members/ })).toHaveCount(0);
       await p.goto(`/g/${groupId}/members`);
-      await expect(p.getByRole("main")).toHaveText("Only Admins and the Owner manage members.");
+      await expect(p.getByRole("main")).toContainText("Only Admins and the Owner manage members.");
       await p.goto("/dashboard");
       await expect(row(p, "Shared with me", "Cruz family")).not.toContainText("access request");
     }
@@ -192,23 +196,62 @@ test("Viewers and Maintainers get no members page or badge; Admins do", async ({
   }
 });
 
-test("a changed role shows in its dropdown without a reload (found in the owner's check)", async ({ browser, page, signIn, sampleGroup, addMember }) => {
+test("a changed role shows in its menu without a reload (found in the owner's check)", async ({ browser, page, signIn, sampleGroup, addMember }) => {
   const { groupId } = await ownerWithGroup(page, signIn, sampleGroup);
   const member = await someoneElse(browser, signIn, "Vera Viewer");
   try {
     await addMember(groupId, member.user, "view");
     await page.goto(`/g/${groupId}/members`);
-    const vera = row(page, "Members", "Vera Viewer");
-    const role = vera.getByRole("combobox", { name: "Role for Vera Viewer" });
-    for (const [label, value] of [["Maintain", "maintain"], ["Admin", "admin"]]) {
-      await role.selectOption({ label });
-      await vera.getByRole("button", { name: "Change role" }).click();
+    const vera = row(page, "People", "Vera Viewer");
+    const menu = page.getByRole("menu", { name: "Role for Vera Viewer" });
+    for (const label of ["Maintain", "Admin"]) {
+      await vera.getByRole("button", { name: /^Role for Vera Viewer: / }).click();
+      await menu.getByRole("menuitemradio", { name: label }).click();
       await expect(vera.getByRole("status")).toHaveText("Role changed.");
-      await expect(role).toHaveValue(value); // React resets the form after the action; it must reset to the new role
-      await expect(role.locator("option:checked")).toHaveText(label);
+      await expect(vera.getByRole("button", { name: `Role for Vera Viewer: ${label}` })).toBeVisible();
     }
+    // The menu ticks the saved role, which a reload shows too.
+    await vera.getByRole("button", { name: "Role for Vera Viewer: Admin" }).click();
+    await expect(menu.getByRole("menuitemradio", { name: "Admin" })).toHaveAttribute("aria-checked", "true");
+    await page.keyboard.press("Escape");
+    await expect(menu).toBeHidden();
+    await page.reload();
+    await expect(vera.getByRole("button", { name: "Role for Vera Viewer: Admin" })).toBeVisible();
     await member.page.goto(`/g/${groupId}/members`);
-    await expect(member.page.getByRole("heading", { name: "Members" })).toBeVisible(); // now an Admin
+    await expect(member.page.getByRole("button", { name: "Invite people" })).toBeVisible(); // now an Admin
+  } finally {
+    await member.page.context().close();
+  }
+});
+
+test("Remove from group asks first: Escape keeps them, Remove takes their access away", async ({ browser, page, signIn, sampleGroup, addMember }) => {
+  const { groupId } = await ownerWithGroup(page, signIn, sampleGroup);
+  const member = await someoneElse(browser, signIn, "Vera Viewer");
+  try {
+    await addMember(groupId, member.user, "view");
+    await page.goto(`/g/${groupId}/members`);
+    await expect(page.getByRole("main")).toContainText("2 people can see Cruz family.");
+    const vera = row(page, "People", "Vera Viewer");
+    const options = vera.getByRole("button", { name: "Options for Vera Viewer" });
+    const dialog = page.getByRole("dialog", { name: "Remove Vera Viewer?" });
+    const ask = async () => {
+      await options.click();
+      await page.getByRole("menu", { name: "Options for Vera Viewer" }).getByRole("menuitem", { name: "Remove from group…" }).click();
+      await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+    };
+    await ask();
+    await expect(dialog).toContainText("They lose access to Cruz family straight away.");
+    await page.screenshot({ path: "test-results/screenshots/remove-member.png", animations: "disabled" });
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(options).toBeFocused();
+
+    await ask();
+    await dialog.getByRole("button", { name: "Remove", exact: true }).click();
+    await expect(vera).toHaveCount(0);
+    await expect(page.getByRole("main")).toContainText("1 person can see Cruz family.");
+    await member.page.goto(`/g/${groupId}`);
+    await expect(member.page.getByTestId("no-access")).toBeVisible();
   } finally {
     await member.page.context().close();
   }
@@ -220,16 +263,18 @@ test("an Admin can't remove or demote the Owner; the Owner transfers ownership, 
   try {
     await addMember(groupId, admin.user, "admin");
     await admin.page.goto(`/g/${groupId}/members`);
-    const ownerRow = row(admin.page, "Members", "Carla Cruz");
+    const ownerRow = row(admin.page, "People", "Carla Cruz");
     await expect(ownerRow).toContainText("Owner");
-    await expect(ownerRow.getByRole("combobox")).toHaveCount(0);
-    await expect(ownerRow.getByRole("button")).toHaveCount(0);
+    await expect(ownerRow.getByRole("button")).toHaveCount(0); // no role menu, no Remove
+    await expect(row(admin.page, "People", "Ada Admin").getByRole("button", { name: "Options for Ada Admin" })).toHaveCount(0); // leaving is in Settings
 
     await page.goto(`/g/${groupId}/settings`);
-    const transfer = page.getByRole("form", { name: "Transfer ownership" });
-    await transfer.getByRole("combobox", { name: "New owner" }).selectOption({ label: "Ada Admin (Admin)" });
+    await page.getByRole("combobox", { name: "New owner" }).selectOption({ label: "Ada Admin (Admin)" });
+    await page.getByRole("button", { name: "Transfer ownership…" }).click();
+    const transfer = page.getByRole("dialog", { name: "Transfer ownership" });
+    await expect(transfer).toContainText("Make Ada Admin the owner of Cruz family?");
     await transfer.getByRole("textbox", { name: "Confirm the group's name" }).fill("Cruz family");
-    await transfer.getByRole("button", { name: "Transfer ownership" }).click();
+    await transfer.getByRole("button", { name: "Transfer ownership", exact: true }).click();
     await expect(page.getByRole("main")).toContainText("You're an Admin. Only the group's owner, Ada Admin, can rename, transfer or delete it.");
 
     await admin.page.goto(`/g/${groupId}/settings`);
@@ -264,5 +309,47 @@ test("a request for a made-up group looks the same as for a real one", async ({ 
     await expect(mine.getByRole("listitem").filter({ hasText: "Waiting for an admin" })).toHaveCount(2);
   } finally {
     await asker.page.context().close();
+  }
+});
+
+test("the members and settings pages as cards (the production look): the side menu, the dialogs and screenshots", async ({ browser, page, signIn, sampleGroup, addMember }) => {
+  const { groupId, cruzSheet } = await ownerWithGroup(page, signIn, sampleGroup);
+  const asker = await someoneElse(browser, signIn, "Priya Sharma");
+  const people = await Promise.all(["Steve Cruz", "Olivia Cruz"].map((name) => someoneElse(browser, signIn, name)));
+  try {
+    await requestAccess(asker.page, `/g/${groupId}/s/${cruzSheet}`, "I'm Jake's niece");
+    await addMember(groupId, people[0].user, "admin");
+    await addMember(groupId, people[1].user, "maintain");
+    await invite(page, groupId, "ravi.kumar@example.com", "View");
+    await expect(page.getByRole("main")).toContainText("3 people can see Cruz family.");
+    await expect(row(page, "Access requests", "Priya Sharma")).toContainText("I'm Jake's niece");
+    await expect(row(page, "Invites waiting", "ravi.kumar@example.com")).toContainText("View · invited by Carla Cruz");
+    await page.screenshot({ path: "test-results/screenshots/members.png", fullPage: true, animations: "disabled" });
+    await page.getByRole("button", { name: "Invite people" }).click();
+    await expect(page.getByRole("form", { name: "Invite someone" }).getByRole("textbox", { name: "Email" })).toBeFocused();
+    await page.screenshot({ path: "test-results/screenshots/invite-dialog.png", animations: "disabled" });
+    await page.keyboard.press("Escape");
+    await row(page, "People", "Olivia Cruz").getByRole("button", { name: "Role for Olivia Cruz: Maintain" }).click();
+    await expect(page.getByRole("menu", { name: "Role for Olivia Cruz" }).getByRole("menuitemradio", { name: "Maintain" })).toBeFocused();
+    await page.screenshot({ path: "test-results/screenshots/role-menu.png", animations: "disabled" });
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("banner").getByRole("link", { name: "Settings" }).click();
+    await expect(page.getByRole("heading", { name: "Group settings" })).toBeVisible();
+    const sections = page.getByRole("navigation", { name: "Settings sections" });
+    await expect(sections.getByRole("link", { name: "General" })).toHaveAttribute("aria-current", "true");
+    await page.screenshot({ path: "test-results/screenshots/settings.png", fullPage: true, animations: "disabled" });
+    await sections.getByRole("link", { name: "Danger zone" }).click();
+    await expect(sections.getByRole("link", { name: "Danger zone" })).toHaveAttribute("aria-current", "true");
+    await expect(page.getByRole("button", { name: "Delete group…" })).toBeInViewport();
+    await page.getByRole("button", { name: "Delete group…" }).click();
+    const dialog = page.getByRole("dialog", { name: "Delete this group" });
+    await expect(dialog).toContainText("Cruz family disappears for everyone in it (3 members).");
+    await expect(dialog.getByRole("button", { name: "Delete group", exact: true })).toBeDisabled();
+    await page.screenshot({ path: "test-results/screenshots/delete-dialog.png", animations: "disabled" });
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  } finally {
+    for (const { page: p } of [asker, ...people]) await p.context().close();
   }
 });

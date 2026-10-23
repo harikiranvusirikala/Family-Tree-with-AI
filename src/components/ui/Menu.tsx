@@ -10,8 +10,12 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent
 
 const ITEMS = '[role="menuitem"]:not([disabled]), [role="menuitemradio"]:not([disabled])';
 
-export const menuItem =
-  "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-zinc-700 outline-none hover:bg-zinc-100 hover:text-zinc-900 focus-visible:bg-zinc-100 focus-visible:text-zinc-900 disabled:opacity-60 pointer-coarse:min-h-11 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 dark:focus-visible:bg-zinc-800 dark:focus-visible:text-zinc-100";
+const ITEM = "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm outline-none disabled:opacity-60 pointer-coarse:min-h-11";
+
+export const menuItem = `${ITEM} text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:bg-zinc-100 focus-visible:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 dark:focus-visible:bg-zinc-800 dark:focus-visible:text-zinc-100`;
+
+/** An item that removes or deletes something. */
+export const dangerMenuItem = `${ITEM} text-red-700 hover:bg-red-50 focus-visible:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 dark:focus-visible:bg-red-950/50`;
 
 export function MenuLabel({ children }: { children: ReactNode }) {
   return <div className="px-2.5 pt-1.5 pb-1 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">{children}</div>;

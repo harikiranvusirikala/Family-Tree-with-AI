@@ -11,6 +11,7 @@ export interface MemberSummary {
   name: string;
   email: string;
   role: Role;
+  joinedAt: Date;
 }
 
 /**
@@ -37,7 +38,7 @@ export async function listMembers(db: Db, groupId: string): Promise<MemberSummar
   return members
     .map((m) => {
       const user = byId.get(m.userId.toHexString());
-      return { userId: m.userId.toHexString(), name: user?.name ?? "Unknown user", email: user?.email ?? "", role: m.role };
+      return { userId: m.userId.toHexString(), name: user?.name ?? "Unknown user", email: user?.email ?? "", role: m.role, joinedAt: m.createdAt };
     })
     .sort((a, b) => RANK[b.role] - RANK[a.role] || a.name.localeCompare(b.name));
 }

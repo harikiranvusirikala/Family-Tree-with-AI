@@ -267,6 +267,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 - The theme as one button with a menu from tablets up; on phones it and the group's pages stay in the account menu (no bottom tab bar).
 - Create a group, Invite, New sheet and the type-the-name confirmations become dialogs. The family tree cards show people, couples and members counts, but no "last changed" time.
 - The dashboard and the header's switcher say "group", as the rest of the app does ("New group", "Your groups"). The cards show no member avatars: only Admins and the Owner see who is in a group. (Part 2, 2026-10-23.)
+- On the members page a role is a menu, each role saying what it allows; choosing one saves it straight away. Remove asks in a dialog; leaving stays in Settings. The type-the-name confirmations in Settings keep their button disabled until the name is typed. (Part 3, 2026-10-23.)
 
 ### First build step
 

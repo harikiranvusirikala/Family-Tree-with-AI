@@ -59,6 +59,9 @@ test("day, night or follow the device: the choice stays, and the tree is readabl
   await page.goto(`/g/${groupId}/members`);
   await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
   await screenshot(page, "members");
+  await page.goto(`/g/${groupId}/settings`);
+  await expect(page.getByRole("heading", { name: "Group settings" })).toBeVisible();
+  await screenshot(page, "settings");
 
   // The header's theme is one button opening Day, Night and Follow device (the production look).
   const themeMenu = async () => {

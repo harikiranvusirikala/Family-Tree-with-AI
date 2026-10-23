@@ -68,8 +68,8 @@ src/
       s/layout.tsx                       loads the group once and draws its sheets: tabs, canvas, panels (F5, F6)
       s/GroupSheets.tsx                  the sheet tabs and editor in the browser
       s/[sheetId]/page.tsx               empty: the layout above reads the sheet from the URL
-      settings/                          rename, transfer ownership, delete (Owner); leave the group (everyone else)
-      members/                           access requests, members, invites (Admin and up; F3, F4)
+      settings/                          rename, transfer ownership, delete (Owner), in cards beside a side menu (SettingsNav); leave the group (everyone else); confirmations in dialogs
+      members/                           access requests, members, invites as cards (Admin and up; F3, F4); Invite people and Remove in dialogs, roles as menus
     invite/[token]/                      accept or decline an invite (F3)
     dev/tree/                            developer-only pages (404 on Vercel): layout playground; db/ draws the seeded family
     api/
@@ -118,7 +118,7 @@ src/
   components/
     AppHeader.tsx, NoAccess.tsx          the signed-in header; the "no access" page, with Request access (F4)
     GroupHeader.tsx                      a group's header: its switcher (GroupSwitcher) and pages as tabs; ThemeMenu, the theme as one button
-    ui/                                  building blocks: button and field styles, Menu (drop-downs), Dialog (the native modal dialog), MessagePage (a card that says one thing), line icons
+    ui/                                  building blocks: button, field, card and badge styles, Menu (drop-downs), Dialog (the native modal dialog), Avatar, PageHeader, LoadingPage, MessagePage (a card that says one thing), line icons
     GoogleTagManager.tsx                 Google Tag Manager's two snippets, drawn by the landing page only
     ThemeToggle.tsx, theme.ts            Day / Night / Follow device switch, useTheme(); theme-script.ts runs in <head> before the first paint
     initials.ts, use-hydrated.ts         shared helpers; screen.ts (phone and tablet sizes, for the few things CSS can't do)

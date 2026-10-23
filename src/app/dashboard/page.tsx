@@ -6,7 +6,12 @@ import { InviteAnswer } from "@/app/invite/[token]/InviteAnswer";
 import { AppHeader } from "@/components/AppHeader";
 import { REQUEST_DENIED } from "@/components/request-messages";
 import { shortDate } from "@/components/short-date";
+import { badge, countBadge, quietBadge, ROLE_BADGE } from "@/components/ui/badge";
+import { card, cardRows } from "@/components/ui/card";
 import { LineIcon } from "@/components/ui/icons";
+import { pageFrame } from "@/components/ui/page";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { LoadingPage, skeleton } from "@/components/ui/Skeleton";
 import { getDatabase } from "@/server/db";
 import { ROLE_LABELS } from "@/server/members-rules";
 import { requireUser } from "@/server/permissions";
@@ -15,7 +20,7 @@ import { loadGroupTree } from "@/server/repositories/family";
 import { listGroupsForUser, type GroupSummary } from "@/server/repositories/groups";
 import { invitesForUser, type InviteForMe } from "@/server/repositories/invites";
 import { memberCounts } from "@/server/repositories/members";
-import { can, type Role } from "@/server/roles";
+import { can } from "@/server/roles";
 import { familyCounts } from "@/tree/everyone";
 import { datedFamily } from "@/tree/upcoming";
 import { ImportNewGroup } from "./ImportNewGroup";
@@ -65,21 +70,21 @@ async function Dashboard() {
   const firstVisit = groups.length === 0 && invites.length === 0;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-zinc-50 dark:bg-zinc-950">
+    <div className={pageFrame}>
       <AppHeader user={user} />
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-[28px] dark:text-zinc-100">Welcome, {user.name}</h1>
-            <p className="mt-1 text-[15px] text-zinc-600 dark:text-zinc-400">Your family groups, and the days coming up.</p>
-          </div>
-          {!firstVisit && (
-            <div className="flex flex-wrap gap-2">
-              <ImportNewGroup />
-              <NewGroupButton myName={user.name} />
-            </div>
-          )}
-        </div>
+        <PageHeader
+          title={`Welcome, ${user.name}`}
+          description="Your family groups, and the days coming up."
+          actions={
+            !firstVisit && (
+              <>
+                <ImportNewGroup />
+                <NewGroupButton myName={user.name} />
+              </>
+            )
+          }
+        />
 
         {invites.length > 0 && <Invitations invites={invites} />}
 
@@ -113,26 +118,21 @@ async function Dashboard() {
 
 /** The page's shape while it loads: the heading and two cards, so nothing jumps when it arrives. */
 function DashboardLoading() {
-  const bar = "animate-pulse rounded-md bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800";
   return (
-    <div className="flex min-h-dvh flex-col bg-zinc-50 dark:bg-zinc-950">
-      <div className="h-14 border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950" />
-      <main aria-busy="true" className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
-        <span className="sr-only">Loading…</span>
-        <div className={`${bar} h-8 w-72`} />
-        <div className="grid gap-4 sm:grid-cols-2 lg:mr-[23.5rem]">
-          <div className={`${bar} h-44 rounded-2xl`} />
-          <div className={`${bar} h-44 rounded-2xl`} />
-        </div>
-      </main>
-    </div>
+    <LoadingPage className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+      <div className={`${skeleton} h-8 w-72 max-w-full rounded-md`} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:mr-[23.5rem]">
+        <div className={`${skeleton} h-44 rounded-2xl`} />
+        <div className={`${skeleton} h-44 rounded-2xl`} />
+      </div>
+    </LoadingPage>
   );
 }
 
 /** No groups and no invitations: what the app is for, and the two ways to start. */
 function FirstVisit({ myName }: { myName: string }) {
   return (
-    <section aria-label="Get started" className="flex flex-col items-center gap-5 rounded-2xl border border-zinc-200 bg-white px-6 py-12 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+    <section aria-label="Get started" className={`${card} flex flex-col items-center gap-5 px-6 py-12 text-center`}>
       <FamilyGlyph className="h-16 w-20" />
       <div className="max-w-md">
         <h2 className="text-xl font-semibold tracking-tight">Start your family tree</h2>
@@ -178,13 +178,6 @@ function Invitations({ invites }: { invites: InviteForMe[] }) {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-const ROLE_BADGE: Record<Role, string> = {
-  owner: "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900",
-  admin: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-200",
-  maintain: "bg-pink-50 text-pink-700 dark:bg-pink-950 dark:text-pink-200",
-  view: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-};
-
 function GroupGrid({ title, groups, empty, children }: { title: string; groups: GroupCard[]; empty?: string; children?: ReactNode }) {
   return (
     <section aria-label={title} className="flex flex-col gap-3">
@@ -205,7 +198,7 @@ function GroupGrid({ title, groups, empty, children }: { title: string; groups: 
                 <span className="flex flex-1 flex-col gap-1 p-5 pb-4">
                   <span className="flex items-start justify-between gap-3">
                     <span className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">{g.name}</span>
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${ROLE_BADGE[g.role]}`}>{ROLE_LABELS[g.role]}</span>
+                    <span className={`${badge} ${ROLE_BADGE[g.role]}`}>{ROLE_LABELS[g.role]}</span>
                   </span>
                   <span className="text-sm text-zinc-500 dark:text-zinc-400">
                     {plural(g.people, "person", "people")} · {plural(g.couples, "couple", "couples")} · {plural(g.members, "member", "members")}
@@ -248,15 +241,11 @@ function MyRequests({ requests }: { requests: MyRequest[] }) {
   return (
     <section className="flex flex-col gap-3" aria-label="My access requests">
       <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">My access requests</h2>
-      <ul className="flex flex-col divide-y divide-zinc-200 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
+      <ul className={`${card} ${cardRows} overflow-hidden`}>
         {requests.map((r) => (
           <li key={r.groupId} className="flex flex-col gap-1.5 px-5 py-4 text-sm">
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                  r.status === "pending" ? "bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-100" : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                }`}
-              >
+              <span className={`${badge} ${r.status === "pending" ? countBadge : quietBadge}`}>
                 {r.status === "pending" ? "Waiting for an admin" : "Declined"}
               </span>
               <span className="text-zinc-500 dark:text-zinc-400">

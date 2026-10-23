@@ -139,6 +139,34 @@ test("the dashboard on a phone: New group's dialog fits the screen, with big eno
   await expect(dialog).toBeHidden();
 });
 
+test("the members page on a phone: rows stack, and a role's menu fits with 44 px rows; settings' cards too", async ({ browser, page, signIn, sampleGroup, addMember }) => {
+  const owner = await signIn(page, "Carla Cruz");
+  const { groupId } = await sampleGroup(owner);
+  const other = await browser.newPage();
+  await addMember(groupId, await signIn(other, "Vera Viewer"), "view");
+  await other.close();
+
+  await page.goto(`/g/${groupId}/members`);
+  const vera = page.getByRole("region", { name: "People", exact: true }).getByRole("listitem").filter({ hasText: "Vera Viewer" });
+  await expect(vera).toContainText("Joined");
+  await fitsWidth(page);
+  await page.screenshot({ path: "test-results/screenshots/phone-members.png", fullPage: true, animations: "disabled" });
+  await vera.getByRole("button", { name: "Role for Vera Viewer: View" }).tap();
+  const menu = page.getByRole("menu", { name: "Role for Vera Viewer" });
+  for (const item of await menu.getByRole("menuitemradio").all()) {
+    // Measured once the opening animation (a slight scale) is over.
+    await expect.poll(async () => (await box(item)).height).toBeGreaterThanOrEqual(44);
+    expect(await onScreen(item)).toBe(true);
+  }
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+
+  await page.goto(`/g/${groupId}/settings`);
+  await expect(page.getByRole("button", { name: "Delete group…" })).toBeVisible();
+  await fitsWidth(page);
+  await page.screenshot({ path: "test-results/screenshots/phone-settings.png", fullPage: true, animations: "disabled" });
+});
+
 test("a sheet opens zoomed in at its root, and the picker switches sheets", async ({ page, signIn, sampleGroup }) => {
   const { cruzSheet, jerrySheet } = await openSampleGroup(page, signIn, sampleGroup);
   await expect(page.getByRole("tab")).toHaveCount(0);

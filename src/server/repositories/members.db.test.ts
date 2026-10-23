@@ -228,6 +228,7 @@ describe("members and the Owner (§8)", () => {
     await removeMember(database.db, groupId, admin.id, viewer.id);
     expect(await roleOf(groupId, viewer)).toBeNull();
     expect((await listMembers(database.db, groupId)).map((m) => m.role)).toEqual(["owner", "admin", "view"]);
+    expect((await listMembers(database.db, groupId)).every((m) => m.joinedAt instanceof Date)).toBe(true); // the members page's Joined
   });
 
   test("transfer leaves exactly one Owner, and the old one becomes an Admin", async () => {

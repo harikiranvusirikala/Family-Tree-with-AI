@@ -74,6 +74,11 @@ export function Dialog(props: {
   );
 }
 
+/** A dialog's foot: Cancel, then the main button on the right (on top, on phones). */
+export function DialogActions({ children }: { children: ReactNode }) {
+  return <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">{children}</div>;
+}
+
 /** A button that opens a dialog; the dialog's content gets `close`. */
 export function DialogButton(props: {
   button: ReactNode;

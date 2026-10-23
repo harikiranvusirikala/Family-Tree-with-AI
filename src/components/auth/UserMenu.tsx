@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { initials } from "../initials";
 import { SUPPORT_URL } from "../support";
 import { ThemeToggle } from "../ThemeToggle";
+import { Avatar } from "../ui/Avatar";
 import { LineIcon, type IconName } from "../ui/icons";
 import { Menu, MenuSeparator, menuItem } from "../ui/Menu";
 import { useHydrated } from "../use-hydrated";
@@ -56,12 +56,7 @@ export function UserMenu({ user, links = [] }: { user: { name: string; email: st
       buttonClassName="relative flex items-center rounded-full p-0.5 outline-none hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-blue-500/70 aria-expanded:bg-zinc-100 pointer-coarse:p-1.5 dark:hover:bg-zinc-800 dark:aria-expanded:bg-zinc-800"
       button={
         <>
-          <span
-            aria-hidden
-            className="flex size-8 items-center justify-center rounded-full bg-zinc-100 text-[13px] font-semibold text-zinc-700 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:text-zinc-200 dark:ring-zinc-700"
-          >
-            {initials(name)}
-          </span>
+          <Avatar name={name} />
           <span className="sr-only">{name}</span>
           {badge > 0 && (
             <span aria-hidden className="absolute -top-0.5 -right-0.5 rounded-full bg-amber-400 px-1.5 text-xs font-semibold text-amber-950 md:hidden">

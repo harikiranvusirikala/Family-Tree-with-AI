@@ -1,17 +1,10 @@
 import { Activity } from "react";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { standInModalDialogs } from "@test/dialogs";
 import { DialogButton } from "./Dialog";
 
-// jsdom has no modal dialogs: stand-ins that only open and close it (browsers make the page inert).
-beforeAll(() => {
-  HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
-    this.setAttribute("open", "");
-  };
-  HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
-    this.removeAttribute("open");
-  };
-});
+beforeAll(standInModalDialogs);
 afterEach(cleanup);
 
 function Example({ bare = false }: { bare?: boolean }) {
