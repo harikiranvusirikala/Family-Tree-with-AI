@@ -107,12 +107,36 @@ test("the header's menu holds Members, Settings, the theme and Sign out", async 
 test("on a phone the header holds the app's icon, the group's switcher and the account, and the switcher's menu fits", async ({ page, signIn, sampleGroup }) => {
   await openSampleGroup(page, signIn, sampleGroup);
   await page.getByRole("banner").getByRole("button", { name: "Cruz family", exact: true }).tap();
-  const all = page.getByRole("menu", { name: "Your family trees" }).getByRole("menuitem", { name: "All family trees" });
+  const all = page.getByRole("menu", { name: "Your groups" }).getByRole("menuitem", { name: "All groups" });
   await expect(all).toBeVisible();
   expect(await onScreen(all)).toBe(true);
   // Measured once the menu's opening animation (a slight scale) is over.
   await expect.poll(async () => (await box(all)).height).toBeGreaterThanOrEqual(44);
   await shot(page, "phone-group-switcher");
+});
+
+test("the dashboard on a phone: New group's dialog fits the screen, with big enough buttons and 16 px fields", async ({ page, signIn, sampleGroup }) => {
+  const owner = await signIn(page, "Carla Cruz");
+  await sampleGroup(owner);
+  await page.goto("/dashboard");
+  await expect(page.getByRole("region", { name: "My groups", exact: true }).getByRole("listitem").filter({ hasText: "Cruz family" })).toContainText("36 people");
+  await page.screenshot({ path: "test-results/screenshots/phone-dashboard.png", fullPage: true, animations: "disabled" });
+
+  await page.getByRole("button", { name: "New group", exact: true }).tap();
+  const dialog = page.getByRole("dialog", { name: "Create a family group" });
+  const groupName = dialog.getByRole("textbox", { name: "Group name", exact: true });
+  await expect(groupName).toBeFocused();
+  expect(await groupName.evaluate((el) => getComputedStyle(el).fontSize)).toBe("16px");
+  // Measured once the opening animation (a slight scale) is over.
+  for (const name of ["Close", "Cancel", "Create group"]) {
+    await expect.poll(async () => (await box(dialog.getByRole("button", { name, exact: true }))).height).toBeGreaterThanOrEqual(44);
+  }
+  const { x, width } = await box(dialog);
+  expect(x).toBeGreaterThanOrEqual(0);
+  expect(x + width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  await page.screenshot({ path: "test-results/screenshots/phone-new-group-dialog.png", animations: "disabled" });
+  await dialog.getByRole("button", { name: "Cancel" }).tap();
+  await expect(dialog).toBeHidden();
 });
 
 test("a sheet opens zoomed in at its root, and the picker switches sheets", async ({ page, signIn, sampleGroup }) => {

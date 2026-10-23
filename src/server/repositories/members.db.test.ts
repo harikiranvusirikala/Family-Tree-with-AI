@@ -8,7 +8,7 @@ import { accessState, decideRequest, MAX_PENDING_REQUESTS, myRequests, pendingRe
 import { collections, ensureIndexes } from "./documents";
 import { createGroup, deleteGroup, listGroupsForUser, roleInGroup } from "./groups";
 import { acceptInvite, createInvite, declineInvite, INVALID_INVITE, inviteForToken, invitesForUser, listInvites, revokeInvite } from "./invites";
-import { changeRole, leaveGroup, listMembers, removeMember, transferOwnership } from "./members";
+import { changeRole, leaveGroup, listMembers, memberCounts, removeMember, transferOwnership } from "./members";
 
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
 beforeAll(async () => {
@@ -205,6 +205,15 @@ describe("access requests (F4)", () => {
 });
 
 describe("members and the Owner (§8)", () => {
+  test("memberCounts: each group's members, the Owner included (the dashboard's cards)", async () => {
+    const one = await group(["view", "admin"]);
+    const two = await group();
+    const counts = await memberCounts(database.db, [one.groupId, two.groupId]);
+    expect(counts.get(one.groupId)).toBe(3);
+    expect(counts.get(two.groupId)).toBe(1);
+    expect((await memberCounts(database.db, [])).size).toBe(0);
+  });
+
   test("Admins change roles and remove members, other Admins included, but never the Owner", async () => {
     const { groupId, owner, members } = await group(["admin", "admin", "view"]);
     const [admin, otherAdmin, viewer] = members;

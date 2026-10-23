@@ -200,14 +200,20 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
   - `button(variant, size)` and `iconButton` (`button.ts`, plain class strings for `<button>` and `<Link>`).
   - `Menu` with `menuItem`, `MenuLabel` and `MenuSeparator` for every drop-down (`Menu.tsx`). It gives the items a `close` that returns focus to its button.
   - `MessagePage` and `MessageText` for pages that say one thing.
+  - `Dialog` and `DialogButton` (`Dialog.tsx`, the native modal `<dialog>`): the first field takes the focus, and Escape, a click outside or Close end it. `field.ts` styles fields, labels, checkboxes, radios and form errors.
   - `LineIcon` (`icons.tsx`). Add new icons there; no icon packages.
+- **Pages kept for Back:** Next.js hides the page someone leaves (React's `Activity`, `display: none`) instead of unmounting it, and its state survives. A modal dialog left open there makes the next page inert, so `Dialog` closes it in a layout effect's cleanup. `DialogButton` and `Menu` reset their open state with `useLayoutEffect(() => () => setOpen(false), [])`, and so must anything new that opens over the page.
 - **The header:** signed-in pages draw `AppHeader`, and a group's pages draw `GroupHeader` (a server component: the switcher's groups, the waiting count) with `active` (`"tree" | "members" | "settings"`). The names tests use:
   - the home link: "Family Tree";
   - the navigation "This family tree", with tabs "Tree", "Members" ("Members, N access request(s)" while requests wait) and "Settings";
-  - the group's name: the switcher button, opening the menu "Your family trees";
+  - the group's name: the switcher button, opening the menu "Your groups" (ending with "All groups");
   - "Theme": the menu "Theme", with the menuitemradios Day, Night and Follow device;
   - the account button: the user's name, opening the menu "Account".
-- **Menus scale and fade in** (`animate-menu-in`, 140 ms, `motion-reduce:animate-none`): measure their rows with `expect.poll`, and screenshot them with `animations: "disabled"`.
+- **The dashboard's names:**
+  - the regions "Invitations", "Get started" (the first visit only), "My groups", "Shared with me", "My access requests" and "Coming up";
+  - the buttons "New group" (match it with `exact: true`, as the dashed card "Start a new group" contains it) and "Import a file";
+  - the dialogs "Create a family group" and "Import a family file".
+- **Menus and dialogs scale and fade in** (`animate-menu-in`, 140 ms; `animate-dialog-in`, 180 ms; both `motion-reduce:animate-none`): measure their rows and buttons with `expect.poll`, and screenshot them with `animations: "disabled"`.
 
 ## The landing page and search engines (as built, an owner request after the final check)
 
@@ -262,6 +268,7 @@ Scripts in `scripts/` are `.mts` (top-level await) and run with `node --import t
   - **Phones and tablets:** `phone-tree.png`, `phone-panel.png`, `phone-menu.png`, `phone-chat.png`, `night-phone-tree.png`, `tablet-tree.png`.
   - **Exported pictures and import:** `sheet-picture.png`, `sheet-picture-no-photos.png`, `import-preview.png`.
   - **The app shell:** `header.png` and `night-header.png` (the header's top), `group-switcher.png`, `night-account-menu.png`, `not-found.png`, `no-access.png`, `phone-group-switcher.png`.
+  - **The dashboard:** `dashboard.png`, `night-dashboard.png`, `dashboard-first-visit.png`, `new-group-dialog.png`, `phone-dashboard.png`, `phone-new-group-dialog.png` (and `dashboard-upcoming.png`, above).
   - **The landing page:** `landing.png` and `night-landing.png` (the whole page), `phone-landing.png` (the whole page, at CSS size) and `phone-landing-top.png`; `day-sign-in.png` and `night-sign-in.png` show its top.
   - **README copies:** `docs/screenshots/chat.png` (the top picture), `phone-tree.png`, `phone-panel.png`, `phone-everyone-upcoming.png` and `dashboard-upcoming.png` are copies of those screenshots: copy them again after visible changes to the sheets page, the chat, ★ Everyone's Upcoming or the dashboard. `docs/screenshots/everyone-views.png` lays out `everyone-tree.png`, `everyone-network-chosen.png`, `everyone-wheel.png`, `everyone-list.png` and `everyone-upcoming.png` in a 2×3 grid with captions, the three notes in the sixth cell: after visible changes to ★ Everyone, lay it out again the same way, with a temporary e2e spec that feeds copies of those screenshots into `page.setContent` as data URLs, at `deviceScaleFactor: 2` and a 1080 px wide page, then delete the spec.
   - **The site's pictures** come from `docs/screenshots/` too: `chat.png` and `phone-tree.png` (the link preview and GitHub's social preview), and with `phone-panel.png`, `phone-everyone-upcoming.png`, `dashboard-upcoming.png`, `everyone-wheel.png` and `everyone-network-chosen.png`, the landing page. After copying any of them again, run `npm run images` and look at `docs/social-preview.png`.

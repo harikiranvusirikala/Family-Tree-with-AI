@@ -20,16 +20,18 @@ const CIRCLE = {
 /**
  * The round photo in its blue or pink border, or the person's initials when there is no photo, photos
  * aren't set up or are hidden, or the photo doesn't load. `lazy` (★ Everyone's List) loads the photo
- * only when it scrolls near the screen; not on the tree, whose picture needs every photo.
+ * only when it scrolls near the screen; not on the tree, whose picture needs every photo. `thin`: a
+ * 2 px ring, for small circles in rows and lists.
  */
-export function PersonPhoto({ person, size, lazy = false }: { person: Pick<Person, "name" | "gender" | "photoId">; size: number; lazy?: boolean }) {
+export function PersonPhoto(props: { person: Pick<Person, "name" | "gender" | "photoId">; size: number; lazy?: boolean; thin?: boolean }) {
+  const { person, size, lazy = false, thin = false } = props;
   const cloudName = useContext(CloudNameContext);
   const hidden = useContext(PhotosHiddenContext);
   const [failed, setFailed] = useState<string>(); // the photo that didn't load
   const src = cloudName && !hidden && person.photoId && person.photoId !== failed ? photoUrl(cloudName, person.photoId) : undefined;
   return (
     <div
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border-4 font-semibold ${CIRCLE[person.gender]}`}
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold ${thin ? "border-2" : "border-4"} ${CIRCLE[person.gender]}`}
       style={{ width: size, height: size, fontSize: Math.round(size * 0.29) }}
     >
       {src ? (

@@ -13,6 +13,21 @@ export interface MemberSummary {
   role: Role;
 }
 
+/**
+ * How many members each group has, for the dashboard's group cards. Only counts: the caller passes its
+ * user's own groups, and who the members are stays on the members page (Admin and up).
+ */
+export async function memberCounts(db: Db, groupIds: string[]): Promise<Map<string, number>> {
+  if (groupIds.length === 0) return new Map();
+  const counts = await collections(db)
+    .memberships.aggregate<{ _id: ObjectId; count: number }>([
+      { $match: { groupId: { $in: groupIds.map(toObjectId) } } },
+      { $group: { _id: "$groupId", count: { $sum: 1 } } },
+    ])
+    .toArray();
+  return new Map(counts.map((c) => [c._id.toHexString(), c.count]));
+}
+
 /** Everyone in the group: the Owner first, then by role and name. For the members page (Admin and up). */
 export async function listMembers(db: Db, groupId: string): Promise<MemberSummary[]> {
   const { memberships, users } = collections(db);

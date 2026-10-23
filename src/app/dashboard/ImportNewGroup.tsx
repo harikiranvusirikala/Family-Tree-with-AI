@@ -1,27 +1,34 @@
 "use client";
 
-import { useState } from "react";
 import { ImportPanel } from "@/components/import-export/ImportPanel";
+import { button } from "@/components/ui/button";
+import { DialogButton } from "@/components/ui/Dialog";
+import { LineIcon } from "@/components/ui/icons";
 import { importGroupAction } from "./actions";
 
-/** F10: a new group from a GEDCOM or JSON file, on the dashboard. The import opens when it's saved. */
+/** F10: a new group from a GEDCOM or JSON file, in a dialog on the dashboard. The import opens when it's saved. */
 export function ImportNewGroup() {
-  const [open, setOpen] = useState(false);
-  if (!open) {
-    return (
-      <div>
-        <button type="button" onClick={() => setOpen(true)} className="rounded-full border border-zinc-300 px-5 py-2 pointer-coarse:min-h-11 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800">
-          Import a family file…
-        </button>
-      </div>
-    );
-  }
   return (
-    <ImportPanel
-      tree={{ persons: [], unions: [], sheets: [] }}
-      newGroup
-      onImport={async (batch, name) => (await importGroupAction(name, batch.operations)).error}
-      onClose={() => setOpen(false)}
-    />
+    <DialogButton
+      title="Import a family file"
+      bare
+      wide
+      buttonClassName={button("secondary")}
+      button={
+        <>
+          <LineIcon name="upload" className="size-4" />
+          Import a file
+        </>
+      }
+    >
+      {(close) => (
+        <ImportPanel
+          tree={{ persons: [], unions: [], sheets: [] }}
+          newGroup
+          onImport={async (batch, name) => (await importGroupAction(name, batch.operations)).error}
+          onClose={close}
+        />
+      )}
+    </DialogButton>
   );
 }

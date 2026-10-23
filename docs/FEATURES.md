@@ -266,6 +266,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 - A group switcher in the header, and the group's pages (Tree, Members, Settings) as tabs with the open one underlined in the blue-to-pink gradient, the only other use of which is Ask AI's sparkle.
 - The theme as one button with a menu from tablets up; on phones it and the group's pages stay in the account menu (no bottom tab bar).
 - Create a group, Invite, New sheet and the type-the-name confirmations become dialogs. The family tree cards show people, couples and members counts, but no "last changed" time.
+- The dashboard and the header's switcher say "group", as the rest of the app does ("New group", "Your groups"). The cards show no member avatars: only Admins and the Owner see who is in a group. (Part 2, 2026-10-23.)
 
 ### First build step
 

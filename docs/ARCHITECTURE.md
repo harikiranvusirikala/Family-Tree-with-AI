@@ -60,8 +60,8 @@ src/
     robots.ts, sitemap.ts                robots.txt (search engines read the landing page on production only) and sitemap.xml (the landing page)
     icon.svg, favicon.ico, apple-icon.png the app's icon (a couple, a heart and two children); opengraph-image.png, the link preview (scripts/site-images.mts)
     not-found.tsx, error.tsx             the app's own "page isn't here" and "something went wrong" pages
-    dashboard/                           invitations · Upcoming (the next 30 days' birthdays and anniversaries) · My groups · Shared with me · my access requests · create a group (F2)
-      page.tsx, actions.ts, NewGroupForm.tsx
+    dashboard/                           invitations · My groups and Shared with me as cards (people, couples, members) · my access requests · Coming up (the next 30 days' birthdays and anniversaries) · create (F2) or import (F10) a group in a dialog; a welcome on the first visit
+      page.tsx, actions.ts, NewGroupForm.tsx, ImportNewGroup.tsx, UpcomingSoon.tsx
     g/[groupId]/
       page.tsx                           opens the first pinned sheet
       actions.ts                         applyChangesAction: every edit made by hand (F6); signPhotoUploadAction (F8); requestAccessAction (F4)
@@ -118,7 +118,7 @@ src/
   components/
     AppHeader.tsx, NoAccess.tsx          the signed-in header; the "no access" page, with Request access (F4)
     GroupHeader.tsx                      a group's header: its switcher (GroupSwitcher) and pages as tabs; ThemeMenu, the theme as one button
-    ui/                                  building blocks: button styles, Menu (drop-downs), MessagePage (a card that says one thing), line icons
+    ui/                                  building blocks: button and field styles, Menu (drop-downs), Dialog (the native modal dialog), MessagePage (a card that says one thing), line icons
     GoogleTagManager.tsx                 Google Tag Manager's two snippets, drawn by the landing page only
     ThemeToggle.tsx, theme.ts            Day / Night / Follow device switch, useTheme(); theme-script.ts runs in <head> before the first paint
     initials.ts, use-hydrated.ts         shared helpers; screen.ts (phone and tablet sizes, for the few things CSS can't do)

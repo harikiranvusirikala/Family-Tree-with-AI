@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 // The app's drop-down menus (the production look, an owner request, 2026-10-23): the account menu,
 // the group switcher and the theme. The WAI-ARIA menu button: the first (or checked) item takes focus
 // when it opens, arrows, Home and End move, Escape closes and returns to the button, Tab closes.
 // A tap anywhere else closes it: pointerdown, because React Flow stops the mouse events browsers
-// make up after a touch.
+// make up after a touch. A page Next.js keeps for Back comes back with its menus closed.
 
 const ITEMS = '[role="menuitem"]:not([disabled]), [role="menuitemradio"]:not([disabled])';
 
@@ -40,6 +40,8 @@ export function Menu(props: {
   const root = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const id = useId();
+
+  useLayoutEffect(() => () => setOpen(false), []); // its page hidden (React's Activity)
 
   // Found by id rather than a ref: `close` is handed to the items while they render.
   const close = () => {

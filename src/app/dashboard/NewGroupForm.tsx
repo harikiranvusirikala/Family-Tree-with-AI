@@ -1,72 +1,115 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { button } from "@/components/ui/button";
+import { DialogButton } from "@/components/ui/Dialog";
+import { choice, choiceLabel, field, fieldLabel, formError } from "@/components/ui/field";
+import { LineIcon } from "@/components/ui/icons";
 import { createGroupAction, type NewGroupFormState } from "./actions";
 
-const input = "w-full rounded-md border border-zinc-300 px-3 py-2 text-base dark:border-zinc-700 dark:bg-zinc-900";
-
 /** F2: group name, father's and mother's names, and optionally the user as their child. */
-export function NewGroupForm({ myName }: { myName: string }) {
+export function NewGroupForm({ myName, onCancel }: { myName: string; onCancel?: () => void }) {
   const [state, action, pending] = useActionState<NewGroupFormState, FormData>(createGroupAction, {});
   const [addMe, setAddMe] = useState(state.values ? state.values.addMe === "on" : true);
   const v = state.values ?? {};
 
   return (
-    <form action={action} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1 text-sm font-medium">
+    <form action={action} className="flex flex-col gap-5">
+      <label className={fieldLabel}>
         Group name
-        <input name="groupName" required maxLength={120} placeholder="e.g. The Sharma family" defaultValue={v.groupName} className={input} />
+        <input name="groupName" required maxLength={120} placeholder="e.g. The Sharma family" defaultValue={v.groupName} className={field} />
       </label>
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm font-medium">
+        <label className={fieldLabel}>
           Father&apos;s name
-          <input name="fatherName" required maxLength={120} defaultValue={v.fatherName} className={input} />
+          <input name="fatherName" required maxLength={120} defaultValue={v.fatherName} className={field} />
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium">
+        <label className={fieldLabel}>
           Mother&apos;s name
-          <input name="motherName" required maxLength={120} defaultValue={v.motherName} className={input} />
+          <input name="motherName" required maxLength={120} defaultValue={v.motherName} className={field} />
         </label>
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="addMe" checked={addMe} onChange={(e) => setAddMe(e.target.checked)} />
-        Add me as their child
-      </label>
-      {addMe && (
-        <fieldset className="grid gap-4 sm:grid-cols-2">
-          <legend className="sr-only">You</legend>
-          <label className="flex flex-col gap-1 text-sm font-medium">
-            Your name
-            <input name="myName" required maxLength={120} defaultValue={v.myName ?? myName} className={input} />
-          </label>
-          <div className="flex flex-col gap-1 text-sm font-medium">
-            <span>You are</span>
-            <div className="flex gap-4 py-2 font-normal">
-              <label className="flex items-center gap-1">
-                <input type="radio" name="myGender" value="male" required defaultChecked={v.myGender === "male"} /> Male
-              </label>
-              <label className="flex items-center gap-1">
-                <input type="radio" name="myGender" value="female" defaultChecked={v.myGender === "female"} /> Female
-              </label>
+      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950/50">
+        <label className={choiceLabel}>
+          <input type="checkbox" name="addMe" checked={addMe} onChange={(e) => setAddMe(e.target.checked)} className={choice} />
+          Add me as their child
+        </label>
+        {addMe && (
+          <fieldset className="mt-4 grid gap-4 sm:grid-cols-2">
+            <legend className="sr-only">You</legend>
+            <label className={fieldLabel}>
+              Your name
+              <input name="myName" required maxLength={120} defaultValue={v.myName ?? myName} className={field} />
+            </label>
+            <div className="flex flex-col gap-1.5 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <span>You are</span>
+              <div className="flex gap-5 font-normal">
+                <label className={choiceLabel}>
+                  <input type="radio" name="myGender" value="male" required defaultChecked={v.myGender === "male"} className={choice} /> Male
+                </label>
+                <label className={choiceLabel}>
+                  <input type="radio" name="myGender" value="female" defaultChecked={v.myGender === "female"} className={choice} /> Female
+                </label>
+              </div>
             </div>
-          </div>
-        </fieldset>
-      )}
+          </fieldset>
+        )}
+      </div>
 
       {state.error && (
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className={formError}>
           {state.error}
         </p>
       )}
-      <div>
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-full bg-zinc-900 px-5 py-2 pointer-coarse:min-h-11 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-white dark:text-zinc-900"
-        >
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        {onCancel && (
+          <button type="button" onClick={onCancel} className={button("ghost")}>
+            Cancel
+          </button>
+        )}
+        <button type="submit" disabled={pending} className={button("primary")}>
           {pending ? "Creating…" : "Create group"}
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * "New group" (the page's main button), or the dashed card at the end of My groups: both open the
+ * form in a dialog. Creating it opens the new group.
+ */
+export function NewGroupButton({ myName, look = "button" }: { myName: string; look?: "button" | "card" }) {
+  return (
+    <DialogButton
+      title="Create a family group"
+      description="Start with your parents' names: each side of the family gets its own sheet, and you add everyone else from there."
+      buttonClassName={
+        look === "button"
+          ? button("primary")
+          : "flex h-full min-h-28 w-full items-center gap-4 rounded-2xl border border-dashed border-zinc-300 p-5 text-left transition-colors outline-none hover:border-zinc-400 hover:bg-white focus-visible:ring-2 focus-visible:ring-blue-500/70 dark:border-zinc-700 dark:hover:border-zinc-600 dark:hover:bg-zinc-900"
+      }
+      button={
+        look === "button" ? (
+          <>
+            <LineIcon name="plus" className="size-4" />
+            New group
+          </>
+        ) : (
+          <>
+            <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              <LineIcon name="plus" className="size-5" />
+            </span>
+            <span>
+              <span className="block text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">Start a new group</span>
+              <span className="block text-sm text-zinc-500 dark:text-zinc-400">Begin with your parents&apos; names.</span>
+            </span>
+          </>
+        )
+      }
+    >
+      {(close) => <NewGroupForm myName={myName} onCancel={close} />}
+    </DialogButton>
   );
 }

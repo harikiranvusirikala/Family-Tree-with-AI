@@ -238,8 +238,9 @@ test("an Admin can't remove or demote the Owner; the Owner transfers ownership, 
     await page.getByRole("button", { name: "Leave this group" }).click();
     await page.getByRole("button", { name: "Leave", exact: true }).click();
     await expect(page).toHaveURL("/dashboard");
-    await expect(region(page, "Shared with me")).not.toContainText("Cruz family");
-    await expect(region(page, "My groups")).not.toContainText("Cruz family");
+    // It was their only group: the dashboard welcomes them as on a first visit.
+    await expect(page.getByRole("region", { name: "Get started" })).toBeVisible();
+    await expect(page.getByRole("main")).not.toContainText("Cruz family");
   } finally {
     await admin.page.context().close();
   }

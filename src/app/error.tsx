@@ -18,7 +18,7 @@ export default function PageError({ error, retry }: { error: Error & { digest?: 
           Try again
         </button>
         <Link href="/dashboard" className={button("secondary")}>
-          Go to your family trees
+          Go to your dashboard
         </Link>
       </div>
     </MessagePage>

@@ -1,3 +1,4 @@
+import { Activity } from "react";
 import { afterEach, describe, expect, test } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { Menu, menuItem } from "./Menu";
@@ -79,5 +80,19 @@ describe("Menu (the production look)", () => {
     fireEvent.click(trigger());
     fireEvent.pointerDown(screen.getByText("Elsewhere"));
     expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  test("a page Next.js kept for Back (hidden by React's Activity) comes back with it closed", () => {
+    const page = (mode: "visible" | "hidden") => (
+      <Activity mode={mode}>
+        <Fruit />
+      </Activity>
+    );
+    const { rerender } = render(page("visible"));
+    fireEvent.click(trigger());
+    rerender(page("hidden"));
+    rerender(page("visible"));
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(trigger().getAttribute("aria-expanded")).toBe("false");
   });
 });

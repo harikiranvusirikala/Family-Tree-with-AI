@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, test } from "vitest";
 import { sampleState, toGroupTree } from "@test/planning";
-import { chooseView, EVERYONE, everyoneHref, everyoneView, filterRows, findPeople, firstMarriage, listRows, marriageLines, relationSummary, sortRows } from "./everyone";
+import { chooseView, EVERYONE, everyoneHref, everyoneView, familyCounts, filterRows, findPeople, firstMarriage, listRows, marriageLines, relationSummary, sortRows } from "./everyone";
 import type { GroupTree } from "./types";
 
 const tree = toGroupTree(sampleState());
@@ -165,5 +165,23 @@ describe("which ★ Everyone view opens (owner request)", () => {
     expect(everyoneHref("g1", "upcoming", "p1")).toBe("/g/g1/s/everyone?view=upcoming&person=p1");
     expect(everyoneHref("g1", "wheel", "p1", "c1")).toBe("/g/g1/s/everyone?view=wheel&centre=c1&person=p1");
     expect(everyoneHref("g1", "list", "p1", "c1")).toBe("/g/g1/s/everyone?view=list&person=p1"); // the middle is the Wheel's
+  });
+});
+
+describe("familyCounts", () => {
+  test("the sample family: 36 people and 12 couples, as ★ Everyone's bar says", () => {
+    expect(familyCounts(toGroupTree(sampleState()))).toEqual({ people: 36, couples: 12 });
+  });
+
+  test("a single parent's union isn't a couple", () => {
+    const tree: GroupTree = {
+      persons: [
+        { id: "p1", name: "Asha", gender: "female" },
+        { id: "p2", name: "Ravi", gender: "male" },
+      ],
+      unions: [{ id: "u1", partnerIds: ["p1"], childIds: ["p2"], status: "married" }],
+      sheets: [],
+    } as unknown as GroupTree;
+    expect(familyCounts(tree)).toEqual({ people: 2, couples: 0 });
   });
 });

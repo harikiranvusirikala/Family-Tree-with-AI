@@ -8,9 +8,11 @@ const NO_GROUPS = "You don't have any family groups yet";
 // Next.js keeps recently visited pages in the DOM, hidden, so locate by role: getByRole skips hidden elements.
 const textbox = (page: Page, name: string) => page.getByRole("textbox", { name, exact: true });
 
-/** Fills in the dashboard's "Create a family group" form and waits for the father's sheet. */
+/** Fills in the dashboard's "Create a family group" dialog (New group) and waits for the father's sheet. */
 async function createGroup(page: Page, groupName: string, father: string, mother: string, me?: "Male" | "Female") {
   await page.goto("/dashboard");
+  await page.getByRole("button", { name: "New group", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Create a family group" })).toBeVisible();
   await textbox(page, "Group name").fill(groupName);
   await textbox(page, "Father's name").fill(father);
   await textbox(page, "Mother's name").fill(mother);
@@ -26,7 +28,11 @@ test("a new user starts empty, creates a group and lands on the father's sheet w
   const user = await signIn(page, "Priya Sharma");
   await page.goto("/dashboard");
   await expect(page.getByText(NO_GROUPS)).toBeVisible();
+  // New group opens the form in a dialog, with the user's own name ready; Escape closes it.
+  await page.getByRole("button", { name: "New group", exact: true }).click();
   await expect(textbox(page, "Your name")).toHaveValue(user.name);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Create a family group" })).toBeHidden();
 
   const { groupId, sheetId } = await createGroup(page, "Sharma family", "Ravi Sharma", "Anita Sharma", "Female");
   await expect(page.getByRole("tab")).toHaveText(["★ Everyone", "Ravi Sharma's family", "Anita Sharma's family"]);

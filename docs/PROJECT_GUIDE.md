@@ -258,7 +258,7 @@ So `src/app/g/[groupId]/members/page.tsx` is the page at `/g/65f1…/members`, w
 ```mermaid
 flowchart TB
     root["/ <br/>landing page:<br/>Sign in with Google"]
-    dash["/dashboard<br/>my groups, invitations,<br/>upcoming birthdays,<br/>create or import a group"]
+    dash["/dashboard<br/>my groups as cards, invitations,<br/>upcoming birthdays,<br/>create or import a group"]
     g["/g/{groupId}<br/>jumps to the first<br/>pinned sheet"]
     s["/g/{groupId}/s/{sheetId}<br/>⭐ THE TREE EDITOR<br/>tabs, canvas, panels, chat"]
     ev["/g/{groupId}/s/everyone<br/>★ Everyone: Tree, Network,<br/>Wheel, List, Upcoming"]
@@ -348,7 +348,7 @@ flowchart TB
         AppHeader; GroupSwitcher; NoAccess; ThemeMenu
     end
     subgraph ui["ui/ — building blocks"]
-        Menu; MessagePage
+        Menu; Dialog; MessagePage
     end
     subgraph landing["landing/ — the public page"]
         Hero; ChatPreview; Faq
@@ -378,7 +378,7 @@ flowchart TB
 | File | What it does |
 |---|---|
 | [AppHeader.tsx](../src/components/AppHeader.tsx), [GroupHeader.tsx](../src/components/GroupHeader.tsx) | The bar at the top of signed-in pages: the app's icon, and on a group's pages its switcher and its pages as tabs (Tree, Members, Settings). `GroupHeader` loads what a group's header needs |
-| [GroupSwitcher.tsx](../src/components/GroupSwitcher.tsx), [ThemeMenu.tsx](../src/components/ThemeMenu.tsx) | The group's name, opening your other family trees; the theme as one button (Day, Night, Follow device) |
+| [GroupSwitcher.tsx](../src/components/GroupSwitcher.tsx), [ThemeMenu.tsx](../src/components/ThemeMenu.tsx) | The group's name, opening your other groups; the theme as one button (Day, Night, Follow device) |
 | [NoAccess.tsx](../src/components/NoAccess.tsx), [RequestAccessForm.tsx](../src/components/RequestAccessForm.tsx) | The "no access" page (identical in every case) and its Request access form |
 | [ThemeToggle.tsx](../src/components/ThemeToggle.tsx), [theme.ts](../src/components/theme.ts), [theme-script.ts](../src/components/theme-script.ts) | Day / Night / Follow device. The script runs before the page is painted, so it never flashes white |
 | [screen.ts](../src/components/screen.ts) | `isPhone()` and `isTabletOrPhone()`, for the few things CSS can't do |
@@ -393,6 +393,8 @@ flowchart TB
 |---|---|
 | [button.ts](../src/components/ui/button.ts) | The look of every button and button-like link: primary, secondary, ghost, danger |
 | [Menu.tsx](../src/components/ui/Menu.tsx) | Drop-down menus that work with the mouse, a finger and the keyboard |
+| [Dialog.tsx](../src/components/ui/Dialog.tsx) | Dialogs over the page (create a group, import a file): Escape, a click outside or Close end them |
+| [field.ts](../src/components/ui/field.ts) | The look of text fields, their labels, checkboxes, radios and form errors |
 | [MessagePage.tsx](../src/components/ui/MessagePage.tsx) | A card in the middle of the page, for pages that say one thing (no access, an invite, not found) |
 | [icons.tsx](../src/components/ui/icons.tsx) | The app's line icons |
 

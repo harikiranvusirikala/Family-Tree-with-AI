@@ -65,7 +65,7 @@ test("export the group as GEDCOM and JSON, then import the GEDCOM into a new gro
   expect(sheet.sheets).toHaveLength(1);
 
   await page.goto("/dashboard");
-  await page.getByRole("button", { name: "Import a family file…" }).click();
+  await page.getByRole("button", { name: "Import a file" }).click();
   const panel = page.getByRole("region", { name: "Import a family file" });
   const chooser = page.waitForEvent("filechooser");
   await panel.getByRole("button", { name: "Choose a file" }).click();

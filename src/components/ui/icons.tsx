@@ -95,6 +95,17 @@ const PATHS = {
       <path d="m15.5 8.5-2 5-5 2 2-5z" />
     </>
   ),
+  x: <path d="M18 6 6 18M6 6l12 12" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  upload: <path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />,
+  arrowRight: <path d="M5 12h14M13 6l6 6-6 6" />,
+  heart: <path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2Z" />,
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </>
+  ),
   userSwitch: (
     <>
       <circle cx="9" cy="8" r="3.5" />

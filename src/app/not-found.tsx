@@ -12,7 +12,7 @@ export default function NotFound() {
       <MessageText>The link may be wrong, or the page may have moved.</MessageText>
       <div className="flex flex-wrap justify-center gap-2">
         <Link href="/dashboard" className={button("primary")}>
-          Go to your family trees
+          Go to your dashboard
         </Link>
         <Link href="/" className={button("secondary")}>
           Home

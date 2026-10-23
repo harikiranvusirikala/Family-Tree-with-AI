@@ -505,16 +505,17 @@ test("Upcoming: birthdays and anniversaries nearest first; a row opens the perso
 
   // The dashboard: the next 30 days, each opening its group's Upcoming.
   await page.goto("/dashboard");
-  const soon = page.getByRole("region", { name: "Upcoming", exact: true }).getByRole("link");
+  // Each row: the initials, what, the group (and how soon, after tomorrow), the day, a milestone.
+  const soon = page.getByRole("region", { name: "Coming up", exact: true }).getByRole("link");
   await expect(soon).toHaveText([
-    "Wed 21 OctTodaySteve Cruz turns 41Cruz family",
-    "Thu 22 OctTomorrowAmelia Young turns 25Cruz family",
-    "Tue 3 NovIn 13 daysArham Chopra turns 43Cruz family",
-    "Tue 10 NovIn 20 daysOlivia Cruz turns 60Cruz familyShashtipurti",
+    "SCSteve Cruz turns 41Cruz familyToday",
+    "AYAmelia Young turns 25Cruz familyTomorrow",
+    "ACArham Chopra turns 43Cruz family · in 13 daysTue 3 Nov",
+    "OCOlivia Cruz turns 60Cruz family · in 20 daysTue 10 NovShashtipurti",
   ]);
   // The page's top part: the welcome and Upcoming (a README picture).
   const main = await box(page.getByRole("main"));
-  const section = await box(page.getByRole("region", { name: "Upcoming", exact: true }));
+  const section = await box(page.getByRole("region", { name: "Coming up", exact: true }));
   await page.screenshot({ path: "test-results/screenshots/dashboard-upcoming.png", clip: { x: main.x, y: main.y, width: main.width, height: section.y + section.height - main.y + 32 } });
   await soon.nth(1).click();
   await expect(page).toHaveURL(/\/s\/everyone\?view=upcoming&person=[0-9a-f]{24}$/);
@@ -522,10 +523,10 @@ test("Upcoming: birthdays and anniversaries nearest first; a row opens the perso
   await expect(rows.nth(1)).toHaveAttribute("aria-current", "true");
 });
 
-test("the dashboard has no Upcoming when nothing is in the next 30 days (owner request)", async ({ page, signIn, sampleGroup }) => {
+test("the dashboard's Coming up says so when nothing is in the next 30 days (owner request)", async ({ page, signIn, sampleGroup }) => {
   await page.clock.setFixedTime(new Date(2026, 9, 21, 10)); // Steve and Arham's anniversary is on 8 September
   await sampleOwner(page, signIn, sampleGroup);
   await page.goto("/dashboard");
   await expect(page.getByRole("region", { name: "My groups", exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Upcoming", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Coming up", exact: true })).toContainText("Nothing in the next 30 days.");
 });

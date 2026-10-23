@@ -46,7 +46,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Google Tag Manager on the landing page (owner request) | Done 2026-10-22 (unit tests: 462 passed; e2e: 83 passed). `GTM_ID` set in Vercel's Production and checked on the live site by the owner, 2026-10-23. See its section at the end |
 | – | Search engines and the landing page (owner request) | Done 2026-10-22 (unit tests: 472 passed; e2e: 88 passed, with Google Tag Manager merged first). Checked on the live site by the owner, 2026-10-23: Search Console verified, the sitemap submitted, GitHub's social preview uploaded. See its section at the end |
 | – | CLAUDE.md and ESLint after the parallel worktree (owner request) | Done 2026-10-23 (lint clean; unit tests: 472 passed). See its section at the end |
-| – | A production look across the app (owner request) | Agreed 2026-10-23; built part by part on the `production-look` branch. Part 1 (the app shell): done 2026-10-23 (unit tests: 483 passed; e2e: 93 passed). Part 2 (the dashboard): in progress. See its section at the end |
+| – | A production look across the app (owner request) | Agreed 2026-10-23; built part by part on the `production-look` branch. Part 1 (the app shell): done 2026-10-23 (unit tests: 483 passed; e2e: 93 passed). Part 2 (the dashboard): done 2026-10-23 (unit tests: 490 passed; e2e: 96 passed). Part 3 (Members and Settings): next. See its section at the end |
 
 ## How we work
 
@@ -1537,7 +1537,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
     - `MessagePage.tsx`: a card in the middle of the page, for pages that say one thing.
   - **The header** (`AppHeader`):
     - The icon and "Family Tree". On group pages the name shows from 1024 px; the link's name stays "Family Tree".
-    - `GroupSwitcher`: the user's family trees, the open one ticked, then All family trees.
+    - `GroupSwitcher`: the user's groups, the open one ticked, then All groups (named "family trees" until part 2).
     - The group's pages as tabs (`groupLinks`): Tree; Members, for Admins and the Owner, with the requests' count; Settings. The open one has `aria-current` and the gradient underline.
     - `ThemeMenu` from tablets up.
     - `UserMenu`: the avatar, opening the name and email, Buy me a coffee and Sign out. On phones it also holds the group's pages (Tree as well, the way back from Members or Settings) and ThemeToggle.
@@ -1546,3 +1546,24 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - **Names kept for tests and screen readers:** "Family Tree" (home), "Settings", "Members, N access request(s)", and the account button named after the user. The group's name in the header is now the switcher button, not a link, so `groups.spec.ts` checks the button; the tablet test looks for the Theme button; the theme test uses the menu.
   - **Tests:** unit `Menu.test.tsx` (focus, keys, closing) and `AppHeader.test.tsx` (tabs and the open one, Members only for managers, the switcher, the theme menu, the phones' account menu); e2e `app-shell.spec.ts` (switching trees and tabs, the theme menu by keyboard, the account menu, the 404 page, the no-access card) and a phone check that the switcher's menu fits with 44 px rows.
   - **Two flakes,** both passing on the rerun: one run's partner-sheet save took over 15 s (the remote database), and one phone run measured mouse sizes (the known missing touch emulation). Menus scale in from 98 % for 140 ms, so tests measure their rows with `expect.poll` and take menu screenshots with `animations: "disabled"`.
+- **Part 2, the dashboard (notes, 2026-10-23):**
+  - **Building blocks:**
+    - `Dialog.tsx`: `Dialog`, the browser's modal `<dialog>`. Escape, a click outside or Close end it, the first field takes the focus, and the focus goes back to the button that opened it. `DialogButton` is a button with its dialog; the content gets `close`.
+    - `field.ts`: class strings for fields, their labels, checkboxes and radios, and a form's error.
+  - **Pages kept for Back:** Next.js hides the page someone leaves instead of unmounting it (React's `Activity`, `display: none`) and shows it again on Back. A modal dialog left open in that hidden page made the next page inert: after an import into a new group, nothing on the group's page could be clicked (found by the import e2e test). So `Dialog` closes the native dialog in a layout effect's cleanup, and `DialogButton` and `Menu` reset their open state there, as in Next.js's `preserving-ui-state.md`. Unit tests with `<Activity>` reproduce it and fail without the fix.
+  - **The page:**
+    - A greeting ("Welcome, name"), with Import a file and New group, each opening a dialog.
+    - Invitations as amber banners: the group's name, "Carla Cruz invited you as Maintain.", Accept and Decline.
+    - My groups as cards: a band with the family glyph, the name, a role badge, "36 people · 12 couples · 1 member" and Open, with the access requests' badge over the card's foot. The last card is the dashed "Start a new group".
+    - Shared with me (or "Nobody has shared a group with you yet."), then My access requests.
+    - Coming up as a card: beside the groups from 1024 px, below them on smaller screens.
+  - **The first visit** (no groups and no invitations) gets a welcome card, "Get started", with the two ways to start, and the buttons at the top are left out. Access requests still show under it: the first e2e run found them missing for someone whose only request was waiting.
+  - **The counts:** `familyCounts(tree)` in `src/tree/everyone.ts` counts people and couples of two as ★ Everyone shows them, from the trees the page already loads for Coming up. `memberCounts(db, groupIds)` counts the members in one aggregation.
+  - **Coming up** (`UpcomingSoon`): each row has the photo or initials (two for a couple), "in N days", and the date (or Today, Tomorrow) as a badge, with a milestone such as Shashtipurti as a second badge. It shows a skeleton until the device's date is known.
+  - **Deviations from the plan:**
+    - **The word "group":** "New group", "Start a new group", "Your groups" and "All groups", not "family tree". The rest of the app says group (Settings, invites, the welcome), so part 1's switcher names ("Your family trees", "All family trees") changed too.
+    - **No member avatars on the cards:** only Admins and the Owner see who is in a group (on the members page), so a Viewer's dashboard must not show them. The cards show the count.
+  - **Tests:**
+    - Unit: `Dialog.test.tsx`, `familyCounts` in `everyone.test.ts`, and the `<Activity>` cases for `Dialog` and `Menu`.
+    - Database: `memberCounts` in `members.db.test.ts`.
+    - E2e: `dashboard.spec.ts` covers the cards and counts, the dialog by keyboard (focus in the first field, Escape gives it back), the first visit, and Import's dialog. A phone check makes sure the dialog fits, with 44 px buttons and 16 px fields. `groups.spec.ts`, `app-shell.spec.ts` and `import-export.spec.ts` open the dialogs, and in `members.spec.ts` someone who leaves their only group gets the welcome.

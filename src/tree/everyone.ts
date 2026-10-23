@@ -25,6 +25,12 @@ export function everyoneView(tree: GroupTree): SheetView {
   };
 }
 
+/** How many people and couples ★ Everyone shows: the bar above it, and the dashboard's group cards. */
+export function familyCounts(tree: GroupTree): { people: number; couples: number } {
+  const view = everyoneView(tree);
+  return { people: view.persons.length, couples: view.unions.filter((u) => u.partnerIds.length === 2).length };
+}
+
 /** Lower case, without accents or extra spaces: "Zoë  Ávila" matches "zoe avila" (as the import's duplicate check does). */
 const fold = (text: string) => text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
 

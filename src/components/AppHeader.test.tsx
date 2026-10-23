@@ -46,13 +46,13 @@ describe("the app's header (the production look)", () => {
     expect(within(screen.getByRole("navigation")).getByRole("link", { name: "Settings" }).getAttribute("aria-current")).toBe("page");
   });
 
-  test("the group's name opens the user's family trees, the open one ticked, and all of them on the dashboard", () => {
+  test("the group's name opens the user's groups, the open one ticked, and all of them on the dashboard", () => {
     render(<AppHeader user={user} nav={nav()} />);
     fireEvent.click(banner().getByRole("button", { name: "Cruz family" }));
-    const menu = within(screen.getByRole("menu", { name: "Your family trees" }));
+    const menu = within(screen.getByRole("menu", { name: "Your groups" }));
     expect(menu.getByRole("menuitemradio", { name: "Cruz family" }).getAttribute("aria-checked")).toBe("true");
     expect(menu.getByRole("menuitemradio", { name: "Young family" }).getAttribute("href")).toBe(`/g/${"b".repeat(24)}`);
-    expect(menu.getByRole("menuitem", { name: "All family trees" }).getAttribute("href")).toBe("/dashboard");
+    expect(menu.getByRole("menuitem", { name: "All groups" }).getAttribute("href")).toBe("/dashboard");
   });
 
   test("the theme is one button: Day, Night or Follow device, the choice ticked and remembered", () => {

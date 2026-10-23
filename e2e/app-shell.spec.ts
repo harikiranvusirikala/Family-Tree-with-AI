@@ -12,11 +12,12 @@ const textbox = (page: Page, name: string) => page.getByRole("textbox", { name, 
 const shot = (page: Page, name: string, height = 900) =>
   page.screenshot({ path: `test-results/screenshots/${name}.png`, clip: { x: 0, y: 0, width: 1440, height }, animations: "disabled" });
 
-test("the header: the group's switcher changes family trees, and its pages are tabs with the open one marked", async ({ page, signIn, sampleGroup }) => {
+test("the header: the group's switcher changes groups, and its pages are tabs with the open one marked", async ({ page, signIn, sampleGroup }) => {
   const owner = await signIn(page, "Carla Cruz");
   const { groupId, cruzSheet } = await sampleGroup(owner);
-  // A second family tree, made on the dashboard.
+  // A second group, made on the dashboard.
   await page.goto("/dashboard");
+  await page.getByRole("button", { name: "New group", exact: true }).click();
   await textbox(page, "Group name").fill("Rao family");
   await textbox(page, "Father's name").fill("Suresh Rao");
   await textbox(page, "Mother's name").fill("Lakshmi Rao");
@@ -28,7 +29,7 @@ test("the header: the group's switcher changes family trees, and its pages are t
   const tabs = header.getByRole("navigation", { name: "This family tree" });
   await expect(tabs.getByRole("link", { name: "Tree" })).toHaveAttribute("aria-current", "page");
   await header.getByRole("button", { name: "Rao family", exact: true }).click();
-  const trees = page.getByRole("menu", { name: "Your family trees" });
+  const trees = page.getByRole("menu", { name: "Your groups" });
   await expect(trees.getByRole("menuitemradio", { name: "Rao family" })).toHaveAttribute("aria-checked", "true");
   await trees.getByRole("menuitemradio", { name: "Cruz family" }).click();
   await expect(page).toHaveURL(`/g/${groupId}/s/${cruzSheet}`);
@@ -46,7 +47,7 @@ test("the header: the group's switcher changes family trees, and its pages are t
   // Every family tree, from the switcher.
   await header.getByRole("button", { name: "Cruz family", exact: true }).click();
   await shot(page, "group-switcher", 320);
-  await page.getByRole("menu", { name: "Your family trees" }).getByRole("menuitem", { name: "All family trees" }).click();
+  await page.getByRole("menu", { name: "Your groups" }).getByRole("menuitem", { name: "All groups" }).click();
   await expect(page).toHaveURL("/dashboard");
 });
 
@@ -89,7 +90,7 @@ test("an address that doesn't exist gets the app's own page, with a way back", a
   expect(response?.status()).toBe(404);
   await expect(page.getByRole("heading", { name: "This page isn't here" })).toBeVisible();
   await page.screenshot({ path: "test-results/screenshots/not-found.png" });
-  await page.getByRole("link", { name: "Go to your family trees" }).click();
+  await page.getByRole("link", { name: "Go to your dashboard" }).click();
   await expect(page).toHaveURL("/dashboard");
 });
 
