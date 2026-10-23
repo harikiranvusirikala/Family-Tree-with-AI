@@ -60,7 +60,7 @@ describe("full dates in the person form (owner requests)", () => {
     set("Birth day", "12");
     expect(read()).toBe("Enter both the day and the month of the birth, or neither.");
     set("Birth month", "2");
-    expect(read()).toBe("A birth day and month need the birth year.");
+    expect(read()).toMatchObject({ birthMonth: 2, birthDay: 12 }); // no year needed
     set("Birth day", "29");
     set("Birth year", "1985");
     expect(read()).toBe("29 Feb 1985 isn't a real date.");
@@ -107,6 +107,6 @@ describe("the marriage date's fields (owner request)", () => {
     set("Marriage year", "999");
     expect(read()).toBe("Marriage year: Enter a year from 1000 on.");
     set("Marriage year", "");
-    expect(read()).toBe("A marriage day and month need the marriage year.");
+    expect(read()).toEqual({ marriageMonth: 2, marriageDay: 29 }); // no year needed
   });
 });

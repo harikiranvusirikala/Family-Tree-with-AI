@@ -10,7 +10,8 @@ export function formatYears(birthYear?: number, deathYear?: number): string {
 }
 
 // Full birth and death dates (an owner request after the final check): a day and month, saved only
-// together and only with their year. Written "12 Mar 1985" (the owner's choice).
+// together, with or without the year (a birthday alone is fine). Written "12 Mar 1985" (the owner's
+// choice), or "12 Mar" without a year. A date with no year is not a full date: it never orders anyone.
 
 /** A person's dates, as stored: the years, and the day and month when known. */
 export interface LifeDates {
@@ -52,10 +53,10 @@ export const formatMarriage = (u: MarriageDate): string => formatDate(u.marriage
 
 export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
 
-/** "12 Mar 1985", or "1985" when only the year is known, or "" when nothing is. */
+/** "12 Mar 1985", "1985" when only the year is known, "12 Mar" when only the day and month are, or "" when nothing is. */
 export function formatDate(year?: number, month?: number, day?: number): string {
-  if (year === undefined) return "";
-  return month !== undefined && day !== undefined ? `${day} ${MONTHS[month - 1]} ${year}` : String(year);
+  const dayAndMonth = month !== undefined && day !== undefined ? `${day} ${MONTHS[month - 1]}` : "";
+  return [dayAndMonth, year === undefined ? "" : String(year)].filter(Boolean).join(" ");
 }
 
 /** Like formatYears, with full dates where known: "12 Mar 1945 – 3 Jun 2022", "12 Mar 1985", "d. 2022". */
@@ -75,7 +76,7 @@ export function isRealDate(year: number, month: number, day: number): boolean {
 /** A number that orders dates; a year alone comes before the dated days of that year. */
 const dateKey = (year: number, month?: number, day?: number) => year * 10000 + (month ?? 0) * 100 + (day ?? 0);
 
-/** For ordering by birth: eldest first. Undefined with no birth year. */
+/** For ordering by birth: eldest first. Undefined with no birth year: a day and month alone count as no date. */
 export const birthOrder = (p: LifeDates): number | undefined => (p.birthYear === undefined ? undefined : dateKey(p.birthYear, p.birthMonth, p.birthDay));
 
 /**
@@ -91,14 +92,16 @@ export function eldestFirst<P extends LifeDates & { name: string }>(people: P[])
   });
 }
 
-/** For ordering by marriage: earliest first. Undefined with no marriage year. */
+/** For ordering by marriage: earliest first. Undefined with no marriage year (a day and month alone count as no date). */
 export const marriageOrder = (u: MarriageDate): number | undefined => (u.marriageYear === undefined ? undefined : dateKey(u.marriageYear, u.marriageMonth, u.marriageDay));
 
-/** What's wrong with one date, or null: a day without its month (or the other way round), a day and month without their year, or a day that doesn't exist. */
+/** Without a year, any day that exists in some year is allowed. */
+const LEAP_YEAR = 2000;
+
+/** What's wrong with one date, or null: a day without its month (or the other way round), or a day that doesn't exist (29 February is allowed without a year). */
 function dateProblem(what: string, year?: number, month?: number, day?: number): string | null {
   if ((month === undefined) !== (day === undefined)) return `Enter both the day and the month of the ${what}, or neither`;
-  if (month !== undefined && year === undefined) return `A ${what} day and month need the ${what} year`;
-  if (month !== undefined && day !== undefined && year !== undefined && !isRealDate(year, month, day)) return `${day} ${MONTHS[month - 1]} ${year} isn't a real date`;
+  if (month !== undefined && day !== undefined && !isRealDate(year ?? LEAP_YEAR, month, day)) return `${formatDate(year, month, day)} isn't a real date`;
   return null;
 }
 

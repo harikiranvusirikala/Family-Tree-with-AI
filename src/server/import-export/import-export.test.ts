@@ -130,6 +130,10 @@ describe("reading GEDCOM files from other programs", () => {
     expect([yearOf("12 MAR 1985"), yearOf("ABT 1900"), yearOf("BET 1900 AND 1910"), yearOf("1985"), yearOf("JUN 0099"), yearOf("2500"), yearOf(undefined)]).toEqual([1985, 1900, 1900, 1985, undefined, undefined, undefined]);
   });
 
+  test("a day and month without a year are kept (owner request)", () => {
+    expect([dateOf("12 MAR"), dateOf("30 FEB"), dateOf("29 FEB")]).toEqual([{ month: 3, day: 12 }, {}, { month: 2, day: 29 }]);
+  });
+
   test("full dates (owner request): exact dates kept whole, others as a year; impossible days as a year", () => {
     expect([dateOf("12 MAR 1985"), dateOf("02 feb 2000"), dateOf("MAR 1985"), dateOf("ABT 12 MAR 1985"), dateOf("30 FEB 1985"), dateOf(undefined)]).toEqual([
       { year: 1985, month: 3, day: 12 },

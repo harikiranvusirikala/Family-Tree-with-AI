@@ -177,8 +177,10 @@ describe("planOperations: rejected batches", () => {
     expect(cleared.persons.updated[0].birthYear).toBe(1985);
     expectRejected(sample, [{ op: "updatePerson", personId: idOf("Steve Cruz"), set: { birthMonth: 2, birthDay: 29 } }], /29 Feb 1985 isn't a real date/);
     expectRejected(sample, [{ op: "updatePerson", personId: idOf("Steve Cruz"), set: { birthMonth: 2 } }], /both the day and the month/);
-    expectRejected(empty, [{ op: "createPerson", tempId: "new:1", name: "A", gender: "male", birthMonth: 2, birthDay: 3 }], /need the birth year/);
-    expectRejected(after(sample, set), [{ op: "updatePerson", personId: idOf("Steve Cruz"), set: { birthYear: null } }], /need the birth year/); // the date goes with it
+    // A day and month without a year are fine, and stay when the year is cleared.
+    expect(plan(empty, [{ op: "createPerson", tempId: "new:1", name: "A", gender: "male", birthMonth: 2, birthDay: 3 }]).persons.inserted[0]).toMatchObject({ birthMonth: 2, birthDay: 3 });
+    const yearGone = plan(after(sample, set), [{ op: "updatePerson", personId: idOf("Steve Cruz"), set: { birthYear: null } }]).persons.updated[0];
+    expect([yearGone.birthYear, yearGone.birthMonth, yearGone.birthDay]).toEqual([undefined, 2, 28]);
   });
 
   test("marriage dates (owner request): saved with a new couple, changed and cleared; the rules of a birth date; never a single parent's", () => {
@@ -194,7 +196,7 @@ describe("planOperations: rejected batches", () => {
     expect(plan(state, [{ op: "updateUnion", unionId: couple, set: { status: "divorced" } }]).unions.updated[0]).toMatchObject({ status: "divorced", marriageYear: 2010 }); // the date stays
     expectRejected(state, [{ op: "updateUnion", unionId: couple, set: { marriageMonth: 2, marriageDay: 30 } }], /Cullen Cruz and Maria Young: 30 Feb 2010 isn't a real date/);
     expectRejected(state, [{ op: "updateUnion", unionId: couple, set: { marriageDay: null } }], /both the day and the month of the marriage/);
-    expectRejected(state, [{ op: "updateUnion", unionId: couple, set: { marriageYear: null } }], /need the marriage year/); // the day and month go with it
+    expect(plan(state, [{ op: "updateUnion", unionId: couple, set: { marriageYear: null } }]).unions.updated[0]).toMatchObject({ marriageMonth: 3, marriageDay: 12 }); // they stay
     expectRejected(sample, [{ op: "createUnion", partnerIds: [idOf("Cullen Cruz")], status: "married", marriageYear: 2000 }], /a single parent has no marriage date/);
   });
 

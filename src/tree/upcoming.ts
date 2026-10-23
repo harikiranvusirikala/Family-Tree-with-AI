@@ -21,8 +21,8 @@ interface Dated {
 }
 
 export type Upcoming =
-  | (Dated & { kind: "birthday"; person: Person; age: number })
-  | (Dated & { kind: "anniversary"; union: Union; partners: [Person, Person]; years: number });
+  | (Dated & { kind: "birthday"; person: Person; age?: number })
+  | (Dated & { kind: "anniversary"; union: Union; partners: [Person, Person]; years?: number });
 
 const BIRTHDAY_MILESTONES: Record<number, string> = { 60: "Shashtipurti" };
 const ANNIVERSARY_MILESTONES: Record<number, string> = { 25: "Silver", 50: "Golden" };
@@ -40,8 +40,10 @@ function inYear(year: number, month: number, day: number): Day {
  * `since` then. A first time (a year after a birth or a wedding) is never today: someone born or married
  * today is 1 a year from now.
  */
-function next(today: Day, since: number, month: number, day: number): { date: Day; years: number } | null {
+function next(today: Day, since: number | undefined, month: number, day: number): { date: Day; years?: number } | null {
   const thisYear = inYear(today.year, month, day);
+  // With no year (a day and month alone) it simply comes round, and there is no age or count of years.
+  if (since === undefined) return { date: utc(thisYear) >= utc(today) ? thisYear : inYear(today.year + 1, month, day) };
   const date = utc(thisYear) >= utc(today) && today.year > since ? thisYear : inYear(today.year + 1, month, day);
   const years = date.year - since;
   return years >= 1 ? { date, years } : null; // a date in the future: nothing to celebrate yet
@@ -49,8 +51,9 @@ function next(today: Day, since: number, month: number, day: number): { date: Da
 
 /**
  * Everyone's next birthday and every couple's next wedding anniversary, nearest first: within the
- * next 12 months, or the next `withinDays` days. Living people with a full birth date; married couples
- * (not divorced) with a full marriage date and both partners living. `withoutDate` counts the living
+ * next 12 months, or the next `withinDays` days. Living people with a birth day and month; married couples
+ * (not divorced) with a marriage day and month and both partners living. Without a year there is no age
+ * or count of years. `withoutDate` counts the living
  * people with no full birth date, who can't be shown.
  */
 export function upcomingDates(family: FamilyData, today: Day, withinDays?: number): { events: Upcoming[]; withoutDate: number } {
@@ -59,13 +62,13 @@ export function upcomingDates(family: FamilyData, today: Day, withinDays?: numbe
   const inDays = (date: Day) => Math.round((utc(date) - utc(today)) / DAY_MS);
   const events: Upcoming[] = [];
   for (const person of living) {
-    if (person.birthYear === undefined || person.birthMonth === undefined || person.birthDay === undefined) continue;
+    if (person.birthMonth === undefined || person.birthDay === undefined) continue;
     const found = next(today, person.birthYear, person.birthMonth, person.birthDay);
-    if (found) events.push({ kind: "birthday", person, age: found.years, date: found.date, inDays: inDays(found.date), milestone: BIRTHDAY_MILESTONES[found.years] });
+    if (found) events.push({ kind: "birthday", person, age: found.years, date: found.date, inDays: inDays(found.date), milestone: found.years === undefined ? undefined : BIRTHDAY_MILESTONES[found.years] });
   }
   for (const union of family.unions) {
     if (union.status !== "married" || union.partnerIds.length !== 2) continue;
-    if (union.marriageYear === undefined || union.marriageMonth === undefined || union.marriageDay === undefined) continue;
+    if (union.marriageMonth === undefined || union.marriageDay === undefined) continue;
     const partners = union.partnerIds.map((id) => byId.get(id));
     if (partners.some((p) => !p || p.deathYear !== undefined)) continue;
     const found = next(today, union.marriageYear, union.marriageMonth, union.marriageDay);
@@ -77,7 +80,7 @@ export function upcomingDates(family: FamilyData, today: Day, withinDays?: numbe
         years: found.years,
         date: found.date,
         inDays: inDays(found.date),
-        milestone: ANNIVERSARY_MILESTONES[found.years],
+        milestone: found.years === undefined ? undefined : ANNIVERSARY_MILESTONES[found.years],
       });
     }
   }

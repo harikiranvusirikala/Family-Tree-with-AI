@@ -98,4 +98,7 @@ export function UpcomingSoon({ groups }: { groups: UpcomingGroup[] }) {
 }
 
 /** "Steve Cruz turns 41", "Steve Cruz & Arham Chopra: 19th anniversary". */
-const what = (e: Upcoming) => (e.kind === "birthday" ? `${e.person.name} turns ${e.age}` : `${e.partners[0].name} & ${e.partners[1].name}: ${ordinal(e.years)} anniversary`);
+const what = (e: Upcoming) =>
+  e.kind === "birthday"
+    ? `${e.person.name} ${e.age === undefined ? "has a birthday" : `turns ${e.age}`}`
+    : `${e.partners[0].name} & ${e.partners[1].name}: ${e.years === undefined ? "anniversary" : `${ordinal(e.years)} anniversary`}`;

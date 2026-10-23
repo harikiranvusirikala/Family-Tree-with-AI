@@ -174,8 +174,10 @@ function Row({
         </div>
       </td>
       <td className="hidden px-3 py-3 @2xl:table-cell">
-        {person.birthYear !== undefined ? formatDate(person.birthYear, person.birthMonth, person.birthDay) : none}
-        {person.deathYear !== undefined && <span className={`block text-xs ${muted}`}>Died {formatDate(person.deathYear, person.deathMonth, person.deathDay)}</span>}
+        {formatDate(person.birthYear, person.birthMonth, person.birthDay) || none}
+        {formatDate(person.deathYear, person.deathMonth, person.deathDay) && (
+          <span className={`block text-xs ${muted}`}>Died {formatDate(person.deathYear, person.deathMonth, person.deathDay)}</span>
+        )}
       </td>
       <td className="hidden px-3 py-3 @2xl:table-cell">
         {married.length

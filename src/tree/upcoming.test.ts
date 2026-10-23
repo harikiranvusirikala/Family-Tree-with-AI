@@ -25,7 +25,7 @@ const tree = toGroupTree(
 );
 const today: Day = { year: 2026, month: 10, day: 21 };
 const describeEvent = (e: Upcoming) =>
-  e.kind === "birthday" ? `${formatDay(e.date)} ${e.date.year}: ${e.person.name} turns ${e.age}` : `${formatDay(e.date)} ${e.date.year}: ${e.partners.map((p) => p.name).join(" & ")}, ${ordinal(e.years)}`;
+  e.kind === "birthday" ? `${formatDay(e.date)} ${e.date.year}: ${e.person.name} turns ${e.age}` : `${formatDay(e.date)} ${e.date.year}: ${e.partners.map((p) => p.name).join(" & ")}, ${e.years === undefined ? "anniversary" : ordinal(e.years)}`;
 
 describe("upcoming birthdays and anniversaries (owner request)", () => {
   test("nearest first over the next 12 months, today included, across the new year", () => {
@@ -48,6 +48,20 @@ describe("upcoming birthdays and anniversaries (owner request)", () => {
     expect(dated.persons.map((p) => p.name).sort()).toEqual(["Alex Cruz", "Amelia Young", "Arham Chopra", "Steve Cruz", "Taylor Humes"]);
     expect(dated.unions.map((u) => u.id)).toEqual([coupleOf(tree, "Steve Cruz", "Arham Chopra")]);
     expect(upcomingDates(dated, today).events.map(describeEvent)).toEqual(upcomingDates(tree, today).events.map(describeEvent));
+  });
+
+  test("a day and month without a year still come round, with no age or count of years", () => {
+    const noYear = toGroupTree(
+      applyPlan(start, [
+        { op: "updatePerson", personId: idOf(plain, "Steve Cruz"), set: { birthYear: null, birthMonth: 10, birthDay: 22 } },
+        { op: "updateUnion", unionId: coupleOf(plain, "Steve Cruz", "Arham Chopra"), set: { marriageYear: null, marriageMonth: 11, marriageDay: 1 } },
+      ]),
+    );
+    const events = upcomingDates(noYear, today).events;
+    expect(events.map((e) => [e.kind, e.inDays, e.kind === "birthday" ? e.age : e.years])).toEqual([
+      ["birthday", 1, undefined],
+      ["anniversary", 11, undefined],
+    ]);
   });
 
   test("left out: no full date, someone who died, a divorced couple, a couple with a partner who died", () => {

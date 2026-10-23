@@ -19,6 +19,8 @@ export function UnionNode({ id, data }: NodeProps<UnionNodeType>) {
   const { onCouple, selectedId } = useContext(CanvasActionsContext);
   const { marriageYear } = data.married;
   const full = selectedId !== undefined && (selectedId === id || data.partnerIds.includes(selectedId));
+  // A day and month with no year show only while selected (they aren't a full date).
+  const shownDate = full ? formatMarriage(data.married) : marriageYear === undefined ? "" : String(marriageYear);
   return (
     <div style={{ width: HEART_GAP, height: UNION_HEIGHT }} className={`relative rounded ${selectedId === id ? "ring-2 ring-amber-400" : ""}`}>
       {data.couple && onCouple && (
@@ -30,9 +32,9 @@ export function UnionNode({ id, data }: NodeProps<UnionNodeType>) {
           className="absolute inset-0 z-10 cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-amber-500"
         />
       )}
-      {data.couple && marriageYear !== undefined && (
+      {data.couple && shownDate && (
         <div data-testid="marriage-date" className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 whitespace-nowrap text-xs leading-4 text-zinc-500 dark:text-zinc-400">
-          {full ? formatMarriage(data.married) : marriageYear}
+          {shownDate}
         </div>
       )}
       {data.couple && (

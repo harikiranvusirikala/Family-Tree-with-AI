@@ -19,6 +19,8 @@ describe("full dates (owner request)", () => {
     expect(formatDate(1985, 3, 12)).toBe("12 Mar 1985");
     expect(formatDate(1985)).toBe("1985");
     expect(formatDate()).toBe("");
+    expect(formatDate(undefined, 3, 12)).toBe("12 Mar"); // no year
+    expect(formatLife({ birthMonth: 3, birthDay: 12 })).toBe("12 Mar");
     expect(formatLife({ birthYear: 1945, birthMonth: 3, birthDay: 12, deathYear: 2022, deathMonth: 6, deathDay: 3 })).toBe("12 Mar 1945 – 3 Jun 2022");
     expect(formatLife({ birthYear: 1945, birthMonth: 3, birthDay: 12, deathYear: 2022 })).toBe("12 Mar 1945 – 2022");
     expect(formatLife({ birthYear: 1985, birthMonth: 12, birthDay: 1 })).toBe("1 Dec 1985");
@@ -32,7 +34,9 @@ describe("full dates (owner request)", () => {
   test("what's wrong with a person's dates", () => {
     expect(datesProblem({ birthYear: 1985, birthMonth: 3, birthDay: 12 })).toBeNull();
     expect(datesProblem({ birthYear: 1985, birthMonth: 3 })).toBe("Enter both the day and the month of the birth, or neither");
-    expect(datesProblem({ birthMonth: 3, birthDay: 12 })).toBe("A birth day and month need the birth year");
+    expect(datesProblem({ birthMonth: 3, birthDay: 12 })).toBeNull(); // a birthday without a year
+    expect(datesProblem({ birthMonth: 2, birthDay: 29 })).toBeNull(); // some year has one
+    expect(datesProblem({ birthMonth: 2, birthDay: 30 })).toBe("30 Feb isn't a real date");
     expect(datesProblem({ birthYear: 1985, birthMonth: 2, birthDay: 30 })).toBe("30 Feb 1985 isn't a real date");
     expect(datesProblem({ birthYear: 1985, deathYear: 1980 })).toBe("The death year can't be before the birth year");
     expect(datesProblem({ birthYear: 1985, birthMonth: 6, birthDay: 2, deathYear: 1985, deathMonth: 6, deathDay: 1 })).toBe("The death date can't be before the birth date");
@@ -43,6 +47,8 @@ describe("full dates (owner request)", () => {
   test("ordering by birth: a year alone before that year's dated days; nothing without a year", () => {
     const order = [{ birthYear: 1985, birthMonth: 3, birthDay: 12 }, { birthYear: 1985 }, { birthYear: 1984, birthMonth: 12, birthDay: 31 }, {}].map(birthOrder);
     expect(order).toEqual([19850312, 19850000, 19841231, undefined]);
+    expect(birthOrder({ birthMonth: 3, birthDay: 12 })).toBeUndefined(); // a day and month alone are no date to sort by
+    expect(marriageOrder({ marriageMonth: 3, marriageDay: 12 })).toBeUndefined();
   });
 
   test("children eldest first (an owner request): by birth date, a year alone before that year's dated days; then no birth year, A to Z", () => {
@@ -75,7 +81,7 @@ describe("marriage dates (owner request)", () => {
     expect(marriageProblem({ marriageYear: 2010 })).toBeNull();
     expect(marriageProblem({})).toBeNull();
     expect(marriageProblem({ marriageYear: 2010, marriageMonth: 3 })).toBe("Enter both the day and the month of the marriage, or neither");
-    expect(marriageProblem({ marriageMonth: 3, marriageDay: 12 })).toBe("A marriage day and month need the marriage year");
+    expect(marriageProblem({ marriageMonth: 3, marriageDay: 12 })).toBeNull(); // an anniversary without a year
     expect(marriageProblem({ marriageYear: 2023, marriageMonth: 2, marriageDay: 29 })).toBe("29 Feb 2023 isn't a real date");
   });
 

@@ -62,7 +62,7 @@ export function describeOperations(ops: Operation[], tree: GroupTree): string[] 
         const changes = [
           op.set.status !== undefined && `Mark ${names} as ${op.set.status}`,
           MARRIAGE_FIELDS.some((key) => op.set[key] !== undefined) &&
-            (after("marriageYear") === undefined
+            (!formatDate(after("marriageYear"), after("marriageMonth"), after("marriageDay"))
               ? `Remove the marriage date of ${names}`
               : `Set the marriage date of ${names} to ${formatDate(after("marriageYear"), after("marriageMonth"), after("marriageDay"))}`),
         ].filter(Boolean);

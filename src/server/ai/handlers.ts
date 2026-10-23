@@ -98,7 +98,7 @@ function getPerson(ctx: ToolContext, { personId }: z.infer<typeof inputs.get_per
     gender: person.gender,
     parents: parents.map(brief),
     partners: couples.flatMap((c) =>
-      c.partner ? [{ ...brief(c.partner), coupleId: c.union.id, status: c.union.status, ...(c.union.marriageYear !== undefined && { married: formatMarriage(c.union) }) }] : [],
+      c.partner ? [{ ...brief(c.partner), coupleId: c.union.id, status: c.union.status, ...(formatMarriage(c.union) && { married: formatMarriage(c.union) }) }] : [],
     ),
     children: couples.flatMap((c) => c.children.map(brief)),
     sheets: ctx.tree.sheets.filter((s) => buildSheetView(ctx.tree, s).persons.some((p) => p.id === person.id)).map((s) => ({ id: s.id, title: s.title })),

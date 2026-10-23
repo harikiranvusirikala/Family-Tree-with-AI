@@ -117,7 +117,7 @@ function Row({ event, selectedId, onPerson, onCouple }: { event: Upcoming; selec
         <button type="button" aria-label={label} className="text-left font-medium">
           {birthday ? event.person.name : `${event.partners[0].name} & ${event.partners[1].name}`}
         </button>
-        <p className={`text-xs ${muted}`}>{birthday ? `Turns ${event.age}` : `${ordinal(event.years)} anniversary`}</p>
+        <p className={`text-xs ${muted}`}>{birthday ? (event.age === undefined ? "Birthday" : `Turns ${event.age}`) : event.years === undefined ? "Anniversary" : `${ordinal(event.years)} anniversary`}</p>
       </div>
       {event.milestone && (
         <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900/60 dark:text-amber-100">{event.milestone}</span>

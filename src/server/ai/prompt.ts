@@ -36,7 +36,7 @@ const line = (tree: GroupTree, personId: string) => {
   const partners = tree.unions
     .filter((u) => u.partnerIds.includes(personId) && u.partnerIds.length === 2)
     .map((u) => {
-      const notes = [u.marriageYear !== undefined && `married ${formatMarriage(u)}`, u.status === "divorced" && "divorced"].filter(Boolean);
+      const notes = [formatMarriage(u) && `married ${formatMarriage(u)}`, u.status === "divorced" && "divorced"].filter(Boolean);
       return `${u.partnerIds.find((x) => x !== personId)}${notes.length ? ` (${notes.join(", ")})` : ""}`;
     });
   const years = formatLife(p); // full dates where known
