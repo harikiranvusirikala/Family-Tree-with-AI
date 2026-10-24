@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { PersonPhoto } from "./PersonPhoto";
-import { CloudNameContext, PhotosHiddenContext, photoUrl, wholePhotoUrl } from "./photo";
+import { CloudNameContext, PhotosHiddenContext, photoUrl, sharperPhotoUrl, wholePhotoUrl } from "./photo";
 
 afterEach(cleanup);
 
@@ -25,6 +25,17 @@ describe("photos on cards and panels", () => {
       </CloudNameContext>,
     );
     expect(container.querySelector("img")?.getAttribute("src")).toBe(photoUrl("demo", jake.photoId, crop));
+  });
+
+  test("an exported picture asks for the same photo at more pixels, with or without a rectangle", () => {
+    const crop = { x: 0, y: 0.25, w: 1, h: 0.5 };
+    expect(sharperPhotoUrl(photoUrl("demo", jake.photoId), 336)).toBe(
+      "https://res.cloudinary.com/demo/image/upload/c_thumb,g_face,w_336,h_336/f_auto,q_auto/groups/65f0c0ffee0000000000abcd/jake-photo-1",
+    );
+    expect(sharperPhotoUrl(photoUrl("demo", jake.photoId, crop), 336)).toBe(
+      "https://res.cloudinary.com/demo/image/upload/c_crop,x_0.0000,y_0.2500,w_1.0000,h_0.5000/c_thumb,g_face,w_336,h_336/f_auto,q_auto/groups/65f0c0ffee0000000000abcd/jake-photo-1",
+    );
+    expect(sharperPhotoUrl("data:image/png;base64,AAAA", 336)).toBe("data:image/png;base64,AAAA");
   });
 
   test("the whole photo, for choosing where someone is in it", () => {

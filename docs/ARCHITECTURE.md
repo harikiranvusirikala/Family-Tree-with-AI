@@ -545,7 +545,7 @@ sequenceDiagram
 ```
 
 - JSON is lossless and can be re-imported. GEDCOM (5.5.1, which Ancestry, FamilySearch and MyHeritage read) maps persons to `INDI` records and unions to `FAM` records; a same-sex couple gets two `HUSB` or two `WIFE` lines, and sheets aren't exported.
-- As built (step 10): an **Export** menu at the end of the sheet tabs. The picture is the whole sheet whatever the zoom, captured with `html-to-image` in the day colours on white (decided in step 10) at twice the resolution (at most 8,000 px). "Print or save as PDF" prints that picture from a hidden frame; the browser's dialog makes the PDF (no PDF library).
+- As built (step 10): an **Export** menu at the end of the sheet tabs. The picture is the whole sheet whatever the zoom, captured with `html-to-image` in the day colours on white (decided in step 10) at up to four times the resolution (an owner request, 2026-10-24: at most 16,384 px on the long side and 64 million pixels on every device, made again at 16 million when the browser refuses the canvas, as Safari's engine on iPhones and iPads does), with photos fetched at that size while it's captured. "Print or save as PDF" prints that picture from a hidden frame; the browser's dialog makes the PDF (no PDF library).
 - Exporting one sheet exports exactly the people that sheet shows ([§6](#6-sheets-views-not-copies)).
 
 ### F10. Import

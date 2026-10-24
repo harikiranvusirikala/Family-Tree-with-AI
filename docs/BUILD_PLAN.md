@@ -51,6 +51,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | ★ Everyone opens on the Network on computers and tablets (owner request) | Done 2026-10-23 on `everyone-network-first` (unit tests: 507 passed; e2e: 100 passed). See its section at the end |
 | – | Dates without a year (owner request) | Done 2026-10-23 on `date-without-year` (unit tests: 510 passed; e2e: 100 passed). See its section at the end |
 | – | Choose the face in a photo, then one photo for several people (owner request) | Done 2026-10-24 on `photo-crop` (unit tests: 543 passed; database: 43 passed; e2e: 103 passed), merged to `main`. Checked by the owner on the preview: a real group photo showed the right faces. See its section at the end |
+| – | A sharper exported picture (owner request) | Built 2026-10-24 on `sharper-picture` (unit tests: 548 passed; e2e: 102 of 103 passed, the one failure an unrelated prefetch timing in groups.spec.ts). See its section at the end |
 
 ## How we work
 
@@ -572,7 +573,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
         - Not kept, and the preview says so: places, full dates, notes, sources and media.
         - Repaired, with a warning in the preview: a family with no partners is skipped; a child listed in two families stays with the first (birth parents if marked); the same couple twice becomes one.
   - **Export, data** (Maintain and up, §8): `GET /api/groups/[groupId]/export?format=json|gedcom[&sheet=<id>]`. `getUser()` (401), then `roleInGroup(…, maintain)`, one 404 for every no-access case. It downloads `<group> - <sheet>.json` or `.ged`. One sheet means exactly the people and couples that sheet shows (§6); the whole group includes everyone and every sheet (sheets only in JSON: GEDCOM has none).
-  - **Export, picture** (everyone): "Picture (PNG)" captures the whole current sheet, whatever the zoom, with `html-to-image` 1.11 (MIT; React Flow's `getNodesBounds` gives the area). It uses the day colours on white at twice the screen's resolution, at most 8,000 pixels on the long side, without the minimap and controls (`src/components/tree/sheet-picture.ts`). "Print or save as PDF" prints that picture from a hidden frame, so no pop-up blocker interferes.
+  - **Export, picture** (everyone): "Picture (PNG)" captures the whole current sheet, whatever the zoom, with `html-to-image` 1.11 (MIT; React Flow's `getNodesBounds` gives the area). It uses the day colours on white at twice the screen's resolution, at most 8,000 pixels on the long side (four times since 2026-10-24: see "A sharper exported picture" at the end), without the minimap and controls (`src/components/tree/sheet-picture.ts`). "Print or save as PDF" prints that picture from a hidden frame, so no pop-up blocker interferes.
   - **Import**, parsed in the browser (`ImportPanel`):
     1. Choose a `.json` or `.ged` file. The browser parses it and shows a preview:
        - how many people, couples and sheets;
@@ -1733,3 +1734,13 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - The phone's dialog is the app's usual dialog width (the screen less 12 px each side), not the whole screen.
   - The e2e tests share one Cloudinary stand-in, so photo tests count only their own group's uploads and deletions. The stand-in now records each upload's size in pixels (from the PNG or JPEG header).
   - Tests: unit 543 passed (planner, schema, the rectangle's geometry, URLs, shrinking, the photo menu, JSON round trip, Undo); database 43 passed; e2e 103 passed (a group photo marked for two people, adjusted, shared, removed one at a time; a 4800 × 3600 camera photo uploaded at 2400 × 1800; a phone test of the menu and dialog).
+
+## After the final check: a sharper exported picture (owner request, 2026-10-24)
+- **Why:** Export → Picture (PNG) saved about 1.7 MB, and zoomed in, names and photos looked blurred, with visible pixels.
+- **Cause:** the picture was drawn at twice the screen's size at most, and less for a big sheet (8,000 px on the long side), and every photo was copied from the cards' 168-pixel Cloudinary thumbnail.
+- **What changes** (`src/components/tree/sheet-picture.ts`):
+  - Drawn at up to four times the screen's size (`pictureScale`): at most 16,384 px on the long side (html-to-image's limit) and 64 million pixels on every device (the owner's choice: phones and tablets too, as people use Chrome there). A big sheet is drawn at what fits, never lower than before. Safari's engine, which every browser on an iPhone or iPad uses (Chrome included), refuses canvases over about 16.7 million pixels: html-to-image then throws, or the canvas saves as `data:,`, so the picture is made again at 16 million (`isPicture`).
+  - While the picture is made, the canvas's photos ask Cloudinary for the same face crop at the picture's size (84 px × the scale rounded up, `sharperPhotoUrl` in `photo.ts`), then go back to the cards' address. The overlay already hides the page meanwhile. Cloudinary makes each new size on first request and caches it.
+  - Files are bigger: about two to four times the old size for the same sheet.
+  - Print or save as PDF prints the same, sharper picture.
+- **Tests:** unit: `pictureScale` (four times for a usual sheet, the pixel budget, the longest side, the 16-million retry); `isPicture` (a refused canvas's `data:,`); `sharperPhotoUrl` with and without a rectangle, and other addresses left alone. E2E: the Viewer's saved picture of the 36-person sheet is over 6,000 × 4,000 px (it was over 2,000 × 1,000).

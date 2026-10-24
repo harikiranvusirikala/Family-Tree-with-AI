@@ -37,6 +37,16 @@ function cropStep({ x, y, w, h }: PhotoCrop): string {
   return `c_crop,x_${f(x)},y_${f(y)},w_${f(w)},h_${f(h)}`;
 }
 
+/**
+ * The same face-cropped photo as `photoUrl`, at `pixels` square instead: an exported picture is drawn at
+ * up to four times the screen's size, where the cards' 168-pixel photos would look soft. Any other
+ * address comes back unchanged.
+ */
+export function sharperPhotoUrl(src: string, pixels: number): string {
+  if (!src.startsWith("https://res.cloudinary.com/")) return src;
+  return src.replace(`c_thumb,g_face,w_${PHOTO_PIXELS},h_${PHOTO_PIXELS}/`, `c_thumb,g_face,w_${pixels},h_${pixels}/`);
+}
+
 /** The whole photo, at most `size` pixels on the long side: for choosing where someone is in it. */
 export function wholePhotoUrl(cloudName: string, photoId: string, size: number): string {
   return `https://res.cloudinary.com/${cloudName}/image/upload/c_limit,w_${size},h_${size}/f_auto,q_auto/${photoId}`;

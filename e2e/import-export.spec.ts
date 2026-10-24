@@ -139,8 +139,8 @@ test("a Viewer can save a picture of the sheet but can't export or import data",
     const png = await readFile(await saved.path());
     expect(png.subarray(1, 4).toString()).toBe("PNG");
     const [width, height] = [png.readUInt32BE(16), png.readUInt32BE(20)];
-    expect(width).toBeGreaterThan(2000); // the whole sheet at twice the resolution, not the visible part
-    expect(height).toBeGreaterThan(1000);
+    expect(width).toBeGreaterThan(6000); // the whole sheet at four times the resolution, not the visible part
+    expect(height).toBeGreaterThan(4000);
 
     const refused = await viewerPage.request.get(`/api/groups/${groupId}/export?format=json`);
     expect(refused.status()).toBe(404);
