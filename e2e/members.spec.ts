@@ -39,6 +39,25 @@ async function invite(page: Page, groupId: string, email: string, role: string) 
   return token;
 }
 
+/** Creates an invite link from the members page's card; its token, from the link shown to share. */
+async function createLink(page: Page, groupId: string, role: string, limit?: number) {
+  await page.goto(`/g/${groupId}/members`);
+  await region(page, "Invite links").getByRole("button", { name: "Create a link" }).click();
+  const form = page.getByRole("form", { name: "Create an invite link" });
+  await form.getByRole("radio", { name: role, exact: true }).check();
+  if (limit) {
+    await form.getByRole("checkbox", { name: "Limit the number of people" }).check();
+    await form.getByRole("spinbutton", { name: "At most" }).fill(String(limit));
+  }
+  await form.getByRole("button", { name: "Create link" }).click();
+  const link = form.getByRole("textbox", { name: "New invite link" });
+  await expect(link).toHaveValue(/\/join\/[\w-]{43}$/);
+  const token = (await link.inputValue()).split("/join/")[1];
+  await form.getByRole("button", { name: "Done" }).click();
+  await expect(form).toBeHidden();
+  return token;
+}
+
 /** Asks for access from a tree link, with a message. */
 async function requestAccess(page: Page, path: string, message: string) {
   await page.goto(path);
@@ -351,5 +370,82 @@ test("the members and settings pages as cards (the production look): the side me
     await expect(dialog).toBeHidden();
   } finally {
     for (const { page: p } of [asker, ...people]) await p.context().close();
+  }
+});
+
+test("an invite link (owner request): signed out, it goes through sign-in; two people join as Viewers; Revoke stops it", async ({ browser, page, signIn, sampleGroup }) => {
+  const { groupId } = await ownerWithGroup(page, signIn, sampleGroup);
+  const token = await createLink(page, groupId, "View");
+  const links = region(page, "Invite links");
+  await expect(links.getByRole("listitem")).toContainText("0 people joined · made by Carla Cruz");
+  await page.screenshot({ path: "test-results/screenshots/invite-links.png", fullPage: true, animations: "disabled" });
+
+  const stranger = await browser.newPage({ viewport });
+  await stranger.goto(`/join/${token}`);
+  await expect(stranger).toHaveURL(`/?returnTo=${encodeURIComponent(`/join/${token}`)}`);
+  await stranger.context().close();
+
+  const people = await Promise.all(["Asha Rao", "Ravi Rao"].map((name) => someoneElse(browser, signIn, name)));
+  try {
+    for (const person of people) {
+      await person.page.goto(`/join/${token}`);
+      await expect(person.page.getByRole("heading", { name: "Join Cruz family" })).toBeVisible();
+      await expect(person.page.getByTestId("invite")).toContainText("Carla Cruz invited you to join Cruz family as View.");
+      await person.page.getByRole("button", { name: "Join Cruz family" }).click();
+      await expect(person.page).toHaveURL(new RegExp(`/g/${groupId}/s/`));
+      await expect(cards(person.page)).toHaveCount(36);
+      await expect(person.page.getByRole("button", { name: "New sheet", exact: true })).toHaveCount(0); // View only
+    }
+    await people[0].page.goto(`/join/${token}`); // a member again: straight to the tree
+    await expect(people[0].page).toHaveURL(new RegExp(`/g/${groupId}`));
+
+    await page.goto(`/g/${groupId}/members`);
+    await expect(links.getByRole("listitem")).toContainText("2 people joined");
+    await links.getByText("Who joined").click();
+    await expect(links.getByRole("listitem")).toContainText("Asha Rao, Ravi Rao");
+    await expect(row(page, "People", "Asha Rao")).toContainText("Joined by link");
+    await expect(row(page, "People", "Asha Rao").getByRole("button", { name: "Role for Asha Rao: View" })).toBeVisible();
+
+    await links.getByRole("button", { name: "Revoke View link" }).click();
+    const dialog = page.getByRole("dialog", { name: "Revoke this link?" });
+    await dialog.getByRole("button", { name: "Revoke", exact: true }).click();
+    await expect(links.getByRole("listitem")).toHaveCount(0);
+    await expect(row(page, "People", "Ravi Rao")).toBeVisible(); // those who joined stay
+
+    const late = await someoneElse(browser, signIn, "Late Leela");
+    try {
+      await late.page.goto(`/join/${token}`);
+      await expect(late.page.getByRole("heading", { name: "This invite link isn't valid any more." })).toBeVisible();
+      await expect(late.page.getByTestId("invite")).not.toContainText("Cruz family");
+    } finally {
+      await late.page.context().close();
+    }
+  } finally {
+    for (const person of people) await person.page.context().close();
+  }
+});
+
+test("an invite link with a limit: once it's reached the link shows Used up and lets nobody else in", async ({ browser, page, signIn, sampleGroup }) => {
+  const { groupId } = await ownerWithGroup(page, signIn, sampleGroup);
+  const token = await createLink(page, groupId, "Maintain", 1);
+  const first = await someoneElse(browser, signIn, "First Farah");
+  const second = await someoneElse(browser, signIn, "Second Sam");
+  try {
+    await first.page.goto(`/join/${token}`);
+    await expect(first.page.getByTestId("invite")).toContainText("as Maintain.");
+    await first.page.getByRole("button", { name: "Join Cruz family" }).click();
+    await expect(first.page.getByRole("button", { name: "New sheet", exact: true })).toBeVisible(); // Maintain edits
+
+    await second.page.goto(`/join/${token}`);
+    await expect(second.page.getByRole("heading", { name: "This invite link isn't valid any more." })).toBeVisible();
+
+    await page.goto(`/g/${groupId}/members`);
+    const link = region(page, "Invite links").getByRole("listitem");
+    await expect(link).toContainText("Used up");
+    await expect(link).toContainText("1 of 1 joined");
+    await expect(link.getByRole("button", { name: /Copy link/ })).toHaveCount(0);
+  } finally {
+    await first.page.context().close();
+    await second.page.context().close();
   }
 });

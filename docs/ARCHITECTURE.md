@@ -69,8 +69,9 @@ src/
       s/GroupSheets.tsx                  the sheet tabs and editor in the browser
       s/[sheetId]/page.tsx               empty: the layout above reads the sheet from the URL
       settings/                          rename, transfer ownership, delete (Owner), in cards beside a side menu (SettingsNav); leave the group (everyone else); confirmations in dialogs
-      members/                           access requests, members, invites as cards (Admin and up; F3, F4); Invite people and Remove in dialogs, roles as menus
+      members/                           access requests, members, invite links, invites as cards (Admin and up; F3, F3b, F4); Invite people, Create a link and Remove in dialogs, roles as menus
     invite/[token]/                      accept or decline an invite (F3)
+    join/[token]/                        join by an invite link (F3b)
     dev/tree/                            developer-only pages (404 on Vercel): layout playground; db/ draws the seeded family
     api/
       auth/[...all]/route.ts             Better Auth handler
@@ -99,6 +100,7 @@ src/
       groups.ts                          roleInGroup, createGroup, applyGroupChanges, list, rename, delete
       members.ts                         listMembers, changeRole, removeMember, leaveGroup, transferOwnership
       invites.ts                         create, list, revoke, accept and decline invites
+      invite-links.ts                    create, list and revoke invite links; join by one (F3b)
       access-requests.ts                 request access, the no-access page's state, list, approve or deny
       chat-usage.ts                      the chat's daily cap (atomic count)
     operations/                          the single write path
@@ -159,8 +161,9 @@ erDiagram
 |---|---|---|
 | `users`, `sessions`, `accounts`, `verifications` | Managed by Better Auth: email, name, image; sessions; the Google account link; sign-in states | Ours (`ensureIndexes`), because Better Auth's Mongo adapter creates none: unique `{token}` · `{userId}` · TTL on `expiresAt` (sessions); unique `{email}` (users); `{userId}` · `{providerId, accountId}` (accounts); `{identifier}` · TTL on `expiresAt` (verifications) |
 | `groups` | `name`, audit fields, `deletedAt?` | — |
-| `memberships` | `groupId`, `userId` (Better Auth's `users._id`), `role` (`owner` · `admin` · `maintain` · `view`), `addedBy`, `createdAt` | unique `{groupId, userId}` · `{userId}` |
+| `memberships` | `groupId`, `userId` (Better Auth's `users._id`), `role` (`owner` · `admin` · `maintain` · `view`), `addedBy`, `createdAt`, `inviteLinkId?` (joined by that link) | unique `{groupId, userId}` · `{userId}` |
 | `invites` | `groupId`, `email`, `emailNormalized`, `role`, `token`, `invitedBy`, `status` (`pending` · `accepted` · `declined` · `revoked`), `expiresAt`, `createdAt`, `decidedBy?`, `decidedAt?` | unique `{token}` · unique `{groupId, emailNormalized}` where `status = pending` · `{emailNormalized, status}` · `{groupId, status}` |
+| `inviteLinks` | `groupId`, `role` (`view` · `maintain`), `token`, `createdBy`, `createdAt`, `expiresAt`, `maxUses?`, `uses`, `status` (`active` · `revoked`), `revokedBy?`, `revokedAt?` | unique `{token}` · `{groupId, status}` |
 | `accessRequests` | `groupId` (not always a real group, see F4), `userId`, `email`, `message?`, `status` (`pending` · `approved` · `denied`), `decidedBy?`, `decidedAt?`, `createdAt` | unique `{groupId, userId}`: one per person per group · `{groupId, status}` · `{userId, status}` |
 | `persons` | `groupId`, `name`, `gender` (`male` · `female`), `birthYear?`, `birthMonth?`, `birthDay?`, `deathYear?`, `deathMonth?`, `deathDay?` (a day and month only together, with or without the year), `photoId?`, `photoCrop?` (`{x, y, w, h}`: where they are in the photo, only with `photoId`), `notes?`, audit fields, `deletedAt?` | `{groupId}` |
 | `unions` | `groupId`, `partnerIds` (1 or 2), `status` (`married` · `divorced`), `marriageYear?`, `marriageMonth?`, `marriageDay?` (when they married: only couples of two, a day and month only together, with or without the year), `childIds`, audit fields, `deletedAt?` | `{groupId}` (the partner and child indexes were retired: couples are loaded whole and checked in memory) |
@@ -284,7 +287,7 @@ Rules:
 - Repository functions require a `groupId`, so no query can read across groups.
 - The role is never stored in the session. Removing someone takes effect on their next request.
 - "No access" looks the same whether or not the group exists, so tree URLs can't be used to probe for groups.
-- Only Admins and the Owner grant access, through invites or access requests. Admins can grant up to Admin, and change or remove anyone except the Owner, other Admins included. The Owner can't be removed or demoted, and only the Owner can transfer ownership (to any member; they become an Admin) or delete the group. Everyone but the Owner can leave. These rules are pure functions in `members-rules.ts`; the repository functions check the actor's role themselves (decided in step 8).
+- Only Admins and the Owner grant access, through invites, invite links (View or Maintain only) or access requests. Admins can grant up to Admin, and change or remove anyone except the Owner, other Admins included. The Owner can't be removed or demoted, and only the Owner can transfer ownership (to any member; they become an Admin) or delete the group. Everyone but the Owner can leave. These rules are pure functions in `members-rules.ts`; the repository functions check the actor's role themselves (decided in step 8).
 - Only Admins and the Owner see the member list, because it shows email addresses.
 - The AI chat receives only the tools the user's role allows.
 
@@ -370,6 +373,38 @@ sequenceDiagram
 - Admins can revoke a pending invite. Revoked, expired, declined and used links all show the same "isn't valid any more" page.
 - The token is stored as it is, so Admins can copy a pending invite's link again; on its own it grants nothing, because the signed-in email must match. Links are built in the browser from the page's address, so previews give preview links.
 - Accepting also approves the person's pending access request to the group, in the same transaction.
+
+### F3b. Invite links for the whole family
+
+An owner request (2026-10-24): one link that any number of people can join by, for family whose emails the Admin doesn't know.
+
+```mermaid
+sequenceDiagram
+    actor A as Admin
+    participant App as Next.js app
+    participant DB as MongoDB
+    actor F as Family member
+    A->>App: Create a link: View, 7 days, optionally at most N people
+    App->>DB: requireRole(admin), save the link (token, expiry, uses 0)
+    App-->>A: Link /join/{token}, with Copy and Share
+    A->>F: Shares it in the family's group chat
+    F->>App: Opens the link (signs in first if needed, F1)
+    App->>DB: Active, unexpired, not used up, group not deleted?
+    alt Already a member
+        App-->>F: Redirect to the group (role unchanged)
+    else Valid
+        App-->>F: "Join as View?" with Join and Not now
+        F->>App: Join
+        App->>DB: Transaction: one more use while under the limit, create membership, close their invites and request
+        App-->>F: Redirect to the group
+    else Not valid
+        App-->>F: "This invite link isn't valid any more" (no group details)
+    end
+```
+
+- A link gives View or Maintain, never Admin, for 1, 7 or 30 days; any number of links per group. Opening it never joins anyone (link previews and prefetches open it too): only Join does.
+- Unlike F3's invites, whoever the link reaches can join (an accepted risk, §11). The safeguards: the expiry, the optional limit (checked in the same update that counts the use, so people joining at once can't pass it), Revoke, and who joined through each link, listed on the members page ("Joined by link"). Removing someone doesn't stop the link: they could join again until it's revoked.
+- Joining gives the higher of the link's role and a pending email invite's, marks pending email invites accepted, and approves the person's access request, even a denied one (the Admin chose to share the link).
 
 ### F4. Request access from a tree link
 
@@ -688,6 +723,7 @@ Model and prompt (built in step 9):
   - Anyone with a Google account can sign in and create groups, and import up to 2,000 people at a time, so a stranger could fill the free cluster's 512 MB; each account also gets 50 chat messages a day. The Anthropic Console's monthly spend limit caps the chat's cost. See §15.
   - Server actions have no rate limit of their own. Trusted members (Maintain and up) could upload many photos.
   - The chat's conversation comes back from the browser, so a person can alter their own history (up to 400,000 characters per request). It only affects their own chat: proposals still need their Confirm and the server's checks.
+  - An invite link (F3b) lets in anyone it reaches, with View or Maintain, until it expires, reaches its limit or is revoked: a link forwarded outside the family lets strangers in. Admins see who joined by each link and can remove them (an owner request, 2026-10-24).
   - Better Auth's sign-in rate limit keeps its counts in memory, so on Vercel each server instance counts separately.
 
 ## 12. Environments
@@ -758,6 +794,7 @@ Limits built into the app:
 | Photos | JPEG, PNG, WebP or HEIC up to 50 MB chosen, shrunk in the browser to 2400 px, then up to 10 MB uploaded; stored at most 2400 px | `upload-photo.ts`, `cloudinary.ts` |
 | AI chat | `CHAT_DAILY_LIMIT` messages per person per day (50); the first 300 people go to the model as its family list; requests up to 400,000 characters | `chat-usage.ts`, `ai/prompt.ts`, `ai/request.ts` |
 | Invites | Last 14 days | `repositories/invites.ts` |
+| Invite links | 1, 7 or 30 days; at most 500 people each, when limited | `members-rules.ts` |
 | Access requests | 20 waiting per person | `repositories/access-requests.ts` |
 | Sessions | 30 days, extended while in use; sign-in attempts 3 per 10 seconds per IP | `auth-options.ts`, Better Auth |
 | Backups | Kept 90 days (GitHub's artifact limit) | `backup.yml` |

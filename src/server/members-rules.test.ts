@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, test } from "vitest";
-import { leaveProblem, maskEmail, memberChangeProblem, normalizeEmail, transferProblem } from "./members-rules";
+import { inviteLinkProblem, joiningRole, leaveProblem, maskEmail, MAX_LINK_USES, memberChangeProblem, normalizeEmail, transferProblem } from "./members-rules";
 import { ROLES, type Role } from "./roles";
 
 describe("emails (F3)", () => {
@@ -47,5 +47,24 @@ describe("who may change whom (§8)", () => {
   test("not to oneself; and only the Owner can't leave", () => {
     expect(transferProblem("owner", "admin", true)).toBe("Choose another member.");
     expect(ANYONE.filter((role) => leaveProblem(role) !== null)).toEqual(["owner"]);
+  });
+});
+
+describe("invite links (an owner request, 2026-10-24)", () => {
+  test("View or Maintain, for 1, 7 or 30 days, with an optional limit up to 500", () => {
+    expect(inviteLinkProblem({ role: "view", days: 7 })).toBeNull();
+    expect(inviteLinkProblem({ role: "maintain", days: 1, maxUses: 1 })).toBeNull();
+    expect(inviteLinkProblem({ role: "view", days: 30, maxUses: MAX_LINK_USES })).toBeNull();
+    expect(inviteLinkProblem({ role: "admin", days: 7 })).toBe("A link can give View or Maintain.");
+    expect(inviteLinkProblem({ role: "owner", days: 7 })).toBe("A link can give View or Maintain.");
+    for (const days of [0, 2, 365, "7", Infinity]) expect(inviteLinkProblem({ role: "view", days })).toBe("Choose 1, 7 or 30 days.");
+    for (const maxUses of [0, -1, 1.5, MAX_LINK_USES + 1, "3", null]) expect(inviteLinkProblem({ role: "view", days: 7, maxUses })).toMatch(/whole number from 1 to 500/);
+  });
+
+  test("joining by a link gives the higher of its role and a pending email invite's", () => {
+    expect(joiningRole("view", [])).toBe("view");
+    expect(joiningRole("view", ["maintain"])).toBe("maintain");
+    expect(joiningRole("maintain", ["view"])).toBe("maintain");
+    expect(joiningRole("view", ["view", "admin"])).toBe("admin");
   });
 });

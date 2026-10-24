@@ -1,15 +1,15 @@
 "use client";
 
-import { startTransition, useActionState, useId, useOptimistic, useRef, useState } from "react";
+import { startTransition, useActionState, useId, useOptimistic, useRef, useState, useSyncExternalStore } from "react";
 import { useHydrated } from "@/components/use-hydrated";
 import { Avatar } from "@/components/ui/Avatar";
 import { badge, quietBadge, ROLE_BADGE } from "@/components/ui/badge";
 import { button, iconButton } from "@/components/ui/button";
 import { Dialog, DialogActions, DialogButton } from "@/components/ui/Dialog";
-import { choice, compactField, field, fieldHint, fieldLabel, formError, formSuccess, menuField } from "@/components/ui/field";
+import { choice, choiceLabel, compactField, field, fieldHint, fieldLabel, formError, formSuccess, menuField } from "@/components/ui/field";
 import { LineIcon } from "@/components/ui/icons";
 import { dangerMenuItem, Menu, menuItem } from "@/components/ui/Menu";
-import { GRANTABLE_ROLES, ROLE_HINTS, ROLE_LABELS, type GrantableRole } from "@/server/members-rules";
+import { GRANTABLE_ROLES, LINK_DAYS, LINK_ROLES, MAX_LINK_USES, ROLE_HINTS, ROLE_LABELS, type GrantableRole, type LinkRole } from "@/server/members-rules";
 import type { Role } from "@/server/roles";
 import type { MemberFormState } from "./actions";
 import { MEMBER_COLUMNS } from "./columns";
@@ -25,12 +25,15 @@ function Problem({ state }: { state: MemberFormState }) {
   ) : null;
 }
 
-/** An invite's link with Copy. Built from this page's address, so previews give preview links. */
-export function InviteLink({ token, label }: { token: string; label: string }) {
+/** Where an invite (`/invite/`, one email) or an invite link (`/join/`, anyone) is opened. */
+type LinkPath = "invite" | "join";
+
+/** An invite's link with Copy (and Share for an invite link). Built from this page's address, so previews give preview links. */
+export function InviteLink({ token, label, path = "invite" }: { token: string; label: string; path?: LinkPath }) {
   const hydrated = useHydrated();
   const input = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
-  const link = `${hydrated ? window.location.origin : ""}/invite/${token}`;
+  const link = `${hydrated ? window.location.origin : ""}/${path}/${token}`;
   async function copy() {
     try {
       await navigator.clipboard.writeText(link);
@@ -46,7 +49,37 @@ export function InviteLink({ token, label }: { token: string; label: string }) {
         <LineIcon name={copied ? "check" : "copy"} className="size-4" />
         {copied ? "Copied" : "Copy"}
       </button>
+      {path === "join" && <ShareButton token={token} />}
     </div>
+  );
+}
+
+/** Whether this browser has a share sheet (phones, and some computers). Known only after hydrating. */
+function useCanShare(): boolean {
+  return useSyncExternalStore(
+    noSubscription,
+    () => typeof navigator.share === "function",
+    () => false,
+  );
+}
+const noSubscription = () => () => {};
+
+/** The phone's share sheet (WhatsApp, Messages…) for an invite link, where the browser has one. */
+function ShareButton({ token, label, size = "md" }: { token: string; label?: string; size?: "sm" | "md" }) {
+  const canShare = useCanShare();
+  if (!canShare) return null;
+  async function share() {
+    try {
+      await navigator.share({ title: "Join our family tree", url: `${window.location.origin}/join/${token}` });
+    } catch {
+      // Closed without sharing.
+    }
+  }
+  return (
+    <button type="button" onClick={share} aria-label={label && `Share ${label}`} className={button("secondary", size)}>
+      <LineIcon name="share" className="size-4" />
+      Share
+    </button>
   );
 }
 
@@ -126,12 +159,12 @@ function InviteForm({ action, onDone }: { action: FormAction; onDone: () => void
 }
 
 /** Copy link for a pending invite; if the browser won't copy, the row shows the link to copy by hand. */
-function CopyLinkButton({ token, email, onFail }: { token: string; email: string; onFail: () => void }) {
+function CopyLinkButton({ token, email, onFail, path = "invite" }: { token: string; email: string; onFail: () => void; path?: LinkPath }) {
   const hydrated = useHydrated();
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/invite/${token}`);
+      await navigator.clipboard.writeText(`${window.location.origin}/${path}/${token}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -250,7 +283,7 @@ export function MemberRow({
   changeRole,
   remove,
 }: {
-  member: { name: string; email: string; role: Role; joined: string };
+  member: { name: string; email: string; role: Role; joined: string; byLink?: boolean };
   groupName: string;
   isYou: boolean;
   changeRole: FormAction;
@@ -277,6 +310,7 @@ export function MemberRow({
           <p className="flex min-w-0 items-center gap-2">
             <span className="truncate font-medium text-zinc-900 dark:text-zinc-100">{member.name}</span>
             {isYou && <span className={`${badge} ${quietBadge}`}>You</span>}
+            {member.byLink && <span className={`${badge} ${quietBadge}`}>Joined by link</span>}
           </p>
           <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">{member.email}</p>
         </div>
@@ -387,5 +421,179 @@ export function RequestRow({ request, decide }: { request: { name: string; email
       </div>
       <Problem state={state} />
     </li>
+  );
+}
+
+/** Invite links: Create a link, opening its form (role, how long, an optional limit). */
+export function CreateLinkButton({ action }: { action: FormAction }) {
+  return (
+    <DialogButton
+      title="Create an invite link"
+      description="Anyone who opens it and signs in with Google can join, until it expires. Share it in your family's group chat."
+      buttonClassName={button("secondary", "sm")}
+      button={
+        <>
+          <LineIcon name="link" className="size-4" />
+          Create a link
+        </>
+      }
+    >
+      {(close) => <CreateLinkForm action={action} onDone={close} />}
+    </DialogButton>
+  );
+}
+
+const DAY_LABELS: Record<(typeof LINK_DAYS)[number], string> = { 1: "1 day", 7: "7 days", 30: "30 days" };
+
+function CreateLinkForm({ action, onDone }: { action: FormAction; onDone: () => void }) {
+  const [state, formAction, pending] = useActionState(action, {});
+  const [limited, setLimited] = useState(false);
+  const id = useId();
+  return (
+    <form action={formAction} aria-label="Create an invite link" className="flex flex-col gap-5">
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1.5 text-sm font-medium text-zinc-900 dark:text-zinc-100">Role</legend>
+        {LINK_ROLES.map((r) => (
+          <label
+            key={r}
+            className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 px-3.5 py-3 hover:bg-zinc-50 has-checked:border-zinc-900 has-checked:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/40 dark:has-checked:border-zinc-300 dark:has-checked:bg-zinc-800/60"
+          >
+            <input
+              type="radio"
+              name="role"
+              value={r}
+              defaultChecked={r === "view"}
+              aria-labelledby={`${id}-${r}`}
+              aria-describedby={`${id}-${r}-hint`}
+              className={`${choice} mt-0.5`}
+            />
+            <span className="flex flex-col gap-0.5">
+              <span id={`${id}-${r}`} className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                {ROLE_LABELS[r]}
+              </span>
+              <span id={`${id}-${r}-hint`} className={fieldHint}>
+                {ROLE_HINTS[r]}
+              </span>
+            </span>
+          </label>
+        ))}
+        <p className={fieldHint}>Admins are invited by email only.</p>
+      </fieldset>
+      <label className={fieldLabel}>
+        Works for
+        <select name="days" defaultValue={LINK_DAYS[0]} className={field}>
+          {[...LINK_DAYS].sort((a, b) => a - b).map((d) => (
+            <option key={d} value={d}>
+              {DAY_LABELS[d]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="flex flex-col gap-2">
+        <label className={choiceLabel}>
+          <input type="checkbox" name="limited" checked={limited} onChange={(e) => setLimited(e.target.checked)} className={choice} />
+          Limit the number of people
+        </label>
+        {limited && (
+          <label className={fieldLabel}>
+            At most
+            <input name="maxUses" type="number" required min={1} max={MAX_LINK_USES} step={1} defaultValue={20} className={field} />
+          </label>
+        )}
+      </div>
+      <Problem state={state} />
+      {state.token && !pending && (
+        <div role="status" className={`${formSuccess} flex flex-col gap-2`}>
+          <p>{state.done}</p>
+          <InviteLink token={state.token} label="New invite link" path="join" />
+        </div>
+      )}
+      <DialogActions>
+        <button type="button" onClick={onDone} className={button("ghost")}>
+          {state.token ? "Done" : "Cancel"}
+        </button>
+        <button type="submit" disabled={pending} className={button("primary")}>
+          {pending ? "Creating…" : "Create link"}
+        </button>
+      </DialogActions>
+    </form>
+  );
+}
+
+/** An invite link: its role, expiry, who joined, Copy link, Share and Revoke (after a confirmation). */
+export function LinkRow({
+  link,
+  revoke,
+}: {
+  link: { role: LinkRole; token: string; createdBy: string; expires: string; uses: number; maxUses?: number; joined: string[] };
+  revoke: ButtonAction;
+}) {
+  const [showLink, setShowLink] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+  const usedUp = link.maxUses !== undefined && link.uses >= link.maxUses;
+  const name = `${ROLE_LABELS[link.role]} link`;
+  const count = link.maxUses !== undefined ? `${link.uses} of ${link.maxUses} joined` : `${link.uses} ${link.uses === 1 ? "person" : "people"} joined`;
+  return (
+    <li className="flex flex-col gap-3 px-4 py-3.5 sm:px-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+            <LineIcon name="link" className="size-[18px]" />
+          </span>
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 font-medium text-zinc-900 dark:text-zinc-100">
+              {name}
+              {usedUp && <span className={`${badge} ${quietBadge}`}>Used up</span>}
+            </p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              {count} · made by {link.createdBy} · expires {link.expires}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0">
+          {!usedUp && (
+            <>
+              <CopyLinkButton token={link.token} email={name} path="join" onFail={() => setShowLink(true)} />
+              <ShareButton token={link.token} label={name} size="sm" />
+            </>
+          )}
+          <button type="button" aria-haspopup="dialog" aria-label={`Revoke ${name}`} onClick={() => setRevoking(true)} className={button("dangerGhost", "sm")}>
+            Revoke
+          </button>
+        </div>
+      </div>
+      {link.joined.length > 0 && (
+        <details className="text-sm text-zinc-600 dark:text-zinc-400">
+          <summary className="cursor-pointer select-none pointer-coarse:min-h-11 pointer-coarse:content-center">Who joined</summary>
+          <p className="mt-1">{link.joined.join(", ")}</p>
+        </details>
+      )}
+      {showLink && <InviteLink token={link.token} label={`Invite link: ${name}`} path="join" />}
+      <Dialog
+        open={revoking}
+        onClose={() => setRevoking(false)}
+        title="Revoke this link?"
+        description="Nobody else can join by it. Those who already joined stay members; remove them on this page if needed."
+      >
+        <RevokeForm revoke={revoke} onCancel={() => setRevoking(false)} />
+      </Dialog>
+    </li>
+  );
+}
+
+function RevokeForm({ revoke, onCancel }: { revoke: ButtonAction; onCancel: () => void }) {
+  const [state, revokeAction, pending] = useActionState(revoke, {});
+  return (
+    <form action={revokeAction} className="flex flex-col gap-5">
+      <Problem state={state} />
+      <DialogActions>
+        <button type="button" data-autofocus onClick={onCancel} className={button("ghost")}>
+          Cancel
+        </button>
+        <button type="submit" disabled={pending} className={button("danger")}>
+          {pending ? "Revoking…" : "Revoke"}
+        </button>
+      </DialogActions>
+    </form>
   );
 }

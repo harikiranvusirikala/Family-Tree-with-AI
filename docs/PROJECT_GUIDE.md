@@ -262,9 +262,10 @@ flowchart TB
     g["/g/{groupId}<br/>jumps to the first<br/>pinned sheet"]
     s["/g/{groupId}/s/{sheetId}<br/>⭐ THE TREE EDITOR<br/>tabs, canvas, panels, chat"]
     ev["/g/{groupId}/s/everyone<br/>★ Everyone: Tree, Network,<br/>Wheel, List, Upcoming"]
-    mem["/g/{groupId}/members<br/>members, invites,<br/>access requests"]
+    mem["/g/{groupId}/members<br/>members, invite links,<br/>invites, access requests"]
     set["/g/{groupId}/settings<br/>rename, hand over,<br/>delete, leave"]
     inv["/invite/{token}<br/>accept or decline<br/>an invitation"]
+    join["/join/{token}<br/>join by an invite link<br/>(anyone it reaches)"]
 
     root -->|"after sign-in"| dash
     dash --> g --> s
@@ -272,6 +273,7 @@ flowchart TB
     s --> mem
     s --> set
     inv -->|"accepted"| g
+    join -->|"joined"| g
 ```
 
 | Address | Files | Who can see it |
@@ -283,6 +285,7 @@ flowchart TB
 | `/g/{groupId}/members` | [members/page.tsx](../src/app/g/[groupId]/members/page.tsx), `MembersForms.tsx`, `columns.ts`, `actions.ts` | Admin and Owner (other members see a short note) |
 | `/g/{groupId}/settings` | [settings/page.tsx](../src/app/g/[groupId]/settings/page.tsx), `SettingsForms.tsx`, `SettingsNav.tsx`, `actions.ts` | Members (the Owner sees rename, hand over and delete; others see Leave) |
 | `/invite/{token}` | [invite/[token]/page.tsx](../src/app/invite/[token]/page.tsx), `InviteAnswer.tsx`, `actions.ts` | The person invited |
+| `/join/{token}` | [join/[token]/page.tsx](../src/app/join/[token]/page.tsx), `JoinAnswer.tsx`, `actions.ts` | Anyone signed in who has an invite link (Join adds them; nothing happens before) |
 | `/dev/tree` | [dev/](../src/app/dev/) | Developers only (404 on the real site) |
 
 The API endpoints (they answer with data, not pages):
@@ -541,7 +544,7 @@ flowchart TB
 | [permissions.ts](../src/server/permissions.ts) | `getUser()`, `requireUser()`, `requireRole()`: who you are and what you may do |
 | [roles.ts](../src/server/roles.ts) | The table of roles and actions (`can(role, action)`) |
 | [proxy-rules.ts](../src/server/proxy-rules.ts) | The rules behind `src/proxy.ts`: which pages are public |
-| [members-rules.ts](../src/server/members-rules.ts) | Who may change whose role; email tidying (Gmail dots, `+tags`) |
+| [members-rules.ts](../src/server/members-rules.ts) | Who may change whose role; email tidying (Gmail dots, `+tags`); invite links' roles, days and limits |
 | [group-changed.ts](../src/server/group-changed.ts) | After a change, tells Next.js to refresh the group's pages |
 | [ids.ts](../src/server/ids.ts) | `toObjectId()`: turns a text id into a MongoDB id, safely |
 | [cloudinary.ts](../src/server/cloudinary.ts), [photos.ts](../src/server/photos.ts) | Signs photo uploads, deletes unused photos |
@@ -557,7 +560,7 @@ flowchart LR
         r1["documents.ts<br/>record shapes, indexes"]
         r2["family.ts<br/>load a group's family"]
         r3["groups.ts<br/>roles, create a group,<br/>apply changes"]
-        r4["members.ts · invites.ts ·<br/>access-requests.ts"]
+        r4["members.ts · invites.ts ·<br/>invite-links.ts ·<br/>access-requests.ts"]
         r5["chat-usage.ts<br/>daily chat limit"]
     end
     subgraph operations["operations/ — the one door"]
@@ -615,6 +618,7 @@ erDiagram
 | `groups` | One family (a name) |
 | `memberships` | "This user is in this group with this role" |
 | `invites` | An invitation sent to an email address |
+| `inviteLinks` | A link anyone can join by (View or Maintain), until it expires, is revoked or reaches its limit |
 | `accessRequests` | "Please let me in", sent by someone who opened a link without access |
 | `persons` | One person: name, gender, dates, photo id |
 | `unions` | One couple (♥): partners, married or divorced, wedding date, children |

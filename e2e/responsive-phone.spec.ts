@@ -161,6 +161,16 @@ test("the members page on a phone: rows stack, and a role's menu fits with 44 px
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
 
+  // Invite links (owner request): the Create dialog fits, with big enough buttons.
+  await page.getByRole("region", { name: "Invite links", exact: true }).getByRole("button", { name: "Create a link" }).tap();
+  const form = page.getByRole("form", { name: "Create an invite link" });
+  await expect(form.getByRole("radio", { name: "View", exact: true })).toBeChecked();
+  await fitsWidth(page);
+  await expect.poll(async () => (await box(form.getByRole("button", { name: "Create link" }))).height).toBeGreaterThanOrEqual(44);
+  await page.screenshot({ path: "test-results/screenshots/phone-invite-links.png", animations: "disabled" });
+  await page.keyboard.press("Escape");
+  await expect(form).toBeHidden();
+
   await page.goto(`/g/${groupId}/settings`);
   await expect(page.getByRole("button", { name: "Delete group…" })).toBeVisible();
   await fitsWidth(page);

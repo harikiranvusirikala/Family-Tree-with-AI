@@ -15,19 +15,20 @@ import { LoadingPage, skeleton } from "@/components/ui/Skeleton";
 import { getDatabase } from "@/server/db";
 import { noAccessToNull, requireRole, requireUser } from "@/server/permissions";
 import { listRequests } from "@/server/repositories/access-requests";
+import { listInviteLinks } from "@/server/repositories/invite-links";
 import { listInvites } from "@/server/repositories/invites";
 import { listMembers } from "@/server/repositories/members";
 import { can } from "@/server/roles";
-import { changeRoleAction, decideRequestAction, inviteAction, removeMemberAction, revokeInviteAction } from "./actions";
+import { changeRoleAction, createInviteLinkAction, decideRequestAction, inviteAction, removeMemberAction, revokeInviteAction, revokeInviteLinkAction } from "./actions";
 import { MEMBER_COLUMNS } from "./columns";
-import { InviteButton, InviteRow, MemberRow, RequestRow } from "./MembersForms";
+import { CreateLinkButton, InviteButton, InviteRow, LinkRow, MemberRow, RequestRow } from "./MembersForms";
 
 export const metadata: Metadata = { title: "Members · Family Tree" };
 
 const columnLabel = "hidden text-xs font-medium tracking-wide text-zinc-500 uppercase md:block dark:text-zinc-400";
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** F3, F4: access requests, members and invites (Admin and up), as cards; Invite people opens a dialog. */
+/** F3, F4: access requests, members, invite links and invites (Admin and up), as cards; Invite people opens a dialog. */
 export default function MembersPage({ params }: PageProps<"/g/[groupId]/members">) {
   return (
     <Suspense fallback={<MembersLoading />}>
@@ -64,7 +65,12 @@ async function GroupMembers({ params }: Pick<PageProps<"/g/[groupId]/members">, 
   }
 
   const { db } = await getDatabase();
-  const [requests, members, invites] = await Promise.all([listRequests(db, groupId), listMembers(db, groupId), listInvites(db, groupId)]);
+  const [requests, members, links, invites] = await Promise.all([
+    listRequests(db, groupId),
+    listMembers(db, groupId),
+    listInviteLinks(db, groupId),
+    listInvites(db, groupId),
+  ]);
   const groupName = access.group.name;
 
   return (
@@ -111,7 +117,7 @@ async function GroupMembers({ params }: Pick<PageProps<"/g/[groupId]/members">, 
             {members.map((m) => (
               <MemberRow
                 key={m.userId}
-                member={{ name: m.name, email: m.email, role: m.role, joined: shortDate(m.joinedAt) }}
+                member={{ name: m.name, email: m.email, role: m.role, joined: shortDate(m.joinedAt), byLink: m.byLink }}
                 groupName={groupName}
                 isYou={m.userId === user.id}
                 changeRole={changeRoleAction.bind(null, groupId, m.userId)}
@@ -119,6 +125,29 @@ async function GroupMembers({ params }: Pick<PageProps<"/g/[groupId]/members">, 
               />
             ))}
           </ul>
+        </section>
+
+        <section aria-label="Invite links" className={card}>
+          <div className={cardHeader}>
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <h2 className={cardTitle}>Invite links</h2>
+              <p className={cardText}>One link for the whole family: anyone who opens it can join. Revoke a link to keep someone out.</p>
+            </div>
+            <CreateLinkButton action={createInviteLinkAction.bind(null, groupId)} />
+          </div>
+          {links.length === 0 ? (
+            <p className={`${cardText} px-4 py-4 sm:px-5`}>No links. Create one to share in a family group chat.</p>
+          ) : (
+            <ul className={cardRows}>
+              {links.map((l) => (
+                <LinkRow
+                  key={l.id}
+                  link={{ role: l.role, token: l.token, createdBy: l.createdBy, expires: shortDate(l.expiresAt), uses: l.uses, maxUses: l.maxUses, joined: l.joined }}
+                  revoke={revokeInviteLinkAction.bind(null, groupId, l.id)}
+                />
+              ))}
+            </ul>
+          )}
         </section>
 
         <section aria-label="Invites waiting" className={card}>

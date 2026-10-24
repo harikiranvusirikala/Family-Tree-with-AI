@@ -7,6 +7,7 @@ import { createTestDatabase } from "@test/db";
 import { accessState, decideRequest, MAX_PENDING_REQUESTS, myRequests, pendingRequestCounts, requestAccess } from "./access-requests";
 import { collections, ensureIndexes } from "./documents";
 import { createGroup, deleteGroup, listGroupsForUser, roleInGroup } from "./groups";
+import { createInviteLink, inviteLinkForToken, joinByLink, listInviteLinks, revokeInviteLink } from "./invite-links";
 import { acceptInvite, createInvite, declineInvite, INVALID_INVITE, inviteForToken, invitesForUser, listInvites, revokeInvite } from "./invites";
 import { changeRole, leaveGroup, listMembers, memberCounts, removeMember, transferOwnership } from "./members";
 
@@ -248,5 +249,96 @@ describe("members and the Owner (§8)", () => {
     await leaveGroup(database.db, groupId, members[0].id);
     expect(await roleOf(groupId, members[0])).toBeNull();
     await expect(leaveGroup(database.db, groupId, owner.id)).rejects.toThrow(/Transfer ownership/);
+  });
+});
+
+describe("invite links (an owner request, 2026-10-24)", () => {
+  test("many people join by one link, each with its role; a member who opens it keeps theirs and isn't counted", async () => {
+    const { groupId, owner, members } = await group(["admin"]);
+    const { token } = await createInviteLink(database.db, groupId, owner.id, { role: "view", days: 7 });
+    expect(await inviteLinkForToken(database.db, token)).toEqual({ groupId, groupName: "Sharma family", role: "view", invitedBy: "Olivia Owner" });
+
+    const [asha, ravi] = [await newUser("Asha"), await newUser("Ravi")];
+    expect(await joinByLink(database, token, asha)).toBe(groupId);
+    expect(await joinByLink(database, token, ravi)).toBe(groupId);
+    expect(await joinByLink(database, token, asha)).toBe(groupId); // again: nothing changes
+    expect(await joinByLink(database, token, members[0])).toBe(groupId); // the Admin stays an Admin
+    expect([await roleOf(groupId, asha), await roleOf(groupId, ravi), await roleOf(groupId, members[0])]).toEqual(["view", "view", "admin"]);
+
+    expect(await listInviteLinks(database.db, groupId)).toMatchObject([{ role: "view", token, createdBy: "Olivia Owner", uses: 2, joined: ["Asha", "Ravi"] }]);
+    const list = await listMembers(database.db, groupId);
+    expect(list.filter((m) => m.byLink).map((m) => m.name)).toEqual(["Asha", "Ravi"]);
+
+    await removeMember(database.db, groupId, owner.id, ravi.id);
+    expect((await listInviteLinks(database.db, groupId))[0].joined).toEqual(["Asha"]); // only those still in the group
+  });
+
+  test("expired, revoked, used-up and deleted-group links are refused with one message", async () => {
+    const { groupId, owner } = await group();
+    const later = new Date(Date.now() + 2 * 86_400_000);
+    const day = await createInviteLink(database.db, groupId, owner.id, { role: "view", days: 1 });
+    await expect(joinByLink(database, day.token, await newUser("Late"), later)).rejects.toThrow(INVALID_INVITE);
+    expect(await inviteLinkForToken(database.db, day.token, later)).toBeNull();
+
+    const revoked = await createInviteLink(database.db, groupId, owner.id, { role: "maintain", days: 7 });
+    const [link] = (await listInviteLinks(database.db, groupId)).filter((l) => l.token === revoked.token);
+    await revokeInviteLink(database.db, groupId, owner.id, link.id);
+    await expect(joinByLink(database, revoked.token, await newUser("After revoke"))).rejects.toThrow(INVALID_INVITE);
+    expect((await listInviteLinks(database.db, groupId)).map((l) => l.token)).not.toContain(revoked.token);
+
+    const once = await createInviteLink(database.db, groupId, owner.id, { role: "view", days: 7, maxUses: 1 });
+    await joinByLink(database, once.token, await newUser("First"));
+    await expect(joinByLink(database, once.token, await newUser("Second"))).rejects.toThrow(INVALID_INVITE);
+    expect(await inviteLinkForToken(database.db, once.token)).toBeNull();
+    expect((await listInviteLinks(database.db, groupId)).find((l) => l.token === once.token)).toMatchObject({ uses: 1, maxUses: 1 }); // still listed, used up
+
+    const gone = await createInviteLink(database.db, groupId, owner.id, { role: "view", days: 7 });
+    await deleteGroup(database.db, groupId, owner.id);
+    await expect(joinByLink(database, gone.token, await newUser("Too late"))).rejects.toThrow(INVALID_INVITE);
+    for (const crafted of ["", "short", { $ne: "" }] as unknown as string[]) expect(await inviteLinkForToken(database.db, crafted)).toBeNull();
+  });
+
+  test("the limit holds when people join at the same moment", async () => {
+    const { groupId, owner } = await group();
+    const { token } = await createInviteLink(database.db, groupId, owner.id, { role: "view", days: 7, maxUses: 2 });
+    const people = await Promise.all(["A", "B", "C", "D", "E"].map((n) => newUser(`Racer ${n}`)));
+    const results = await Promise.allSettled(people.map((p) => joinByLink(database, token, p)));
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(2);
+    expect(await collections(database.db).memberships.countDocuments({ groupId: new ObjectId(groupId), role: "view" })).toBe(2);
+    expect((await listInviteLinks(database.db, groupId))[0].uses).toBe(2);
+  });
+
+  test("only Admins and the Owner make and revoke links, never for Admin, and only within the rules", async () => {
+    const { groupId, owner, members } = await group(["view", "maintain", "admin"]);
+    const [viewer, maintainer, admin] = members;
+    for (const who of [viewer, maintainer]) {
+      await expect(createInviteLink(database.db, groupId, who.id, { role: "view", days: 7 })).rejects.toThrow(NoAccessError);
+    }
+    const { token } = await createInviteLink(database.db, groupId, admin.id, { role: "maintain", days: 30 });
+    await expect(createInviteLink(database.db, groupId, owner.id, { role: "admin" as "view", days: 7 })).rejects.toThrow("A link can give View or Maintain.");
+    await expect(createInviteLink(database.db, groupId, owner.id, { role: "view", days: 365 })).rejects.toThrow(MemberError);
+    const [link] = await listInviteLinks(database.db, groupId);
+    await expect(revokeInviteLink(database.db, groupId, maintainer.id, link.id)).rejects.toThrow(NoAccessError);
+    expect(await inviteLinkForToken(database.db, token)).not.toBeNull();
+    await expect(listInviteLinks(database.db, "not-an-id")).rejects.toThrow();
+  });
+
+  test("joining closes the other routes: the higher email invite's role wins, and a request (even denied) is approved", async () => {
+    const { groupId, owner } = await group();
+    const { token } = await createInviteLink(database.db, groupId, owner.id, { role: "view", days: 7 });
+
+    const invited = await newUser("Invited Cousin");
+    await createInvite(database.db, groupId, owner.id, { email: invited.email, role: "maintain" });
+    await joinByLink(database, token, invited);
+    expect(await roleOf(groupId, invited)).toBe("maintain");
+    expect(await invitesForUser(database.db, invited)).toEqual([]);
+
+    const denied = await newUser("Denied Asker");
+    await requestAccess(database.db, groupId, denied, undefined);
+    const [request] = await collections(database.db).accessRequests.find({ userId: new ObjectId(denied.id) }).toArray();
+    await decideRequest(database, groupId, owner.id, request._id.toHexString(), "deny");
+    await joinByLink(database, token, denied);
+    expect(await roleOf(groupId, denied)).toBe("view");
+    expect(await collections(database.db).accessRequests.findOne({ _id: request._id })).toMatchObject({ status: "approved" });
   });
 });

@@ -12,6 +12,8 @@ export interface MemberSummary {
   email: string;
   role: Role;
   joinedAt: Date;
+  /** Joined by an invite link (an owner request, 2026-10-24). */
+  byLink: boolean;
 }
 
 /**
@@ -38,7 +40,7 @@ export async function listMembers(db: Db, groupId: string): Promise<MemberSummar
   return members
     .map((m) => {
       const user = byId.get(m.userId.toHexString());
-      return { userId: m.userId.toHexString(), name: user?.name ?? "Unknown user", email: user?.email ?? "", role: m.role, joinedAt: m.createdAt };
+      return { userId: m.userId.toHexString(), name: user?.name ?? "Unknown user", email: user?.email ?? "", role: m.role, joinedAt: m.createdAt, byLink: m.inviteLinkId !== undefined };
     })
     .sort((a, b) => RANK[b.role] - RANK[a.role] || a.name.localeCompare(b.name));
 }

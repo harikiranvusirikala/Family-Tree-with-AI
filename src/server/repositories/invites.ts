@@ -38,9 +38,9 @@ export interface InviteForMe {
  * server action accepts whatever its caller sends, and an object such as { $regex: "^a" } would
  * otherwise match other people's invites (found in step 11's review).
  */
-const isInviteToken = (token: unknown): token is string => typeof token === "string" && /^[\w-]{43}$/.test(token);
+export const isInviteToken = (token: unknown): token is string => typeof token === "string" && /^[\w-]{43}$/.test(token);
 
-async function namesOf(db: Db, userIds: string[]) {
+export async function namesOf(db: Db, userIds: string[]) {
   const ids = userIds.flatMap((id) => (ObjectId.isValid(id) ? [new ObjectId(id)] : []));
   const users = await collections(db).users.find({ _id: { $in: ids } }, { projection: { name: 1 } }).toArray();
   const byId = new Map(users.map((u) => [u._id.toHexString(), u.name]));

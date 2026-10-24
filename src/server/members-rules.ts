@@ -1,6 +1,6 @@
 // Members, invites and access requests (ARCHITECTURE.md §8, F3, F4): the rules that need no
 // database. Pure, so every case is unit-tested.
-import { hasRole, type Role } from "./roles";
+import { hasRole, RANK, type Role } from "./roles";
 
 /** The roles that can be given by invite, request or a role change. The Owner only by transfer. */
 export const GRANTABLE_ROLES = ["view", "maintain", "admin"] as const;
@@ -66,4 +66,30 @@ export function transferProblem(actor: Role, target: Role, toSelf: boolean): str
 /** Why someone with this role can't leave the group, or null. */
 export function leaveProblem(role: Role): string | null {
   return role === "owner" ? "The owner can't leave. Transfer ownership to another member first." : null;
+}
+
+/** The roles an invite link can give (an owner request, 2026-10-24): never Admin, as anyone the link reaches gets it. */
+export const LINK_ROLES = ["view", "maintain"] as const;
+export type LinkRole = (typeof LINK_ROLES)[number];
+
+/** How long an invite link can work, in days; the first is the default. No "never": a link always stops. */
+export const LINK_DAYS = [7, 1, 30] as const;
+
+/** At most this many people per link, when the Admin sets a limit. */
+export const MAX_LINK_USES = 500;
+
+/** Why an invite link with these settings can't be made, or null. */
+export function inviteLinkProblem(input: { role: unknown; days: unknown; maxUses?: unknown }): string | null {
+  if (!LINK_ROLES.includes(input.role as LinkRole)) return "A link can give View or Maintain.";
+  if (!LINK_DAYS.includes(input.days as (typeof LINK_DAYS)[number])) return "Choose 1, 7 or 30 days.";
+  const { maxUses } = input;
+  if (maxUses !== undefined && !(Number.isInteger(maxUses) && (maxUses as number) >= 1 && (maxUses as number) <= MAX_LINK_USES)) {
+    return `The limit must be a whole number from 1 to ${MAX_LINK_USES}.`;
+  }
+  return null;
+}
+
+/** The role someone joining by a link gets: the higher of the link's and a pending email invite's (decision 4). */
+export function joiningRole(linkRole: LinkRole, inviteRoles: GrantableRole[]): GrantableRole {
+  return [linkRole, ...inviteRoles].reduce((best, r) => (RANK[r] > RANK[best] ? r : best));
 }

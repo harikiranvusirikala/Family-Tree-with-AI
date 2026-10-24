@@ -191,6 +191,14 @@ This is a Family Tree Web Application that can be accessed via Web.
 - Members can leave a group from Settings; the Owner must transfer ownership first.
 - Invites last 14 days. Inviting the same address again refreshes the invite and keeps its link.
 
+### Invite links (owner request, 2026-10-24)
+
+- An Admin or the Owner can make an invite link that anyone can join by, any number of times, so family whose emails they don't know can join quickly. It changes step 8's "forwarded links grant nothing" for these links only: email invites still work only for their address.
+- A link gives View or Maintain, never Admin. It works for 1, 7 or 30 days (7 by default; no "never"), optionally for at most a number of people. A group can have any number of links.
+- Opening the link shows Join and Not now; nothing happens until Join. A member who opens it keeps their role.
+- If the person also has a pending email invite with a higher role, they join with the higher one. Someone whose access request was denied may still join by link.
+- The members page lists each link with how many joined and who, and members who joined by link are marked. Revoke stops a link; those who joined stay.
+
 ### Photos (step 7)
 
 - Maintain and up add, change or remove a person's photo from their panel. JPEG, PNG, WebP or HEIC (iPhone), up to 10 MB uploaded (since 2026-10-23, files up to 50 MB can be chosen: the browser shrinks them first).

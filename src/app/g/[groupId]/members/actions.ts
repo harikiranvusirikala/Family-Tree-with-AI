@@ -3,9 +3,10 @@
 import { z } from "zod";
 import { getDatabase, type Database } from "@/server/db";
 import { groupChanged } from "@/server/group-changed";
-import { GRANTABLE_ROLES, MemberError } from "@/server/members-rules";
+import { GRANTABLE_ROLES, inviteLinkProblem, MemberError } from "@/server/members-rules";
 import { requireUser, type SessionUser } from "@/server/permissions";
 import { decideRequest } from "@/server/repositories/access-requests";
+import { createInviteLink, revokeInviteLink } from "@/server/repositories/invite-links";
 import { createInvite, revokeInvite } from "@/server/repositories/invites";
 import { changeRole, removeMember } from "@/server/repositories/members";
 import { NoAccessError } from "@/server/roles";
@@ -13,7 +14,7 @@ import { NoAccessError } from "@/server/roles";
 export interface MemberFormState {
   error?: string;
   done?: string;
-  /** A new invite's token, for its link. */
+  /** A new invite's or invite link's token, for its link. */
   token?: string;
 }
 
@@ -50,6 +51,29 @@ export async function inviteAction(groupId: string, _previous: MemberFormState, 
 export async function revokeInviteAction(groupId: string, inviteId: string): Promise<MemberFormState> {
   return attempt(groupId, async (user, { db }) => {
     await revokeInvite(db, groupId, user.id, inviteId);
+    return {};
+  });
+}
+
+/** An invite link for anyone: a role (View or Maintain), 1, 7 or 30 days, and optionally a limit on people. */
+export async function createInviteLinkAction(groupId: string, _previous: MemberFormState, formData: FormData): Promise<MemberFormState> {
+  const limited = formData.get("limited") === "on";
+  const input = {
+    role: formData.get("role"),
+    days: Number(formData.get("days")),
+    ...(limited && { maxUses: Number(formData.get("maxUses")) }),
+  };
+  const problem = inviteLinkProblem(input);
+  if (problem) return { error: problem };
+  return attempt(groupId, async (user, { db }) => {
+    const { token } = await createInviteLink(db, groupId, user.id, input as Parameters<typeof createInviteLink>[3]);
+    return { token, done: "Your link is ready. Share it with your family:" };
+  });
+}
+
+export async function revokeInviteLinkAction(groupId: string, linkId: string): Promise<MemberFormState> {
+  return attempt(groupId, async (user, { db }) => {
+    await revokeInviteLink(db, groupId, user.id, linkId);
     return {};
   });
 }

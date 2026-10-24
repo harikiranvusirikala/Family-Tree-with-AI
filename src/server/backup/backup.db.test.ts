@@ -4,6 +4,7 @@ import { operationsFromFamily } from "@/server/operations/from-family";
 import { countChatMessage } from "@/server/repositories/chat-usage";
 import { ensureIndexes } from "@/server/repositories/documents";
 import { createGroup } from "@/server/repositories/groups";
+import { createInviteLink } from "@/server/repositories/invite-links";
 import { createInvite } from "@/server/repositories/invites";
 import { createTestDatabase } from "@test/db";
 import { cruzYoung } from "@test/fixtures/cruz-young";
@@ -26,12 +27,13 @@ const everything = async (db: Db, name: string) => canonical(await db.collection
 const indexes = async (db: Db, name: string) => (await db.collection(name).listIndexes().toArray()).sort((a, b) => a.name.localeCompare(b.name));
 
 describe("nightly backup and restore against MongoDB (F12)", () => {
-  test("a group with its members, invites, users and chat usage comes back exactly, without sign-in leftovers", async () => {
+  test("a group with its members, invites, invite links, users and chat usage comes back exactly, without sign-in leftovers", async () => {
     const owner = new ObjectId();
     await source.db.collection("users").insertOne({ _id: owner, name: "Carla Cruz", email: "carla@example.com", emailVerified: true, createdAt: new Date(), updatedAt: new Date() });
     const ops = operationsFromFamily(cruzYoung, [{ title: "Cruz family", rootPersonId: "alexander-cruz", pinned: true }]);
     const { groupId } = await createGroup(source, "Cruz family", ops, owner.toHexString());
     await createInvite(source.db, groupId, owner.toHexString(), { email: "jake@example.com", role: "maintain" });
+    await createInviteLink(source.db, groupId, owner.toHexString(), { role: "view", days: 7, maxUses: 20 });
     await countChatMessage(source.db, owner.toHexString(), 50);
     await source.db.collection("sessions").insertOne({ token: "secret", userId: owner, expiresAt: new Date(Date.now() + 86_400_000) });
     await source.db.collection("verifications").insertOne({ identifier: "state", value: "x", expiresAt: new Date(Date.now() + 600_000) });
@@ -41,7 +43,7 @@ describe("nightly backup and restore against MongoDB (F12)", () => {
 
     const restored = Object.keys(header.collections);
     // accounts: empty here, made by ensureIndexes (Better Auth's indexes); backed up like users.
-    expect(restored).toEqual(["accessRequests", "accounts", "chatUsage", "groups", "invites", "memberships", "persons", "sheets", "unions", "users"]);
+    expect(restored).toEqual(["accessRequests", "accounts", "chatUsage", "groups", "inviteLinks", "invites", "memberships", "persons", "sheets", "unions", "users"]);
     expect(header.collections.persons.count).toBe(36);
     for (const name of restored) {
       expect(await everything(target.db, name), name).toBe(await everything(source.db, name));

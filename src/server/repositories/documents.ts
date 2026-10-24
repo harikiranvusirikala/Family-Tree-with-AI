@@ -2,7 +2,7 @@
 // References are ObjectIds; audit fields (createdBy, addedBy, …) hold the acting user's id as a string.
 import { MongoServerError, type Db, type ObjectId } from "mongodb";
 import type { Gender, PhotoCrop, Union } from "@/tree/types";
-import type { GrantableRole } from "../members-rules";
+import type { GrantableRole, LinkRole } from "../members-rules";
 import type { Role } from "../roles";
 
 export interface Audit {
@@ -26,6 +26,8 @@ export interface MembershipDoc {
   role: Role;
   addedBy: string;
   createdAt: Date;
+  /** The invite link they joined by, if they did (shown on the members page). */
+  inviteLinkId?: ObjectId;
 }
 
 /** F3: an invite by email, shared as the link /invite/{token}. Accepted only by that email. */
@@ -42,6 +44,25 @@ export interface InviteDoc {
   createdAt: Date;
   decidedBy?: string; // who accepted, declined or revoked it
   decidedAt?: Date;
+}
+
+/**
+ * An invite link for anyone (an owner request, 2026-10-24), shared as /join/{token}: whoever opens it
+ * and signs in may join with its role, until it expires, is revoked or reaches `maxUses`.
+ */
+export interface InviteLinkDoc {
+  _id: ObjectId;
+  groupId: ObjectId;
+  role: LinkRole;
+  token: string;
+  createdBy: string;
+  createdAt: Date;
+  expiresAt: Date;
+  maxUses?: number;
+  uses: number;
+  status: "active" | "revoked";
+  revokedBy?: string;
+  revokedAt?: Date;
 }
 
 /**
@@ -126,6 +147,7 @@ export function collections(db: Db) {
     groups: db.collection<GroupDoc>("groups"),
     memberships: db.collection<MembershipDoc>("memberships"),
     invites: db.collection<InviteDoc>("invites"),
+    inviteLinks: db.collection<InviteLinkDoc>("inviteLinks"),
     accessRequests: db.collection<AccessRequestDoc>("accessRequests"),
     users: db.collection<UserDoc>("users"),
     chatUsage: db.collection<ChatUsageDoc>("chatUsage"),
@@ -144,7 +166,7 @@ export const RETIRED_INDEXES = [
 
 /** Creates the collections' indexes (§5) and drops retired ones. Safe to run repeatedly: `npm run db:setup`. */
 export async function ensureIndexes(db: Db): Promise<void> {
-  const { memberships, invites, accessRequests, chatUsage, persons, unions, sheets } = collections(db);
+  const { memberships, invites, inviteLinks, accessRequests, chatUsage, persons, unions, sheets } = collections(db);
   await Promise.all([
     memberships.createIndex({ groupId: 1, userId: 1 }, { unique: true }),
     memberships.createIndex({ userId: 1 }),
@@ -153,6 +175,8 @@ export async function ensureIndexes(db: Db): Promise<void> {
     invites.createIndex({ groupId: 1, emailNormalized: 1 }, { unique: true, partialFilterExpression: { status: "pending" } }),
     invites.createIndex({ emailNormalized: 1, status: 1 }),
     invites.createIndex({ groupId: 1, status: 1 }),
+    inviteLinks.createIndex({ token: 1 }, { unique: true }),
+    inviteLinks.createIndex({ groupId: 1, status: 1 }),
     accessRequests.createIndex({ groupId: 1, userId: 1 }, { unique: true }),
     accessRequests.createIndex({ groupId: 1, status: 1 }),
     accessRequests.createIndex({ userId: 1, status: 1 }),

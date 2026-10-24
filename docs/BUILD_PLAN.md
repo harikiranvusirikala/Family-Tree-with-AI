@@ -52,6 +52,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Dates without a year (owner request) | Done 2026-10-23 on `date-without-year` (unit tests: 510 passed; e2e: 100 passed). See its section at the end |
 | – | Choose the face in a photo, then one photo for several people (owner request) | Done 2026-10-24 on `photo-crop` (unit tests: 543 passed; database: 43 passed; e2e: 103 passed), merged to `main`. Checked by the owner on the preview: a real group photo showed the right faces. See its section at the end |
 | – | A sharper exported picture (owner request) | Built 2026-10-24 on `sharper-picture` (unit tests: 548 passed; e2e: 102 of 103 passed, the one failure an unrelated prefetch timing in groups.spec.ts). See its section at the end |
+| – | Invite links for the whole family (owner request) | Done 2026-10-24 on `invite-links` (unit tests: 554 passed; database: 48 passed, the new ones in every run, others timing out on a slow connection; e2e: 105 passed in the owner's terminal). `db:setup` run on `familytree_preview` and `familytree` by the owner. See its section at the end |
 
 ## How we work
 
@@ -1744,3 +1745,40 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - Files are bigger: about two to four times the old size for the same sheet.
   - Print or save as PDF prints the same, sharper picture.
 - **Tests:** unit: `pictureScale` (four times for a usual sheet, the pixel budget, the longest side, the 16-million retry); `isPicture` (a refused canvas's `data:,`); `sharperPhotoUrl` with and without a rectangle, and other addresses left alone. E2E: the Viewer's saved picture of the 36-person sheet is over 6,000 × 4,000 px (it was over 2,000 × 1,000).
+
+## After the final check: invite links for the whole family (owner request, 2026-10-24)
+- **Why:** inviting relatives one email at a time is slow, and Admins often don't know everyone's address. An Admin makes one link for a role (say View), shares it in the family's WhatsApp group, and everyone who opens it joins. It keeps working after the first person uses it, until it expires or is revoked.
+- **What it changes:** step 8's rule "forwarded links grant nothing" (FEATURES.md Decisions, ARCHITECTURE.md F3) stays true for email invites only. An invite link grants its role to *any* signed-in Google account that opens it, so whoever it reaches can join. The safeguards are: a short expiry, a role no higher than Maintain (decision 1), an optional limit on uses, Revoke, and the list of who joined through each link (so an Admin can spot and remove a stranger).
+- **Data** (§5): a new collection `inviteLinks`, kept apart from `invites` (those are matched by email, listed on dashboards and have one pending invite per address):
+  - `groupId`, `role`, `token` (32 random bytes, base64url, the same format as invites, so `isInviteToken` checks it before any query), `createdBy`, `createdAt`, `expiresAt`, `maxUses?`, `uses` (a count), `status` (`active` · `revoked`), `revokedBy?`, `revokedAt?`.
+  - Indexes: unique `{token}`; `{groupId, status}`. `npm run db:setup` on `familytree_preview` and `familytree` before merging.
+  - `memberships` gets an optional `inviteLinkId`, so the members page can say "Joined by link" and each link can list who joined.
+  - Backed up automatically (step 11). ARCHITECTURE.md's retention table: like invites.
+- **Repository** (`src/server/repositories/invite-links.ts`; each function checks the actor's role itself, like step 8's):
+  - `createInviteLink(db, groupId, actorId, { role, days, maxUses? })` (Admin and up). Choices for `days`: 1, 7 or 30 (7 by default); `maxUses` empty or 1–500.
+  - `listInviteLinks(db, groupId)`: active, unexpired links, newest first, with who made them, uses and who joined.
+  - `revokeInviteLink(db, groupId, actorId, linkId)` (Admin and up).
+  - `inviteLinkForToken(db, token)`: the link, if active, unexpired, not used up, and its group isn't deleted.
+  - `joinByLink(database, token, user)`, in one transaction: refuses an invalid link with one message (`INVALID_INVITE`, the same as invites); an existing member keeps their role and goes to the group (nothing counted); otherwise adds the membership (`addedBy` = the link's maker, `inviteLinkId`), increments `uses` with a conditional update (`uses < maxUses`), so two people joining at the same moment can't pass the limit; approves the person's pending access request and marks their pending email invites to the group accepted (step 8's "joining closes the other route"). If a pending email invite has a higher role than the link, the person joins with the higher one (decision 4).
+- **Rules, pure** (`members-rules.ts`, unit-tested): `LINK_ROLES`, `LINK_DAYS`, `inviteLinkProblem(input)` (role, days, uses), and which role wins when an email invite is also waiting.
+- **Pages:**
+  - **`/join/[token]`** (not `/invite/`: a different promise, and the two pages stay simple). Signed-out visitors sign in first and come back (the proxy's `returnTo`, as for invites; the landing page already skips Tag Manager for `?returnTo=`). It shows "<Maker> invited you to join <Group> as View", with Join and "Not now". It never joins on opening, so a link preview (WhatsApp fetches the page) or a prefetch can't add anyone; and WhatsApp's fetch has no session, so it only ever sees the redirect to sign-in. Already a member: straight to the group. Invalid, expired, revoked or used up: the same "This invite link isn't valid any more" page as invites, with nothing about the group.
+  - **The members page:** a new card "Invite links" between People and Invites waiting. Each link shows its role, "Expires 31 Oct", "5 people joined" (or "5 of 20"), opens a list of their names, and offers Copy, Share (the phone's share sheet, `navigator.share`, where the browser has it) and Revoke… (a confirmation dialog). "Create a link" opens the dialog "Create an invite link": role radios (View by default), expiry (1 day · 7 days · 30 days), and an optional "Limit the number of people". After creating, the dialog shows the link with Copy and Share. The People card marks members who joined by link ("Joined by link").
+  - Links are built in the browser from the page's address, as invites are, so a preview gives preview links.
+- **Server actions** (`members/actions.ts`: `createInviteLinkAction`, `revokeInviteLinkAction`; `join/[token]/actions.ts`: `joinByLinkAction`): `requireUser()`, the repository, `groupChanged(groupId)`. `test/server-checks.test.ts` covers them automatically.
+- **Docs:** ARCHITECTURE.md (§4, §5, a new flow F3b, §8, §11's accepted risks: a forwarded link lets in whoever it reaches), FEATURES.md Decisions, the landing page's FAQ answer "Only the people you invite…" (`content.ts`), PROJECT_GUIDE.md (the new page, file and collection), CLAUDE.md (the members page's names).
+- **Tests:**
+  - Unit: `inviteLinkProblem` (roles, days, uses); the role-choice rule; `MembersForms` (the dialog's fields, Share shown only where `navigator.share` exists).
+  - Database: several different users join by one link; a member who opens it keeps their role and isn't counted; expired, revoked and deleted-group links are refused; `maxUses` holds when two join at once; Viewers and Maintainers can't create or revoke, and an Admin can't create an Admin link; joining approves a pending request and closes pending email invites; a higher email invite wins.
+  - E2E: an Admin creates a View link; two other users open it, sign in, join, and see the group as Viewers under Shared with me; the card shows "2 people joined" with their names; after Revoke the link shows the invalid page; a used-up link the same; a limited link shows Used up and refuses the next person; on a phone the Create dialog fits with 44 px buttons (screenshots `invite-links.png`, `phone-invite-links.png`; `night-members.png` shows the card at night).
+- **Decisions (owner, 2026-10-24):**
+  1. A link gives View or Maintain, never Admin: Admin stays email-invite only.
+  2. Any number of active links per group, each with its own expiry, limit and list of who joined.
+  3. Expiry: 1, 7 or 30 days (7 by default); no "Never".
+  4. When a pending email invite has a higher role than the link, the person joins with the higher one.
+  5. Someone whose access request was denied may join by link; joining approves (closes) their request.
+- **Notes (2026-10-24):**
+  - The page says "Join" and "Not now", not Decline: one link serves many people, so declining would record nothing.
+  - `isInviteToken` and `namesOf` are now exported from `invites.ts`, so links check tokens the same way (step 11's review).
+  - `listInviteLinks` keeps used-up links (marked "Used up", without Copy or Share) until they expire, so an Admin sees why a link stopped; expired and revoked ones disappear.
+  - Found while testing: the Share and Revoke buttons' hidden words ("Share View link") lost their leading space in the accessible name, so the buttons have an `aria-label` instead.

@@ -40,6 +40,7 @@ describe("ensureIndexes (npm run db:setup)", () => {
   test("the app's own, as before", async () => {
     expect(await indexes("memberships")).toEqual(["groupId_1_userId_1 unique", "userId_1"]);
     expect(await indexes("invites")).toEqual(["emailNormalized_1_status_1", "groupId_1_emailNormalized_1 unique", "groupId_1_status_1", "token_1 unique"]);
+    expect(await indexes("inviteLinks")).toEqual(["groupId_1_status_1", "token_1 unique"]);
     expect(await indexes("chatUsage")).toEqual(["expiresAt_1 ttl", "userId_1_day_1 unique"]);
     for (const collection of ["persons", "sheets"]) expect(await indexes(collection)).toEqual(["groupId_1"]);
   });

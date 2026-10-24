@@ -32,7 +32,7 @@ export const FAQ: Question[] = [
   {
     question: "Who can see my family tree?",
     answer:
-      "Only the people you invite. A family tree stays private until an Admin invites someone by email or lets in someone who asked, and each person gets a role: View, Maintain, Admin or Owner. Search engines never see it.",
+      "Only the people you invite. A family tree stays private until an Admin invites someone by email, shares an invite link that expires, or lets in someone who asked, and each person gets a role: View, Maintain, Admin or Owner. Search engines never see it.",
   },
   {
     question: "How does the AI assistant work?",

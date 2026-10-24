@@ -29,7 +29,7 @@ describe("siteUrl", () => {
 describe("robots.txt", () => {
   test("production: the landing page and the sitemap, not the private pages, the API or the developer pages", () => {
     expect(robotsFor(production)).toEqual({
-      rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/dashboard", "/g/", "/invite/", "/dev/"] },
+      rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/dashboard", "/g/", "/invite/", "/join/", "/dev/"] },
       sitemap: "https://family-tree-with-ai.vercel.app/sitemap.xml",
     });
   });
