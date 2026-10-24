@@ -124,7 +124,7 @@ export function GroupSheets({
   const [focus, setFocus] = useState<CanvasFocus | null>(() => (selection ? { personId: selection.id } : null));
 
   /** Export, picture (F9): the whole sheet, then a download or the print dialog. */
-  async function picture(then: (dataUrl: string) => void) {
+  async function picture(then: (picture: Blob) => void) {
     if (!capture.current) return;
     setPicturing(true);
     setError(null);
@@ -265,8 +265,8 @@ export function GroupSheets({
     groupId,
     sheetId: everyone ? undefined : current.id,
     canExportData: canEdit,
-    onPicture: drawn ? () => picture((url) => downloadPicture(url, fileName(pictureTitle))) : undefined,
-    onPrint: drawn ? () => picture((url) => printPicture(url, pictureTitle)) : undefined,
+    onPicture: drawn ? () => picture((png) => downloadPicture(png, fileName(pictureTitle))) : undefined,
+    onPrint: drawn ? () => picture((png) => printPicture(png, pictureTitle)) : undefined,
   };
   const canvasActions = {
     onPerson: (id: string) => setSelection({ kind: "person", id }),

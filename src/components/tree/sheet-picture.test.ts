@@ -17,9 +17,10 @@ describe("the exported picture's resolution", () => {
     expect(pictureScale(2131, 1430, 16_000_000)).toBeCloseTo(Math.sqrt(16_000_000 / (2131 * 1430)), 5);
   });
 
-  test("a refused canvas is noticed: it saves as an empty data address", () => {
-    expect(isPicture("data:,")).toBe(false);
-    expect(isPicture("data:image/png;base64,")).toBe(false);
-    expect(isPicture("data:image/png;base64,iVBORw0KGgo=")).toBe(true);
+  test("a refused canvas is noticed: no PNG, or an empty one", () => {
+    expect(() => isPicture(null)).toThrow("couldn't make the picture");
+    expect(() => isPicture(new Blob([]))).toThrow("couldn't make the picture");
+    const png = new Blob([new Uint8Array([137, 80, 78, 71])], { type: "image/png" });
+    expect(isPicture(png)).toBe(png);
   });
 });

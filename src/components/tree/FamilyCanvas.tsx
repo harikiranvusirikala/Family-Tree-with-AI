@@ -28,7 +28,7 @@ import { focusViewport, readableViewport, revealViewport } from "./framing";
 import { sheetPicture } from "./sheet-picture";
 
 /** Set by the canvas: captures the whole sheet as a PNG data URL (Export, picture). */
-export type CapturePicture = () => Promise<string>;
+export type CapturePicture = () => Promise<Blob>;
 import { UNION_HEIGHT, UnionNode, type UnionNodeType } from "./UnionNode";
 
 type ForkEdgeType = Edge<Record<string, never>, "fork">;

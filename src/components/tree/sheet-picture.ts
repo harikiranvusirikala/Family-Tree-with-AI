@@ -4,7 +4,7 @@
 // html-to-image (the approach in React Flow's documentation). Always in the day colours on white
 // (decided in step 10), so it prints well and looks the same for everyone.
 import { getNodesBounds, type Node } from "@xyflow/react";
-import { toPng } from "html-to-image";
+import { toBlob } from "html-to-image";
 import { PHOTO_SIZE } from "@/tree/layout/types";
 import { PHOTO_PIXELS, sharperPhotoUrl } from "./photo";
 
@@ -23,8 +23,12 @@ const FALLBACK_PIXELS = 16_000_000;
 /** Used for a photo that can't be fetched, so one missing photo doesn't stop the picture. */
 const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
 
-/** A PNG data URL of every card and line on the sheet. `flow` is the React Flow element. */
-export async function sheetPicture(flow: HTMLElement, nodes: Node[]): Promise<string> {
+/**
+ * A PNG of every card and line on the sheet. `flow` is the React Flow element. A Blob, not a data URL:
+ * a four-times picture's data URL runs to many megabytes, and Chrome on phones silently drops a
+ * download that big (found by the owner, 2026-10-24).
+ */
+export async function sheetPicture(flow: HTMLElement, nodes: Node[]): Promise<Blob> {
   const viewport = flow.querySelector<HTMLElement>(".react-flow__viewport");
   if (!viewport || nodes.length === 0) throw new Error("The sheet isn't drawn yet.");
   const bounds = getNodesBounds(nodes);
@@ -39,7 +43,7 @@ export async function sheetPicture(flow: HTMLElement, nodes: Node[]): Promise<st
   const photos = pixels > PHOTO_PIXELS ? sharpenPhotos(viewport, pixels) : () => {};
   dark.forEach((element) => element.classList.remove("dark"));
   const capture = (pixelRatio: number) =>
-    toPng(viewport, {
+    toBlob(viewport, {
       backgroundColor: "#ffffff",
       width,
       height,
@@ -49,10 +53,11 @@ export async function sheetPicture(flow: HTMLElement, nodes: Node[]): Promise<st
     });
   try {
     const fallback = pictureScale(width, height, FALLBACK_PIXELS);
-    if (fallback >= scale) return await capture(scale);
-    // A canvas too big for the device has no 2D context (html-to-image then throws) or saves as "data:,".
-    const picture = await capture(scale).catch(() => undefined);
-    return picture && isPicture(picture) ? picture : await capture(fallback);
+    if (fallback >= scale) return isPicture(await capture(scale));
+    // A canvas too big for the device draws nothing: html-to-image then throws, or the PNG comes back
+    // null or empty.
+    const picture = await capture(scale).catch(() => null);
+    return picture && picture.size > 0 ? picture : isPicture(await capture(fallback));
   } finally {
     dark.forEach((element) => element.classList.add("dark"));
     photos();
@@ -64,9 +69,10 @@ export function pictureScale(width: number, height: number, maxPixels: number): 
   return Math.min(MAX_SCALE, MAX_SIDE / Math.max(width, height), Math.sqrt(maxPixels / (width * height)));
 }
 
-/** False for what a browser saves from a canvas it refused to draw: "data:," instead of a PNG. */
-export function isPicture(dataUrl: string): boolean {
-  return dataUrl.startsWith("data:image/png;base64,") && dataUrl.length > "data:image/png;base64,".length;
+/** The PNG, or an error when the browser refused to make one (a null or empty Blob). */
+export function isPicture(picture: Blob | null): Blob {
+  if (!picture || picture.size === 0) throw new Error("The browser couldn't make the picture.");
+  return picture;
 }
 
 /** Gives every photo in `element` a `pixels`-square address, and returns what puts the old ones back. */
@@ -85,18 +91,22 @@ function sharpenPhotos(element: HTMLElement, pixels: number): () => void {
 }
 
 /** Saves the picture as a file. */
-export function downloadPicture(dataUrl: string, name: string) {
+export function downloadPicture(picture: Blob, name: string) {
+  const url = URL.createObjectURL(picture);
   const link = document.createElement("a");
-  link.href = dataUrl;
+  link.href = url;
   link.download = `${name}.png`;
   link.click();
+  // Phones may still be reading it after the click returns.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 /**
  * Opens the browser's print dialog with just the picture, where "Save as PDF" makes a PDF (decided in
  * step 10: no PDF library). A hidden frame, so no pop-up blocker gets in the way.
  */
-export function printPicture(dataUrl: string, title: string) {
+export function printPicture(picture: Blob, title: string) {
+  const url = URL.createObjectURL(picture);
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
   Object.assign(frame.style, { position: "fixed", width: "0", height: "0", border: "0" });
@@ -109,9 +119,12 @@ export function printPicture(dataUrl: string, title: string) {
   image.onload = () => {
     frame.contentWindow?.focus();
     frame.contentWindow?.print();
-    setTimeout(() => frame.remove(), 60_000);
+    setTimeout(() => {
+      frame.remove();
+      URL.revokeObjectURL(url);
+    }, 60_000);
   };
-  image.src = dataUrl;
+  image.src = url;
   doc.head.append(style);
   doc.body.append(image);
 }
