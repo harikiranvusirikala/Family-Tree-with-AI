@@ -57,3 +57,13 @@ export function focusViewport(card: Rect, viewport: Viewport, screen: Size, cove
   const visible = screen.height * (1 - covered);
   return { x: screen.width / 2 - (card.x + card.width / 2) * zoom, y: visible / 2 - (card.y + card.height / 2) * zoom, zoom };
 }
+
+/**
+ * The Wheel's Find a relative on a computer (an owner request): the square around the middle (the
+ * Wheel's origin) that holds the relative's circle and name, so the middle stays centred and the view
+ * zooms out only as far as their ring.
+ */
+export function wheelRevealBounds(card: Rect): Rect {
+  const half = Math.max(Math.abs(card.x), Math.abs(card.x + card.width), Math.abs(card.y), Math.abs(card.y + card.height)) + MARGIN;
+  return { x: -half, y: -half, width: 2 * half, height: 2 * half };
+}

@@ -375,31 +375,54 @@ export function GroupSheets({
             <p className="hidden shrink-0 text-sm text-zinc-500 sm:block dark:text-zinc-400">
               {view.persons.length} {view.persons.length === 1 ? "person" : "people"} · {couples} {couples === 1 ? "couple" : "couples"}
             </p>
-            <div className="relative w-full sm:ml-auto sm:w-72">
-              {listShown ? (
-                // In the List, Find someone narrows the rows as you type (the owner's choice).
-                <>
-                  <input
-                    type="search"
-                    aria-label="Find someone"
-                    placeholder="Find someone…"
-                    value={listQuery}
-                    onChange={(event) => setListQuery(event.target.value)}
-                    className={searchField}
+            {listShown ? (
+              // In the List, Find someone narrows the rows as you type (the owner's choice).
+              <div className="relative w-full sm:ml-auto sm:w-72">
+                <input
+                  type="search"
+                  aria-label="Find someone"
+                  placeholder="Find someone…"
+                  value={listQuery}
+                  onChange={(event) => setListQuery(event.target.value)}
+                  className={searchField}
+                />
+                <LineIcon name="search" className={searchIcon} />
+              </div>
+            ) : wheelShown ? (
+              // In the Wheel (an owner request): Find a relative selects someone, so the panel says how
+              // they're related to the middle, which stays; Find someone puts them in the middle.
+              <div className="flex w-full gap-2 sm:ml-auto sm:w-auto">
+                <div className="min-w-0 flex-1 sm:w-60 sm:flex-none">
+                  <FindSomeone
+                    label="Find a relative"
+                    persons={view.persons}
+                    onChoose={(id) => {
+                      setSelection({ kind: "person", id });
+                      setFocus({ personId: id });
+                    }}
                   />
-                  <LineIcon name="search" className={searchIcon} />
-                </>
-              ) : (
+                </div>
+                <div className="min-w-0 flex-1 sm:w-60 sm:flex-none">
+                  <FindSomeone
+                    persons={view.persons}
+                    onChoose={(id) => {
+                      setSelection({ kind: "person", id });
+                      showWheel(id);
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="relative w-full sm:ml-auto sm:w-72">
                 <FindSomeone
                   persons={view.persons}
                   onChoose={(id) => {
                     setSelection({ kind: "person", id });
                     setFocus({ personId: id });
-                    if (wheelShown) showWheel(id); // in the Wheel: put them in the middle
                   }}
                 />
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
         <div className="relative flex min-h-0 flex-1">
@@ -434,7 +457,7 @@ export function GroupSheets({
                 />
               )
             ) : kin ? (
-              <WheelCanvas kin={kin} style={nameStyle} captureRef={capture} actions={canvasActions} />
+              <WheelCanvas kin={kin} style={nameStyle} focus={focus} captureRef={capture} actions={canvasActions} />
             ) : networkShown ? (
               <NetworkCanvas tree={tree} rootPersonId={view.rootPersonId} focus={focus} captureRef={capture} actions={canvasActions} />
             ) : (

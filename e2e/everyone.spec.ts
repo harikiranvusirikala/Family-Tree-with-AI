@@ -411,6 +411,42 @@ test("Relatives wheel from a sheet, and Find someone in the Wheel, move the midd
   await expect(page).toHaveURL(new RegExp(`/s/${cruzSheet}$`));
 });
 
+test("Find a relative in the Wheel selects them, says how they're related, and shows them; the middle stays (owner request)", async ({ page, signIn, sampleGroup }) => {
+  const { groupId } = await sampleOwner(page, signIn, sampleGroup);
+  await page.goto(`/g/${groupId}/s/everyone?view=tree`);
+  await find(page).fill("steve");
+  await page.getByRole("option", { name: "Steve Cruz (1985)" }).click();
+  await viewButton(page, "Wheel").click();
+  await expect(page).toHaveURL(wheelUrl());
+  const steve = centreOf(page);
+  await expect(onWheel(page)).toHaveCount(36);
+  // His great-grandmother, three rings out: beyond the first view, which shows the closest two.
+  const amy = onWheel(page).filter({ has: page.getByRole("button", { name: "Amy Harolds, 1885 – 1966", exact: true }) });
+  const shown = async () => {
+    const [canvas, her] = [await box(page.getByRole("tabpanel")), await box(amy)];
+    return her.x >= canvas.x && her.y >= canvas.y && her.x + her.width <= canvas.x + canvas.width && her.y + her.height <= canvas.y + canvas.height;
+  };
+  await page.waitForTimeout(500); // the first view's framing
+  expect(await shown()).toBe(false);
+
+  const relative = page.getByRole("combobox", { name: "Find a relative" });
+  await expect(relative).toHaveAttribute("placeholder", "Find a relative…");
+  await relative.fill("amy");
+  await page.getByRole("option", { name: "Amy Harolds (1885 – 1966)" }).click();
+  await expect(personPanel(page).getByRole("heading", { name: "Amy Harolds" })).toBeVisible();
+  await expect(personPanel(page).getByRole("group", { name: "Relation" })).toContainText("Muthavva");
+  await expect(page).toHaveURL(new RegExp(`/s/everyone\\?view=wheel&centre=${steve}&person=(?!${steve})[0-9a-f]{24}$`));
+  await expect(relationOf(page, "Steve Cruz, 1985")).toHaveText("1985"); // still in the middle
+  await expect(relative).toHaveValue("");
+  await expect.poll(shown).toBe(true);
+
+  // Find someone still puts them in the middle.
+  await find(page).fill("amy");
+  await page.getByRole("option", { name: "Amy Harolds (1885 – 1966)" }).click();
+  await expect(relationOf(page, "Amy Harolds, 1885 – 1966")).toHaveText("1885 – 1966");
+  expect(centreOf(page)).not.toBe(steve);
+});
+
 test("the List's Born column: full dates, and sorting oldest first, youngest first and back (owner request)", async ({ page, signIn, sampleGroup, database }) => {
   const { owner, groupId } = await sampleOwner(page, signIn, sampleGroup);
   const tree = await loadGroupTree(database.db, groupId);

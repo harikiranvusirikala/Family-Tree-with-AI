@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, test } from "vitest";
 import { CARD_HEIGHT, CARD_WIDTH } from "@/tree/layout";
-import { READABLE_ZOOM, focusViewport, readableViewport, revealViewport } from "./framing";
+import { READABLE_ZOOM, focusViewport, readableViewport, revealViewport, wheelRevealBounds } from "./framing";
 
 const phone = { width: 390, height: 700 };
 /** Where a point of the tree lands on the screen. */
@@ -72,5 +72,17 @@ describe("Find someone: centring their card (owner request)", () => {
     const centre = onScreen(view, card.x + card.width / 2, card.y + card.height / 2);
     expect(centre.x).toBeCloseTo(phone.width / 2);
     expect(centre.y).toBeCloseTo((phone.height * 0.45) / 2);
+  });
+});
+
+describe("the Wheel's Find a relative: zooming out to their ring (owner request)", () => {
+  test("a square around the middle that holds their circle and name, with a margin", () => {
+    // Someone below and left of the middle: their name's bottom edge is the furthest point.
+    const card = { x: -200, y: 200, width: 124, height: 96 };
+    const bounds = wheelRevealBounds(card);
+    expect(bounds).toEqual({ x: -304, y: -304, width: 608, height: 608 });
+    expect(bounds.x + bounds.width / 2).toBe(0); // the middle stays centred
+    expect(bounds.x).toBeLessThan(card.x);
+    expect(bounds.y + bounds.height).toBeGreaterThan(card.y + card.height);
   });
 });

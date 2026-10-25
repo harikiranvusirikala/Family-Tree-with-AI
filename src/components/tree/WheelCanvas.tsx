@@ -11,8 +11,8 @@ import { formatYears } from "@/tree/years";
 import { isPhone, isTabletOrPhone } from "../screen";
 import { useTheme } from "../theme";
 import { CanvasActionsContext, type CanvasActions } from "./canvas-actions";
-import type { CapturePicture } from "./FamilyCanvas";
-import { READABLE_ZOOM, revealViewport } from "./framing";
+import type { CanvasFocus, CapturePicture } from "./FamilyCanvas";
+import { READABLE_ZOOM, revealViewport, wheelRevealBounds } from "./framing";
 import { PersonPhoto } from "./PersonPhoto";
 import { sheetPicture } from "./sheet-picture";
 
@@ -111,7 +111,7 @@ function along(x1: number, y1: number, x2: number, y2: number, by: number) {
   return { x: x1 + ((x2 - x1) * by) / length, y: y1 + ((y2 - y1) * by) / length };
 }
 
-function Wheel({ kin, style, captureRef }: { kin: Kinship; style: NameStyle; captureRef?: RefObject<CapturePicture | null> }) {
+function Wheel({ kin, style, focus, captureRef }: { kin: Kinship; style: NameStyle; focus?: CanvasFocus | null; captureRef?: RefObject<CapturePicture | null> }) {
   const { selectedId } = useContext(CanvasActionsContext);
   const theme = useTheme() ?? "light";
   const { fitBounds, fitView, getNodes, getNode, getViewport, setCenter, setViewport } = useReactFlow();
@@ -192,6 +192,16 @@ function Wheel({ kin, style, captureRef }: { kin: Kinship; style: NameStyle; cap
     if (next) void setViewport(next, { duration: 250 });
   }, [selectedId, getNode, getViewport, setViewport]);
 
+  // Computers: Find a relative (an owner request) zooms out, keeping the middle centred, until someone
+  // on a ring beyond the first view is shown. Phones and tablets bring them into view as above.
+  useEffect(() => {
+    if (!focus || !flow.current || isTabletOrPhone()) return;
+    const node = getNode(focus.personId);
+    if (!node) return; // not related: only the panel says so
+    const card = { ...node.position, width: node.width ?? 0, height: node.height ?? 0 };
+    if (revealViewport(card, getViewport(), flow.current.getBoundingClientRect(), 0)) void fitBounds(wheelRevealBounds(card), { padding: 0.02, duration: 300 });
+  }, [focus, getNode, getViewport, fitBounds]);
+
   return (
     <>
       <ReactFlow
@@ -245,13 +255,25 @@ function Summary({ kin }: { kin: Kinship }) {
  * ★ Everyone's Wheel (part 4 of an owner request after the final check): `kin.centre` in the middle and
  * everyone related around them, one ring per step, each labelled with the relation in `style` (Telugu
  * names in English letters, or English). Like the other canvases: `actions` make it clickable,
- * `captureRef` makes the picture.
+ * `captureRef` makes the picture, and `focus` (Find a relative) brings someone into view.
  */
-export function WheelCanvas({ kin, style, actions, captureRef }: { kin: Kinship; style: NameStyle; actions?: CanvasActions; captureRef?: RefObject<CapturePicture | null> }) {
+export function WheelCanvas({
+  kin,
+  style,
+  focus,
+  actions,
+  captureRef,
+}: {
+  kin: Kinship;
+  style: NameStyle;
+  focus?: CanvasFocus | null;
+  actions?: CanvasActions;
+  captureRef?: RefObject<CapturePicture | null>;
+}) {
   return (
     <ReactFlowProvider>
       <CanvasActionsContext value={actions ?? {}}>
-        <Wheel kin={kin} style={style} captureRef={captureRef} />
+        <Wheel kin={kin} style={style} focus={focus} captureRef={captureRef} />
       </CanvasActionsContext>
     </ReactFlowProvider>
   );

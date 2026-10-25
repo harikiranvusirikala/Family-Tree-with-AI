@@ -57,6 +57,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Extend an invite link (owner request) | Built 2026-10-25 on `extend-invite-links` (unit tests: 564 passed; database: 50 passed; e2e: 106 passed). No new indexes. See its section at the end |
 | – | Site stats for the owner (owner request) | Built 2026-10-25 on `owner-stats` (unit tests: 574 passed; database: 57 passed; e2e: 109 passed). No new indexes. Needs `SITE_ADMIN_EMAILS` in `.env.local` and Vercel. See its section at the end |
 | – | Direct Telugu names on the Wheel (owner request) | Built 2026-10-25 (unit tests: 575 passed). See its section at the end |
+| – | Find a relative in the Wheel (owner request) | Built 2026-10-25 on `wheel-find-relative` (unit tests: 577 passed; e2e: 109 of 110 passed, the one failure the known phone run without touch emulation on the members page). See its section at the end |
 
 ## How we work
 
@@ -1857,3 +1858,11 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 - **Decisions (owner, 2026-10-25):** the table proposed in the conversation; a cross cousin's husband or wife is Annayya/Akka (the strict rule); a wife's brother's wife and a husband's sister's husband are Akka/Annayya (the strict rule); Viyyankudu and Viyyapuralu; grandparents' brothers and sisters and second cousins get direct names.
 - **Tests:** unit: the made-up family gains a brother's wife's father, a sister's husband's brother, cousins' husbands (parallel and cross) and a husband's sister, a wife's uncle, cousin and brother's wife and son, a brother's son's wife and a son's wife's father; the sample's Timothy Young is now "Annayya"; a great-uncle "Thathayya", a father's cousin "Attha", a second cousin "Bava/Bavamaridi"; the sample's Margaret Yap (an Attha's mother) is "Ammamma". The owner's find: a Pinni's brother "Mavayya", his daughter "Maradalu", her father "Thathayya", a wife's mother's mother "Ammamma"; these failed with only the table's cases. The e2e tests' relations are unchanged.
 
+
+## Find a relative in the Wheel (owner request, 2026-10-25)
+
+- **Why:** in ★ Everyone's Wheel, Find someone puts the person found in the middle. The owner also wants to find someone and see how they're related to the person in the middle, which then stays.
+- **What:** only in the Wheel, a second search box, "Find a relative…", to the left of "Find someone…" (the owner's choice of three layouts; the others were one box with a Select button on each match, and a Middle | Select switch). Choosing someone there selects them: the address's `person` changes (replaced, like any selection), not its `centre`, and their panel says how they're related, with Put in the middle. "Find someone" keeps putting them in the middle, with a history entry. On phones the two boxes share the row, half each; from 640 px each is 15 rem wide.
+- **Showing them:** the first view on a computer shows the closest two rings, so someone further out would be found but not seen. On computers, Find a relative sets the canvas's `focus`, and `WheelCanvas` zooms out, keeping the middle centred, to the square that holds them (`wheelRevealBounds` in `framing.ts`), only when they aren't on screen already. Phones and tablets already bring a selected person into view (`revealViewport`). Someone related through nobody isn't drawn: only the panel opens, saying so.
+- **Built:** `FindSomeone` takes a `label` (its name and placeholder); `GroupSheets` draws both boxes in the Wheel; `WheelCanvas` takes `focus`.
+- **Tests:** unit: the box's other name; `wheelRevealBounds` keeps the middle centred and holds the person. E2E: around Steve Cruz, his great-grandmother Amy Harolds is off screen; Find a relative selects her ("Muthavva" in the panel), the address keeps Steve as the centre with her as the person, and she comes on screen; Find someone then puts her in the middle. On a phone the two boxes share the row and the page fits its width.

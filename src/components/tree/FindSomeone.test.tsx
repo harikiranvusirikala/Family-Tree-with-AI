@@ -58,4 +58,10 @@ describe("Find someone (owner request)", () => {
     fireEvent.keyDown(box, { key: "Escape" });
     expect(box.value).toBe("");
   });
+
+  test("another name for another purpose: the Wheel's Find a relative", () => {
+    render(<FindSomeone label="Find a relative" persons={persons} onChoose={vi.fn()} />);
+    const box = screen.getByRole("combobox", { name: "Find a relative" }) as HTMLInputElement;
+    expect(box.placeholder).toBe("Find a relative…");
+  });
 });

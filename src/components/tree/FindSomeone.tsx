@@ -10,8 +10,9 @@ import { nameWithYears } from "./edit/PersonPanel";
 /**
  * Find someone (★ Everyone, an owner request after the final check): type part of a name, then pick a
  * match with a tap or Up, Down and Enter. `onChoose` gets the person; the box empties for the next search.
+ * `label` names the box (the Wheel also has "Find a relative", which keeps the middle).
  */
-export function FindSomeone({ persons, onChoose }: { persons: Person[]; onChoose: (personId: string) => void }) {
+export function FindSomeone({ persons, onChoose, label = "Find someone" }: { persons: Person[]; onChoose: (personId: string) => void; label?: string }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -29,12 +30,12 @@ export function FindSomeone({ persons, onChoose }: { persons: Person[]; onChoose
     <div className="relative w-full">
       <input
         role="combobox"
-        aria-label="Find someone"
+        aria-label={label}
         aria-autocomplete="list"
         aria-expanded={showing && matches.length > 0}
         aria-controls={list}
         aria-activedescendant={showing && matches[active] ? `${list}-${active}` : undefined}
-        placeholder="Find someone…"
+        placeholder={`${label}…`}
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);

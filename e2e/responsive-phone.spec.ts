@@ -443,6 +443,10 @@ test("★ Everyone is the first choice in the sheet picker; a phone opens it on 
   await expect(onWheel).toHaveCount(36);
   await expect.poll(async () => (await box(onWheel.filter({ hasText: "Jake Cruz" }))).width).toBeGreaterThan(85);
   await expect(onWheel.filter({ hasText: "Jake Cruz" }).getByTestId("relation")).toHaveText("Koduku");
+  // Find a relative and Find someone share the row (an owner request).
+  const [relative, someone] = [await box(page.getByRole("combobox", { name: "Find a relative" })), await box(page.getByRole("combobox", { name: "Find someone" }))];
+  expect(Math.abs(relative.y - someone.y)).toBeLessThan(1);
+  expect(relative.x + relative.width).toBeLessThanOrEqual(someone.x);
   await fitsWidth(page);
   await shot(page, "phone-everyone-wheel");
 
