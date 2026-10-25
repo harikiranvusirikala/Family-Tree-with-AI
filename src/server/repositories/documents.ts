@@ -95,6 +95,8 @@ export interface UserDoc {
   _id: ObjectId;
   name: string;
   email: string;
+  /** Google's photo address (Better Auth's `image`), kept current at each sign-in; null or absent without one. */
+  image?: string | null;
 }
 
 export interface PersonDoc extends Audit {

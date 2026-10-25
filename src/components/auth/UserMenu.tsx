@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { googlePhotoUrl } from "../google-photo";
 import { SUPPORT_URL } from "../support";
 import { ThemeToggle } from "../ThemeToggle";
 import { Avatar } from "../ui/Avatar";
@@ -20,16 +21,15 @@ export interface HeaderLink {
 }
 
 /**
- * The signed-in user's initials, opening their name and email, Buy me a coffee (a new tab) and Sign
- * out. The Google photo isn't shown: next/image would need remotePatterns and use Vercel's image
- * quota. On phones the menu also holds the group's pages and the day/night switch, and the initials
- * carry the pages' badge. The button's name is the user's name (shown to screen readers only).
+ * The signed-in user's Google photo (or initials without one), opening their name and email, Buy me a
+ * coffee (a new tab) and Sign out. On phones the menu also holds the group's pages and the day/night
+ * switch, and the photo carries the pages' badge. The button's name is the user's name (shown to screen readers only).
  */
-export function UserMenu({ user, links = [] }: { user: { name: string; email: string }; links?: HeaderLink[] }) {
+export function UserMenu({ user, links = [] }: { user: { name: string; email: string; image?: string | null }; links?: HeaderLink[] }) {
   const hydrated = useHydrated();
   // Calls /api/auth/get-session, which extends the session while the user is active (permissions.ts).
   const session = authClient.useSession();
-  const { name, email } = session.data?.user ?? user;
+  const { name, email, image } = session.data?.user ?? user;
   const [signingOut, setSigningOut] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -56,7 +56,7 @@ export function UserMenu({ user, links = [] }: { user: { name: string; email: st
       buttonClassName="relative flex items-center rounded-full p-0.5 outline-none hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-blue-500/70 aria-expanded:bg-zinc-100 pointer-coarse:p-1.5 dark:hover:bg-zinc-800 dark:aria-expanded:bg-zinc-800"
       button={
         <>
-          <Avatar name={name} />
+          <Avatar name={name} photo={googlePhotoUrl(image)} />
           <span className="sr-only">{name}</span>
           {badge > 0 && (
             <span aria-hidden className="absolute -top-0.5 -right-0.5 rounded-full bg-amber-400 px-1.5 text-xs font-semibold text-amber-950 md:hidden">

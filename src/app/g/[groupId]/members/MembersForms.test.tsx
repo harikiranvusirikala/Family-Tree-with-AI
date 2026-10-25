@@ -4,7 +4,7 @@ import { standInModalDialogs } from "@test/dialogs";
 import { ROLE_HINTS } from "@/server/members-rules";
 import type { Role } from "@/server/roles";
 import type { MemberFormState } from "./actions";
-import { CreateLinkButton, InviteButton, LinkRow, MemberRow } from "./MembersForms";
+import { CreateLinkButton, InviteButton, LinkRow, MemberRow, RequestRow } from "./MembersForms";
 
 beforeAll(standInModalDialogs);
 afterEach(cleanup);
@@ -179,5 +179,35 @@ describe("invite links (an owner request, 2026-10-24)", () => {
       </ul>,
     );
     expect(screen.getByText("Joined by link")).toBeDefined();
+  });
+});
+
+describe("Google photos (an owner request, 2026-10-25)", () => {
+  const PHOTO = "https://lh3.googleusercontent.com/a/ACg8ocVera=s256-c";
+
+  test("a member's and a requester's Google photo, in place of their initials; initials without one", () => {
+    render(
+      <ul>
+        <MemberRow member={{ name: "Vera Viewer", email: "vera@example.com", photo: PHOTO, role: "view", joined: "18 Oct 2026" }} groupName="Cruz family" isYou={false} changeRole={done()} remove={removed()} />
+        <RequestRow request={{ name: "Rita Requester", email: "rita@example.com", photo: PHOTO, date: "25 Oct 2026" }} decide={done()} />
+        <MemberRow member={{ name: "Asha Kumar", email: "asha@example.com", role: "view", joined: "24 Oct 2026" }} groupName="Cruz family" isYou={false} changeRole={done()} remove={removed()} />
+      </ul>,
+    );
+    const photos = [...document.querySelectorAll("img")];
+    expect(photos.map((img) => img.getAttribute("src"))).toEqual([PHOTO, PHOTO]);
+    expect(photos.every((img) => img.getAttribute("referrerpolicy") === "no-referrer" && img.alt === "")).toBe(true);
+    expect(screen.queryByText("VV")).toBeNull();
+    expect(screen.getByText("AK")).toBeDefined();
+  });
+
+  test("a photo that doesn't load gives way to the initials", () => {
+    render(
+      <ul>
+        <MemberRow member={{ name: "Vera Viewer", email: "vera@example.com", photo: PHOTO, role: "view", joined: "18 Oct 2026" }} groupName="Cruz family" isYou={false} changeRole={done()} remove={removed()} />
+      </ul>,
+    );
+    act(() => fireEvent.error(document.querySelector("img")!));
+    expect(document.querySelector("img")).toBeNull();
+    expect(screen.getByText("VV")).toBeDefined();
   });
 });

@@ -5,12 +5,12 @@ import { contentSecurityPolicy, headerRules, securityHeaders } from "./security-
 const directives = (policy: string) => Object.fromEntries(policy.split("; ").map((d) => [d.split(" ")[0], d.split(" ").slice(1)]));
 
 describe("security headers (step 11)", () => {
-  test("production: the site itself, plus Cloudinary for photos and uploads; no plugins, no framing", () => {
+  test("production: the site itself, plus Cloudinary for photos and uploads, Google for the account photo; no plugins, no framing", () => {
     expect(directives(contentSecurityPolicy({ NODE_ENV: "production" }))).toEqual({
       "default-src": ["'self'"],
       "script-src": ["'self'", "'unsafe-inline'"],
       "style-src": ["'self'", "'unsafe-inline'"],
-      "img-src": ["'self'", "data:", "blob:", "https://res.cloudinary.com"],
+      "img-src": ["'self'", "data:", "blob:", "https://res.cloudinary.com", "https://*.googleusercontent.com"],
       "font-src": ["'self'"],
       "connect-src": ["'self'", "https://api.cloudinary.com", "https://res.cloudinary.com"],
       "object-src": ["'none'"],
@@ -60,7 +60,7 @@ describe("Google Tag Manager on the landing page only (owner request)", () => {
     expect(directives(rules[1].headers[0].value)).toEqual({
       ...directives(contentSecurityPolicy(production)),
       "script-src": ["'self'", "'unsafe-inline'", "https://*.googletagmanager.com"],
-      "img-src": ["'self'", "data:", "blob:", "https://res.cloudinary.com", "https://*.google-analytics.com", "https://*.googletagmanager.com"],
+      "img-src": ["'self'", "data:", "blob:", "https://res.cloudinary.com", "https://*.googleusercontent.com", "https://*.google-analytics.com", "https://*.googletagmanager.com"],
       "connect-src": [
         "'self'",
         "https://api.cloudinary.com",
@@ -74,9 +74,9 @@ describe("Google Tag Manager on the landing page only (owner request)", () => {
     });
   });
 
-  test("the e2e build's settings (playwright.config.ts clears GTM_ID): nothing from Google anywhere", () => {
+  test("the e2e build's settings (playwright.config.ts clears GTM_ID): nothing from Tag Manager or Analytics anywhere", () => {
     const rules = headerRules({ NODE_ENV: "production", CLOUDINARY_API_URL: "http://localhost:3101", GTM_ID: "" });
     expect(rules).toHaveLength(1);
-    expect(JSON.stringify(rules)).not.toMatch(/google/i);
+    expect(JSON.stringify(rules)).not.toMatch(/googletagmanager|google-analytics|analytics\.google/i);
   });
 });

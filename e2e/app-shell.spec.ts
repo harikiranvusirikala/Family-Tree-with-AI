@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import sharp from "sharp";
 import { expect, test } from "./fixtures";
 
 // The app shell (the production look, part 1, an owner request): the header on every signed-in page,
@@ -82,6 +83,46 @@ test("the theme menu works from the keyboard, and the account menu says who's si
   await expect(account).toContainText(owner.email);
   await expect(account.getByRole("menuitem", { name: "Sign out" })).toBeVisible();
   await shot(page, "night-account-menu", 360);
+});
+
+test("the account button and the members page show Google photos, at a sharper size, and initials without one", async ({ page, signIn, sampleGroup, addMember }) => {
+  // Google's photo servers are answered here (a green square); the photo is asked for at 256 px, not Google's 96.
+  const asked: string[] = [];
+  await page.route("https://lh3.googleusercontent.com/**", async (route) => {
+    asked.push(route.request().url());
+    const body = await sharp({ create: { width: 256, height: 256, channels: 3, background: "#16a34a" } }).png().toBuffer();
+    await route.fulfill({ contentType: "image/png", body });
+  });
+  const user = await signIn(page, "Carla Cruz", { image: "https://lh3.googleusercontent.com/a/ACg8ocTestPhoto=s96-c" });
+  await page.goto("/dashboard");
+  const account = page.getByRole("banner").getByRole("button", { name: user.name });
+  const photo = account.locator("img");
+  await expect(photo).toHaveAttribute("src", "https://lh3.googleusercontent.com/a/ACg8ocTestPhoto=s256-c");
+  await expect.poll(() => photo.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(256);
+  expect(asked).toEqual(["https://lh3.googleusercontent.com/a/ACg8ocTestPhoto=s256-c"]);
+  await expect(account).not.toContainText("CC");
+  await shot(page, "account-photo", 120);
+
+  // The members page: the Owner's row has the photo, a member without one has initials (owner request).
+  const { groupId } = await sampleGroup(user);
+  await page.goto(`/g/${groupId}/members`);
+  const people = page.getByRole("region", { name: "People", exact: true });
+  await expect(people.locator("img")).toHaveAttribute("src", "https://lh3.googleusercontent.com/a/ACg8ocTestPhoto=s256-c");
+  await expect.poll(() => people.locator("img").evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(256);
+
+  // A photo that doesn't load (removed from Google) falls back to the initials, like no photo at all.
+  const other = await signIn(page, "Dana Young", { image: "https://lh3.googleusercontent.com/a/gone=s96-c" });
+  await addMember(groupId, other, "admin");
+  await page.unroute("https://lh3.googleusercontent.com/**");
+  await page.route("https://lh3.googleusercontent.com/**", (route) => route.fulfill({ status: 404 }));
+  await page.goto("/dashboard");
+  const otherAccount = page.getByRole("banner").getByRole("button", { name: other.name });
+  await expect(otherAccount).toContainText("DY");
+  await expect(otherAccount.locator("img")).toHaveCount(0);
+  await page.goto(`/g/${groupId}/members`);
+  await expect(people.getByText("DY", { exact: true })).toBeVisible(); // their own row, initials again
+  await expect(people.getByText("CC", { exact: true })).toBeVisible(); // and Carla's photo doesn't load either now
+  await expect(people.locator("img")).toHaveCount(0);
 });
 
 test("an address that doesn't exist gets the app's own page, with a way back", async ({ page, signIn }) => {

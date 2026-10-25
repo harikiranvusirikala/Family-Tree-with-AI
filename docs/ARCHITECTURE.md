@@ -310,13 +310,14 @@ sequenceDiagram
     B->>App: /api/auth/callback/google
     App->>G: Exchange the code for a profile
     G-->>App: Email, name, photo
-    App->>DB: Find or create the user, create a session
+    App->>DB: Find or create the user (a returning user's photo is updated), create a session
     App-->>B: Session cookie, redirect to returnTo or /dashboard
     B->>App: GET /dashboard
     App->>DB: Memberships, pending invites for this email, my access requests
     App-->>B: My groups, Shared with me, invites to accept
 ```
 
+- Better Auth saves the name and photo when it creates the user. At each later sign-in, `refreshGooglePhoto` (`auth-options.ts`, Better Auth's `databaseHooks.account.update.after`) copies the photo from Google's fresh ID token, so the header shows the current one; the name stays as first saved.
 - A new user sees an empty dashboard with "Create a family group", plus any invites already waiting for their email.
 - `returnTo` takes people back to the tree link they originally opened ([F4](#f4-request-access-from-a-tree-link)). `src/proxy.ts` sends a signed-out visitor to `/?returnTo=<path and query>` with a real 307. It only checks that a session cookie is present (no database read), denies by default, and never redirects *because* a cookie is present, so a stale cookie can't cause a loop. Pages, server actions and routes still check the session themselves ([§8](#8-permissions)).
 - `returnTo` must be a path on this site (`/…`, but not `//…` or `/\…`). Anything else becomes `/dashboard`. A failed sign-in (cancelled, or expired) comes back to `/` with a plain message, keeping `returnTo`.
@@ -709,7 +710,7 @@ Model and prompt (built in step 9):
 - **AI chat:** tools filtered by role, confirmation by a person before any change, and a daily cap.
 - **Search engines** (an owner request on 2026-10-22) see only the landing page: every other page needs signing in, and `robots.txt` asks them to stay out of the private pages, the API and the developer pages. Previews and local builds ask them to stay out of everything. The landing page's Google Search Console code (`google-site-verification`) is public by design: it only proves who runs the site.
 - **Security headers** (step 11, `src/server/security-headers.ts`) on every response:
-  - **Content Security Policy:** scripts, styles, fonts and connections only from the site itself; images also from `res.cloudinary.com` and `data:`/`blob:`; connections also to `api.cloudinary.com` (uploads) and `res.cloudinary.com` (the picture export); no plugins, no framing by other sites, base URLs and forms only to the site.
+  - **Content Security Policy:** scripts, styles, fonts and connections only from the site itself; images also from `res.cloudinary.com`, `*.googleusercontent.com` (the account's Google photo in the header) and `data:`/`blob:`; connections also to `api.cloudinary.com` (uploads) and `res.cloudinary.com` (the picture export); no plugins, no framing by other sites, base URLs and forms only to the site.
   - **Links to other sites** (the "Buy me a coffee" link, an owner request on 2026-10-22) are plain links that open in a new tab with `rel="noopener noreferrer"`, so the policy needs nothing for them; nothing from those sites loads in the app (no widget scripts).
   - **Inline scripts are allowed:** Next.js writes each page's data into inline scripts, and nonces would need every page drawn per request, which partial prerendering (`cacheComponents`) doesn't allow (decided in step 11). React escapes everything people type, and the app has no raw HTML apart from the fixed theme script and Google Tag Manager's snippet (its ID checked by `gtmId`).
   - **The others:** HSTS (two years), `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` (invite links never leave as referrers), a `Permissions-Policy` without camera, microphone or location, `Cross-Origin-Opener-Policy: same-origin`, and no `X-Powered-By`.

@@ -20,8 +20,8 @@ export interface TestUser {
 }
 
 interface Fixtures {
-  /** Signs `page` in as a brand-new user, created directly in this run's database. */
-  signIn: (page: Page, name: string) => Promise<TestUser>;
+  /** Signs `page` in as a brand-new user, created directly in this run's database; `image`: their Google photo's address. */
+  signIn: (page: Page, name: string, options?: { image?: string }) => Promise<TestUser>;
   /** A group owned by `owner` holding the sample family, with its "Cruz family" and "Jerry Willow's family" sheets. */
   sampleGroup: (owner: TestUser) => Promise<{ groupId: string; cruzSheet: string; jerrySheet: string }>;
   /** Gives a user a role in a group directly (until step 8 adds invites). */
@@ -115,12 +115,12 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
   },
 
   signIn: async ({ testHelpers, policyViolations }, provide) => {
-    await provide(async (page, name) => {
+    await provide(async (page, name, { image } = {}) => {
       watchPolicyViolations(page, policyViolations); // also pages a test opens itself
       // A fresh user per call, so parallel tests never share one. Ids are ObjectIds, like real users'.
       const id = new ObjectId().toHexString();
       const email = `${name.toLowerCase().replace(/\W+/g, ".")}.${id.slice(-6)}@example.com`;
-      const user = await testHelpers.saveUser(testHelpers.createUser({ id, name, email }));
+      const user = await testHelpers.saveUser(testHelpers.createUser({ id, name, email, image }));
       await page.context().addCookies(await testHelpers.getCookies({ userId: user.id }));
       return { id: user.id, name: user.name, email: user.email };
     });

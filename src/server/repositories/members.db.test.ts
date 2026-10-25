@@ -4,7 +4,7 @@ import { MemberError } from "@/server/members-rules";
 import { newGroupOperations } from "@/server/operations/new-group";
 import { NoAccessError, type Role } from "@/server/roles";
 import { createTestDatabase } from "@test/db";
-import { accessState, decideRequest, MAX_PENDING_REQUESTS, myRequests, pendingRequestCounts, requestAccess } from "./access-requests";
+import { accessState, decideRequest, listRequests, MAX_PENDING_REQUESTS, myRequests, pendingRequestCounts, requestAccess } from "./access-requests";
 import { collections, ensureIndexes } from "./documents";
 import { createGroup, deleteGroup, listGroupsForUser, roleInGroup } from "./groups";
 import { createInviteLink, inviteLinkForToken, joinByLink, listInviteLinks, revokeInviteLink } from "./invite-links";
@@ -249,6 +249,29 @@ describe("members and the Owner (§8)", () => {
     await leaveGroup(database.db, groupId, members[0].id);
     expect(await roleOf(groupId, members[0])).toBeNull();
     await expect(leaveGroup(database.db, groupId, owner.id)).rejects.toThrow(/Transfer ownership/);
+  });
+});
+
+describe("Google photos (an owner request, 2026-10-25)", () => {
+  test("the members page's people and access requests carry each user's Google photo, or null", async () => {
+    const { groupId, owner, members } = await group(["view"]);
+    const photo = "https://lh3.googleusercontent.com/a/ACg8ocOwner=s96-c";
+    await collections(database.db).users.updateOne({ _id: new ObjectId(owner.id) }, { $set: { image: photo } });
+    const asker = await newUser("Asha Asker");
+    await collections(database.db).users.updateOne({ _id: new ObjectId(asker.id) }, { $set: { image: null } });
+    const other = await newUser("Ravi Requester");
+    await collections(database.db).users.updateOne({ _id: new ObjectId(other.id) }, { $set: { image: photo } });
+    await requestAccess(database.db, groupId, asker, undefined);
+    await requestAccess(database.db, groupId, other, undefined);
+
+    expect((await listMembers(database.db, groupId)).map((m) => [m.name, m.image])).toEqual([
+      ["Olivia Owner", photo],
+      [members[0].name, null], // no image field at all
+    ]);
+    expect((await listRequests(database.db, groupId)).map((r) => [r.name, r.image])).toEqual([
+      ["Asha Asker", null],
+      ["Ravi Requester", photo],
+    ]);
   });
 });
 

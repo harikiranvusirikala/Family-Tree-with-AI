@@ -283,7 +283,7 @@ export function MemberRow({
   changeRole,
   remove,
 }: {
-  member: { name: string; email: string; role: Role; joined: string; byLink?: boolean };
+  member: { name: string; email: string; photo?: string | null; role: Role; joined: string; byLink?: boolean };
   groupName: string;
   isYou: boolean;
   changeRole: FormAction;
@@ -305,7 +305,7 @@ export function MemberRow({
   return (
     <li className={`flex flex-col gap-3 px-4 py-3.5 sm:px-5 ${MEMBER_COLUMNS}`}>
       <div className="flex min-w-0 items-center gap-3">
-        <Avatar name={member.name} className="size-9 text-xs" />
+        <Avatar name={member.name} photo={member.photo} className="size-9 text-xs" />
         <div className="min-w-0">
           <p className="flex min-w-0 items-center gap-2">
             <span className="truncate font-medium text-zinc-900 dark:text-zinc-100">{member.name}</span>
@@ -388,13 +388,13 @@ function RemoveForm({ remove, onCancel }: { remove: ButtonAction; onCancel: () =
 }
 
 /** F4: a request waiting for an answer. Approve with a role (View unless another is chosen), or Deny. */
-export function RequestRow({ request, decide }: { request: { name: string; email: string; message?: string; date: string }; decide: FormAction }) {
+export function RequestRow({ request, decide }: { request: { name: string; email: string; photo?: string | null; message?: string; date: string }; decide: FormAction }) {
   const [state, decideAction, pending] = useActionState(decide, {});
   return (
     <li className="flex flex-col gap-3 px-4 py-4 sm:px-5">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-6">
         <div className="flex min-w-0 gap-3">
-          <Avatar name={request.name} className="size-9 text-xs" />
+          <Avatar name={request.name} photo={request.photo} className="size-9 text-xs" />
           <div className="min-w-0">
             <p className="font-medium text-zinc-900 dark:text-zinc-100">{request.name}</p>
             <p className="text-sm break-words text-zinc-500 dark:text-zinc-400">

@@ -13,6 +13,8 @@ export interface SessionUser {
   id: string;
   name: string;
   email: string;
+  /** Google's photo address, saved by Better Auth at the first sign-in; null without one. */
+  image: string | null;
 }
 
 /**
@@ -24,8 +26,8 @@ export const getUser = cache(async (): Promise<SessionUser | null> => {
   await getDatabase(); // connects again after a failed connection, which Better Auth's queries never do
   const session = await auth.api.getSession({ headers: await headers(), query: { disableRefresh: true } });
   if (!session) return null;
-  const { id, name, email } = session.user;
-  return { id, name, email };
+  const { id, name, email, image } = session.user;
+  return { id, name, email, image: image ?? null };
 });
 
 /**

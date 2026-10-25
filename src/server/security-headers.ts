@@ -12,6 +12,8 @@ export interface HeaderEnv extends TagManagerEnv {
 }
 
 const PHOTOS = "https://res.cloudinary.com";
+// The signed-in account's Google photo in the header (googlePhotoUrl): lh3, lh4… on googleusercontent.com.
+const ACCOUNT_PHOTOS = "https://*.googleusercontent.com";
 
 // Google Tag Manager with Google Analytics 4, on the landing page only (an owner request, 2026-10-22):
 // Google's sources (developers.google.com/tag-platform/security/guides/csp), and the frame its second
@@ -31,7 +33,7 @@ export function contentSecurityPolicy(env: HeaderEnv, { tagManager = false } = {
     // React's debugging uses eval in `next dev` only.
     "script-src": ["'self'", "'unsafe-inline'", ...(env.NODE_ENV === "development" ? ["'unsafe-eval'"] : [])],
     "style-src": ["'self'", "'unsafe-inline'"], // style attributes: React Flow places every card with one
-    "img-src": ["'self'", "data:", "blob:", PHOTOS], // data: and blob: for the picture export
+    "img-src": ["'self'", "data:", "blob:", PHOTOS, ACCOUNT_PHOTOS], // data: and blob: for the picture export
     "font-src": ["'self'"],
     // Photo uploads go straight to Cloudinary; the picture export fetches the photos it draws.
     "connect-src": ["'self'", new URL(env.CLOUDINARY_API_URL || "https://api.cloudinary.com").origin, PHOTOS],

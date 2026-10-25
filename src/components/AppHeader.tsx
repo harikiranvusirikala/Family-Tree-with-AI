@@ -45,7 +45,7 @@ export function groupLinks(nav: GroupNav): (HeaderLink & { key: GroupNav["active
  * account. On phones the tabs and the theme move into the account menu, so the group's name has room;
  * on group pages the app's name shows from 1024 px.
  */
-export function AppHeader({ user, nav }: { user: { name: string; email: string }; nav?: GroupNav }) {
+export function AppHeader({ user, nav }: { user: { name: string; email: string; image?: string | null }; nav?: GroupNav }) {
   const links = nav ? groupLinks(nav) : [];
   return (
     <header className="flex h-14 shrink-0 items-center gap-1 border-b border-zinc-200 bg-white px-2 sm:px-3 md:gap-2 md:px-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -93,7 +93,7 @@ export function AppHeader({ user, nav }: { user: { name: string; email: string }
         <div className="hidden md:block">
           <ThemeMenu />
         </div>
-        <UserMenu user={{ name: user.name, email: user.email }} links={links.map(({ href, label, icon, ariaLabel, badge }) => ({ href, label, icon, ariaLabel, badge }))} />
+        <UserMenu user={{ name: user.name, email: user.email, image: user.image }} links={links.map(({ href, label, icon, ariaLabel, badge }) => ({ href, label, icon, ariaLabel, badge }))} />
       </div>
     </header>
   );

@@ -36,6 +36,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 - Allow Image upload for the person name
 - To have an eye icon that is used hide the photos of every person and display only initials. This may be usefully when taking a png of the tree and want to share with someone without revealing the faces. (added 2026-10-20)
 - In a photo with several people, choose which one is the person, and use one group photo for several people, each showing their own face. A large camera photo (25 MB) should upload too. The photo's buttons in the panel shouldn't take more room as options are added. (added 2026-10-23)
+- After the person logs in, the top right picture should be their Google photo (if available) in good clarity. The members page and access requests too. (added 2026-10-25)
 
 ### AI chat behaviour
 
@@ -211,6 +212,7 @@ This is a Family Tree Web Application that can be accessed via Web.
   - Large photos are shrunk in the browser to 2400 px on the long side before uploading, and Cloudinary keeps 2400 px (was 1600), so small faces in group photos stay sharp.
 - Replacing or removing a photo deletes the old one from Cloudinary (Remove asks first: no Undo). Deleting a person keeps their photo, so Undo brings it back.
 - Hide photos (added after step 11): an eye button at the end of the sheet tabs, before Export (on phones and tablets, just before ⋯), shows initials instead of every photo on the cards, in the person panel, and in a saved or printed picture. It saves nothing and anyone can use it; it lasts until the next visit.
+- The account button at the top right shows the user's Google photo, asked for at 256 px, or their initials when there is none or it doesn't load. A photo changed on Google shows after the next sign-in; the name stays as first saved. The members page's people and access requests show each person's Google photo the same way (only Admins and the Owner see that page). (2026-10-25)
 
 ### AI chat behaviour
 

@@ -19,7 +19,7 @@ beforeEach(() => {
 
 describe("getUser (found on production: 'Topology is closed')", () => {
   test("connects the shared client before Better Auth reads the session", async () => {
-    expect(await getUser()).toEqual({ id: "u1", name: "Asha", email: "asha@example.com" });
+    expect(await getUser()).toEqual({ id: "u1", name: "Asha", email: "asha@example.com", image: null });
     expect(calls).toEqual(["connect", "session"]);
   });
 });

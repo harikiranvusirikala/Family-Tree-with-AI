@@ -20,6 +20,8 @@ export interface RequestSummary {
   id: string;
   name: string;
   email: string;
+  /** The requester's Google photo's address, or null (shown through googlePhotoUrl). */
+  image: string | null;
   message?: string;
   createdAt: Date;
 }
@@ -100,12 +102,13 @@ export async function requestAccess(
 export async function listRequests(db: Db, groupId: string): Promise<RequestSummary[]> {
   const { accessRequests, users } = collections(db);
   const found = await accessRequests.find({ groupId: toObjectId(groupId), status: "pending" }).sort({ createdAt: 1 }).toArray();
-  const people = await users.find({ _id: { $in: found.map((r) => r.userId) } }, { projection: { name: 1 } }).toArray();
-  const nameOf = new Map(people.map((u) => [u._id.toHexString(), u.name]));
+  const people = await users.find({ _id: { $in: found.map((r) => r.userId) } }, { projection: { name: 1, image: 1 } }).toArray();
+  const byId = new Map(people.map((u) => [u._id.toHexString(), u]));
   return found.map((r) => ({
     id: r._id.toHexString(),
-    name: nameOf.get(r.userId.toHexString()) ?? r.email,
+    name: byId.get(r.userId.toHexString())?.name ?? r.email,
     email: r.email,
+    image: byId.get(r.userId.toHexString())?.image ?? null,
     ...(r.message && { message: r.message }),
     createdAt: r.createdAt,
   }));

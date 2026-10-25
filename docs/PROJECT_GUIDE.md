@@ -388,7 +388,7 @@ flowchart TB
 | [today.ts](../src/components/today.ts) | `useToday()`: today's date from your device (for birthdays) |
 | [support.ts](../src/components/support.ts) | The owner's Buy Me a Coffee address, linked from the landing page and the user menu |
 | [GoogleTagManager.tsx](../src/components/GoogleTagManager.tsx) | Google Tag Manager's two snippets, drawn on the landing page only (when `GTM_ID` is set) |
-| [initials.ts](../src/components/initials.ts), [short-date.ts](../src/components/short-date.ts), [use-hydrated.ts](../src/components/use-hydrated.ts), [request-messages.ts](../src/components/request-messages.ts) | Small helpers: "Jake Cruz" → "JC", short dates, "is the page ready for clicks yet?", shared messages |
+| [initials.ts](../src/components/initials.ts), [short-date.ts](../src/components/short-date.ts), [use-hydrated.ts](../src/components/use-hydrated.ts), [request-messages.ts](../src/components/request-messages.ts), [google-photo.ts](../src/components/google-photo.ts) | Small helpers: "Jake Cruz" → "JC", short dates, "is the page ready for clicks yet?", shared messages, your Google photo's address at a sharper size |
 
 **`ui/`: building blocks every page uses**
 
@@ -399,7 +399,7 @@ flowchart TB
 | [Dialog.tsx](../src/components/ui/Dialog.tsx) | Dialogs over the page (create a group, import a file): Escape, a click outside or Close end them |
 | [field.ts](../src/components/ui/field.ts) | The look of text fields, their labels, checkboxes, radios and form errors |
 | [card.ts](../src/components/ui/card.ts), [badge.ts](../src/components/ui/badge.ts), [page.ts](../src/components/ui/page.ts) | The look of cards (white panels on the grey page), badges (roles, counts) and a page's frame |
-| [Avatar.tsx](../src/components/ui/Avatar.tsx) | An account's initials in a circle (the account menu, members, requests) |
+| [Avatar.tsx](../src/components/ui/Avatar.tsx) | An account's initials in a circle (the account menu, members, requests), or their Google photo (your account button, the members page) |
 | [PageHeader.tsx](../src/components/ui/PageHeader.tsx) | A page's heading, the sentence under it and its main buttons |
 | [Skeleton.tsx](../src/components/ui/Skeleton.tsx) | Grey blocks in the page's shape while it loads |
 | [GradientSparkle.tsx](../src/components/ui/GradientSparkle.tsx) | Ask AI's sparkle, in the blue-to-pink gradient |
@@ -424,7 +424,7 @@ flowchart TB
 | File | What it does |
 |---|---|
 | [SignInButton.tsx](../src/components/auth/SignInButton.tsx) | The "Sign in with Google" button (styled by Google's rules) |
-| [UserMenu.tsx](../src/components/auth/UserMenu.tsx) | Your initials in the corner, with Sign out |
+| [UserMenu.tsx](../src/components/auth/UserMenu.tsx) | Your Google photo (or initials) in the corner, with Sign out |
 | [auth-client.ts](../src/components/auth/auth-client.ts) | Better Auth's browser-side helper |
 | [return-to.ts](../src/components/auth/return-to.ts) | After sign-in, brings you back to the link you opened (safely) |
 

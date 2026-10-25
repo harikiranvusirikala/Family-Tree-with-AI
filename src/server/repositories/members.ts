@@ -10,6 +10,8 @@ export interface MemberSummary {
   userId: string;
   name: string;
   email: string;
+  /** Their Google photo's address, or null (shown through googlePhotoUrl). */
+  image: string | null;
   role: Role;
   joinedAt: Date;
   /** Joined by an invite link (an owner request, 2026-10-24). */
@@ -35,12 +37,12 @@ export async function memberCounts(db: Db, groupIds: string[]): Promise<Map<stri
 export async function listMembers(db: Db, groupId: string): Promise<MemberSummary[]> {
   const { memberships, users } = collections(db);
   const members = await memberships.find({ groupId: toObjectId(groupId) }).toArray();
-  const found = await users.find({ _id: { $in: members.map((m) => m.userId) } }, { projection: { name: 1, email: 1 } }).toArray();
+  const found = await users.find({ _id: { $in: members.map((m) => m.userId) } }, { projection: { name: 1, email: 1, image: 1 } }).toArray();
   const byId = new Map(found.map((u) => [u._id.toHexString(), u]));
   return members
     .map((m) => {
       const user = byId.get(m.userId.toHexString());
-      return { userId: m.userId.toHexString(), name: user?.name ?? "Unknown user", email: user?.email ?? "", role: m.role, joinedAt: m.createdAt, byLink: m.inviteLinkId !== undefined };
+      return { userId: m.userId.toHexString(), name: user?.name ?? "Unknown user", email: user?.email ?? "", image: user?.image ?? null, role: m.role, joinedAt: m.createdAt, byLink: m.inviteLinkId !== undefined };
     })
     .sort((a, b) => RANK[b.role] - RANK[a.role] || a.name.localeCompare(b.name));
 }

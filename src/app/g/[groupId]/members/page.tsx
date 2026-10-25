@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AppHeader } from "@/components/AppHeader";
 import { GroupHeader } from "@/components/GroupHeader";
+import { googlePhotoUrl } from "@/components/google-photo";
 import { NoAccess } from "@/components/NoAccess";
 import { shortDate } from "@/components/short-date";
 import { badge, countBadge } from "@/components/ui/badge";
@@ -95,7 +96,7 @@ async function GroupMembers({ params }: Pick<PageProps<"/g/[groupId]/members">, 
               {requests.map((r) => (
                 <RequestRow
                   key={r.id}
-                  request={{ name: r.name, email: r.email, message: r.message, date: shortDate(r.createdAt) }}
+                  request={{ name: r.name, email: r.email, photo: googlePhotoUrl(r.image), message: r.message, date: shortDate(r.createdAt) }}
                   decide={decideRequestAction.bind(null, groupId, r.id)}
                 />
               ))}
@@ -117,7 +118,7 @@ async function GroupMembers({ params }: Pick<PageProps<"/g/[groupId]/members">, 
             {members.map((m) => (
               <MemberRow
                 key={m.userId}
-                member={{ name: m.name, email: m.email, role: m.role, joined: shortDate(m.joinedAt), byLink: m.byLink }}
+                member={{ name: m.name, email: m.email, photo: googlePhotoUrl(m.image), role: m.role, joined: shortDate(m.joinedAt), byLink: m.byLink }}
                 groupName={groupName}
                 isYou={m.userId === user.id}
                 changeRole={changeRoleAction.bind(null, groupId, m.userId)}

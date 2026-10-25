@@ -9,7 +9,7 @@ import { AppHeader, type GroupNav } from "./AppHeader";
  * trees for the switcher and, for Admins and the Owner, the waiting access requests.
  */
 export async function GroupHeader(props: {
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; image?: string | null };
   groupId: string;
   groupName: string;
   role: Role;
