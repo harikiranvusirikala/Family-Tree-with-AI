@@ -233,9 +233,92 @@ function teluguName(from: Person, steps: Step[]): string | null {
     const [partner, between] = [steps[0].person, steps[1].person];
     if (!male(from) && male(partner) && male(between) && !m) return "Thodikodalu"; // husband's brother's wife
     if (male(from) && !male(partner) && !male(between) && m) return "Thodalludu"; // wife's sister's husband
-    return null;
+    return sameGeneration(from, steps); // wife's brother's wife: Akka/Chelli; husband's sister's husband: Annayya/Thammudu
   }
+  // Direct names for what would otherwise be a chain (owner request, 2026-10-25): Mavayya, not "Vadina nanna".
+  if (p === "SPU" || p === "PUS" || p === "PUSP" || p === "PUP") return m ? "Mavayya" : "Attha"; // a brother's wife's parents; a wife's uncles and aunts
+  if (p === "SPS" || p === "USDP" || p === "USDPS" || p === "UUSDD") return sameGeneration(from, steps); // Bava's brother, a cousin's wife, a second cousin
+  if (p === "PUSD") return sameGeneration(from, steps, true); // a wife's cousins, like her brothers and sisters
+  if (p === "UUS" || p === "UUSP") return m ? "Thathayya" : male(steps[0].person) ? "Nannamma" : "Ammamma"; // grandparents' brothers and sisters
+  if (p === "UUSD" || p === "UUSDP") return parentGeneration(from, steps); // a parent's cousins, like the parent's own brothers and sisters
+  if (p === "PSD") return male(steps[1].person) !== male(steps[0].person) ? (m ? "Menalludu" : "Menakodalu") : null; // a wife's brother's children
+  if (p === "SDP") return male(steps[0].person) === male(from) ? (m ? "Alludu" : "Kodalu") : null; // a man's brother's son's wife
+  if (p === "DPU") return m ? "Viyyankudu" : "Viyyapuralu"; // a son's wife's parents
+  return directName(from, steps);
+}
+
+/**
+ * Anyone else in the middle person's generation or above, by the strict rule: Pinni's brother is Mavayya,
+ * his daughter Vadina or Maradalu. Step-family keeps its chain ("Nanna bharya"), and so does anyone
+ * reached through a son's or daughter's family ("Kodalu thammudu").
+ */
+function directName(from: Person, steps: Step[]): string | null {
+  if (steps.length < 2 || /UP|PD/.test(pattern(steps))) return null;
+  const { generation, below } = lineage(from, steps);
+  if (below) return null;
+  const m = male(steps[steps.length - 1].person);
+  if (generation === 0) return sameGeneration(from, steps);
+  if (generation === 1) return parentGeneration(from, steps);
+  if (generation === 2) {
+    // Nannamma or Ammamma by the person she's the mother of: a wife's mother's mother is Ammamma.
+    const lastUp = steps.map((s) => s.move).lastIndexOf("U");
+    return m ? "Thathayya" : male(lastUp > 0 ? steps[lastUp - 1].person : from) ? "Nannamma" : "Ammamma";
+  }
+  if (generation === 3) return m ? "Muthathayya" : "Muthavva";
   return null;
+}
+
+/**
+ * Telugu's two kinds of relatives (the strict rule, the owner's choice): in one's own generation, parallel
+ * ones are called brother and sister and cross ones Bava, Vadina; a generation up, Peddananna, Pinni or
+ * Mavayya, Attha; a generation down, children or Menalludu, Alludu. Each person gets a line: a man's
+ * children share his, a woman's children have the other, and marriage crosses over. Cross when the line
+ * differs from the middle person's (a generation up, from the parent of the same gender; down, from the
+ * middle person's children).
+ */
+function isCross(from: Person, steps: Step[]): boolean {
+  const { generation, line } = lineage(from, steps);
+  const t = steps[steps.length - 1].person;
+  if (generation === 1) return line !== !male(t);
+  if (generation === -1) return line !== !male(from);
+  return line;
+}
+
+/** Where a path ends: generations up from `from`, whether its line differs, and whether it went below `from`'s generation. */
+function lineage(from: Person, steps: Step[]) {
+  let [line, generation, below, before] = [false, 0, false, from];
+  for (const step of steps) {
+    if (step.move === "U") [line, generation] = [line !== !male(step.person), generation + 1];
+    if (step.move === "D") [line, generation] = [line !== !male(before), generation - 1];
+    if (step.move === "P") line = !line;
+    below ||= generation < 0;
+    before = step.person;
+  }
+  return { generation, line, below };
+}
+
+/**
+ * A name in the middle person's generation. A husband or wife goes by the age of the relative they married
+ * (like a brother's wife, Vadina or Maradalu); a wife's or husband's relatives are elder or younger than them.
+ */
+function sameGeneration(from: Person, steps: Step[], cross = isCross(from, steps)) {
+  const t = steps[steps.length - 1].person;
+  const aged = steps.length > 1 && steps[steps.length - 1].move === "P" ? steps[steps.length - 2].person : t;
+  const than = steps[0].move === "P" ? steps[0].person : from;
+  if (cross) return male(t) ? byAge(aged, than, "Bava", "Bavamaridi") : byAge(aged, than, "Vadina", "Maradalu");
+  return male(t) ? byAge(aged, than, "Annayya", "Thammudu") : byAge(aged, than, "Akka", "Chelli");
+}
+
+/**
+ * A name a generation up, elder or younger than the parent the path goes through (like Babai, a father's
+ * younger brother); both names when it doesn't start with a parent.
+ */
+function parentGeneration(from: Person, steps: Step[]) {
+  const t = steps[steps.length - 1].person;
+  if (isCross(from, steps)) return male(t) ? "Mavayya" : "Attha";
+  const aged = steps[steps.length - 1].move === "P" ? steps[steps.length - 2].person : t;
+  const [elderName, youngerName] = male(t) ? ["Peddananna", "Babai"] : ["Peddamma", "Pinni"];
+  return steps[0].move === "U" ? byAge(aged, steps[0].person, elderName, youngerName) : `${elderName}/${youngerName}`;
 }
 
 /** Stretches that are in-law or step names: a chain avoids them where blood names do as well. */

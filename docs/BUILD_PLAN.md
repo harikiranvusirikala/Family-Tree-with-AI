@@ -56,6 +56,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | The account's Google photo (owner request) | Built 2026-10-25 on `account-photo`, with the members page and access requests (unit tests: 561 passed; database: 49 passed; e2e: 106 passed). See its section at the end |
 | – | Extend an invite link (owner request) | Built 2026-10-25 on `extend-invite-links` (unit tests: 564 passed; database: 50 passed; e2e: 106 passed). No new indexes. See its section at the end |
 | – | Site stats for the owner (owner request) | Built 2026-10-25 on `owner-stats` (unit tests: 574 passed; database: 57 passed; e2e: 109 passed). No new indexes. Needs `SITE_ADMIN_EMAILS` in `.env.local` and Vercel. See its section at the end |
+| – | Direct Telugu names on the Wheel (owner request) | Built 2026-10-25 (unit tests: 575 passed). See its section at the end |
 
 ## How we work
 
@@ -1827,3 +1828,32 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   - **Groups:** one row per group: short id, created, members, people, sheets, last change; most recently changed first.
 - **The page:** `src/app/admin/page.tsx` (the dashboard's pattern: `<Suspense>`, then the check, then the queries), with `AppHeader`, a `PageHeader` "Site stats", number tiles (`card`) and plain tables; weekly growth and daily chat as rows of small bars drawn with CSS (no chart library). Day and night like every page.
 - **Tests:** unit: `isSiteAdmin` (listed, gmail dots and case, empty or missing variable), `weeklyCounts` (week edges, older dates ignored); `AppHeader` shows "Site stats" only to an admin. Database: `siteStats` on a small seeded set (deleted records left out, the windows, chat days at the limit, the groups table). E2E (`admin.spec.ts`; the e2e server gets `SITE_ADMIN_EMAILS` for a fixed test address): the admin opens "Site stats" from the account menu and sees the totals; another user sees no menu item and "This page isn't here" at `/admin` (screenshots `admin.png`, `night-admin.png`).
+
+## Direct Telugu names on the Wheel (owner request, 2026-10-25)
+
+- **Why:** the Wheel called a brother's wife's father "Vadina nanna" and a cousin sister's husband "Chelli bhartha": a chain through the relative in between. Families call them Mavayya and Bava. Each relation now says how they're related to the person in the middle, where Telugu has a word for it. English names are unchanged.
+- **New Telugu names** (`teluguName` in `src/tree/kinship.ts`; a single name always beats a chain):
+
+  | Relation to the person in the middle | Before | Now |
+  |---|---|---|
+  | A brother's wife's or sister's husband's father, mother | Vadina nanna, Bava amma | Mavayya, Attha |
+  | Their brothers and sisters | Bava thammudu… | Bava/Bavamaridi, Vadina/Maradalu, elder or younger than the middle person |
+  | Husband, wife of a parallel cousin (one called Annayya, Akka, Chelli…) | Chelli bhartha | Bava/Bavamaridi, Vadina/Maradalu, by the cousin's age (like a sister's husband) |
+  | That husband's or wife's brothers and sisters | Bava chelli… | Bava/Bavamaridi, Vadina/Maradalu |
+  | Husband, wife of a cross cousin (one called Bava, Vadina…) | Vadina bhartha | Annayya/Thammudu, Akka/Chelli, by the cousin's age |
+  | A wife's or husband's uncles and aunts, their partners, a step-parent | Bharya babai, Attha bhartha | Mavayya, Attha |
+  | A wife's or husband's cousins | Bharya … | Bava/Bavamaridi, Vadina/Maradalu, elder or younger than the wife or husband |
+  | A man's wife's brother's wife, a woman's husband's sister's husband | Bava bharya, Vadina bhartha | Akka/Chelli, Annayya/Thammudu, by the wife's or husband's brother's or sister's age compared with them |
+  | A man's wife's brother's children, a woman's husband's sister's | Bharya menalludu | Menalludu, Menakodalu |
+  | A man's brother's son's wife and daughter's husband (a woman's sister's) | Thammudu kodalu | Kodalu, Alludu |
+  | A son's wife's or daughter's husband's father, mother | Kodalu nanna | Viyyankudu, Viyyapuralu |
+  | Grandparents' brothers and sisters, and their partners | Thathayya thammudu | Thathayya; Nannamma or Ammamma by side |
+  | A parent's cousins, and their partners | Nanna thammudu | Peddananna/Babai, Peddamma/Pinni, Mavayya, Attha: like the parent's own brothers and sisters |
+  | Second cousins | Thathayya thammudu manavadu | Annayya/Thammudu, Akka/Chelli, Bava/Bavamaridi, Vadina/Maradalu |
+  | Anyone else in the middle person's generation or above (found by the owner: a Pinni's brother, his daughter) | Pinni annayya, Pinni menakodalu | By the rule below: Mavayya, Vadina/Maradalu |
+
+- **The rule** (`isCross`): Telugu's parallel and cross relatives, strictly. Each person has a line: a man's children share it, a woman's have the other, a marriage crosses over. In the middle person's generation, cross means a different line; a generation up, a different line from the parent of the same gender; a generation down, from the middle person's children. Wife's sister's husband and husband's brother's wife stay Thodalludu and Thodikodalu. After the table's cases, `directName` names anyone else this way in the middle person's generation (by the age rules above), one generation up (Peddananna/Babai elder or younger than the parent the path starts with, both names otherwise), two up (Thathayya; Nannamma or Ammamma by the person she's the mother of: a wife's mother's mother is Ammamma) and three up (Muthathayya, Muthavva). So a Thodalludu's mother is Peddamma/Pinni, and an Attha's mother Ammamma.
+- **Unchanged chains:** anyone reached through someone below the middle person's generation, and step-family. So: a brother's or sister's children ("Thammudu koduku", decision 6 of part 4), a man's sister's son's wife ("Menalludu bharya"), a wife's sister's children, step-family ("Nanna bharya", "Bharya koduku"), cross cousins' children ("Vadina koduku"), and divorces.
+- **Decisions (owner, 2026-10-25):** the table proposed in the conversation; a cross cousin's husband or wife is Annayya/Akka (the strict rule); a wife's brother's wife and a husband's sister's husband are Akka/Annayya (the strict rule); Viyyankudu and Viyyapuralu; grandparents' brothers and sisters and second cousins get direct names.
+- **Tests:** unit: the made-up family gains a brother's wife's father, a sister's husband's brother, cousins' husbands (parallel and cross) and a husband's sister, a wife's uncle, cousin and brother's wife and son, a brother's son's wife and a son's wife's father; the sample's Timothy Young is now "Annayya"; a great-uncle "Thathayya", a father's cousin "Attha", a second cousin "Bava/Bavamaridi"; the sample's Margaret Yap (an Attha's mother) is "Ammamma". The owner's find: a Pinni's brother "Mavayya", his daughter "Maradalu", her father "Thathayya", a wife's mother's mother "Ammamma"; these failed with only the table's cases. The e2e tests' relations are unchanged.
+

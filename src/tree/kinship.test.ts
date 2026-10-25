@@ -43,8 +43,8 @@ describe("the Wheel's relations, from Steve Cruz in the sample (owner request)",
     expect(n["Jane Howell"]).toBe("Kodalu | Daughter-in-law");
     expect(n["Alex Cruz"]).toBe("Manavadu | Grandson");
     expect(n["Amy Harolds"]).toBe("Muthavva | Great-grandmother");
-    expect(n["Timothy Young 1970"]).toBe("Vadina bhartha | Cousin's husband"); // Christina's husband
-    expect(n["Margaret Yap"]).toBe("Attha amma | Uncle's wife's mother"); // English chains avoid in-law words
+    expect(n["Timothy Young 1970"]).toBe("Annayya | Cousin's husband"); // Christina's husband: a cross cousin's husband is like a brother
+    expect(n["Margaret Yap"]).toBe("Ammamma | Uncle's wife's mother"); // her mother's mother; English chains avoid in-law words
     expect(n["Carlo Young"]).toBe("Vadina koduku | Cousin's son");
   });
 
@@ -87,6 +87,10 @@ function family(): GroupTree {
     ["Bava's father", "male", 1955], ["Bava", "male", 1985], ["His brother", "male", 1983], ["His brother's wife", "female", 1986], ["Sister's daughter", "female", 2012],
     ["Son", "male", 2015], ["Son's wife", "female", 2016], ["Grandchild", "female", 2040],
     ["Dad's ex-wife", "female", 1961], ["Half-brother", "male", 1986], ["Wife's ex-husband", "male", 1990], ["Stepson", "male", 2012],
+    ["Thammudu's wife's father", "male", 1965], ["Cousin D's husband", "male", 1982], ["His sister", "female", 1991], ["Cousin B's husband", "male", 1993],
+    ["Wife's grandfather", "male", 1930], ["Wife's uncle", "male", 1958], ["Wife's cousin", "male", 1990], ["Wife's brother's wife", "female", 1989],
+    ["Wife's brother's son", "male", 2018], ["Brother's son's wife", "female", 2021], ["Son's wife's father", "male", 1985],
+    ["Pinni's father", "male", 1940], ["Pinni's brother", "male", 1964], ["Pinni's niece", "female", 1993], ["Wife's grandmother", "female", 1940],
   ];
   for (const [id, gender, birthYear] of people) persons.push({ id, name: id, gender, birthYear });
   const couple = (partnerIds: [string, string] | [string], childIds: string[], status: Union["status"] = "married") => unions.push({ id: `u${unions.length}`, partnerIds, status, childIds });
@@ -112,6 +116,18 @@ function family(): GroupTree {
   couple(["His brother", "His brother's wife"], []);
   couple(["Younger brother", "Thammudu's wife"], ["Brother's son"]);
   couple(["Son", "Son's wife"], ["Grandchild"]);
+  couple(["Thammudu's wife's father"], ["Thammudu's wife"]);
+  couple(["Cousin D", "Cousin D's husband"], []);
+  couple(["Bava's father"], ["Cousin D's husband", "His sister"]);
+  couple(["Cousin B", "Cousin B's husband"], []);
+  couple(["Wife's grandfather"], ["Wife's father", "Wife's uncle"]);
+  couple(["Wife's uncle"], ["Wife's cousin"]);
+  couple(["Wife's elder brother", "Wife's brother's wife"], ["Wife's brother's son"]);
+  couple(["Brother's son", "Brother's son's wife"], []);
+  couple(["Son's wife's father"], ["Son's wife"]);
+  couple(["Pinni's father"], ["Younger brother's wife", "Pinni's brother"]);
+  couple(["Pinni's brother"], ["Pinni's niece"]);
+  couple(["Wife's grandmother"], ["Wife's mother"]);
   return { persons, unions, sheets: [] };
 }
 
@@ -167,8 +183,9 @@ describe("the Wheel's relations: Telugu names that depend on age, side and gende
   });
 
   test("further family: a great-uncle, a second cousin, a grandchild", () => {
-    expect(n["Thatha's brother"]).toBe("Thathayya thammudu | Great-uncle");
-    expect(n["Second cousin"]).toBe("Thathayya thammudu manavadu | Second cousin");
+    expect(n["Thatha's brother"]).toBe("Thathayya | Great-uncle");
+    expect(n["Second cousin's parent"]).toBe("Attha | Father's cousin"); // a father's cousin, like his sister
+    expect(n["Second cousin"]).toBe("Bava/Bavamaridi | Second cousin"); // born the same year: both
     expect(n["Grandchild"]).toBe("Manavaralu | Granddaughter");
   });
 
@@ -197,8 +214,22 @@ describe("the Wheel's relations: Telugu names that depend on age, side and gende
 
   test("a chain longer than three names is a relative", () => {
     const person = (id: string, gender: Gender): Person => ({ id, name: id, gender });
-    const path: Step[] = ["P", "U", "P", "U", "P", "U", "P"].map((move, i) => ({ move: move as Step["move"], person: person(`p${i}`, i % 2 ? "male" : "female") }));
+    const path: Step[] = ["P", "U", "P", "U", "P", "U", "P", "U", "P"].map((move, i) => ({ move: move as Step["move"], person: person(`p${i}`, i % 2 ? "male" : "female") }));
     expect([relationName(person("me", "male"), path, "te"), relationName(person("me", "male"), path, "en")]).toEqual(["Bandhuvu", "Relative"]);
+  });
+
+  test("direct names, not chains: Mavayya, not Vadina nanna (owner request, 2026-10-25)", () => {
+    expect(te("Thammudu's wife's father")).toBe("Mavayya"); // not "Maradalu nanna"
+    expect([te("Bava's father"), te("His brother")]).toEqual(["Mavayya", "Bava"]); // a sister's husband's father and elder brother
+    expect(te("Cousin D's husband")).toBe("Bava"); // an elder parallel cousin's husband, like an elder sister's
+    expect(te("His sister")).toBe("Maradalu"); // that cousin's husband's younger sister
+    expect(te("Cousin B's husband")).toBe("Thammudu"); // a younger cross cousin's husband, like a younger brother
+    expect([te("Wife's uncle"), te("Wife's cousin")]).toEqual(["Mavayya", "Bava"]); // her cousin, elder than her
+    expect(te("Wife's brother's wife")).toBe("Akka"); // her elder brother's wife
+    expect([te("Wife's brother's son"), te("Brother's son's wife"), te("Son's wife's father")]).toEqual(["Menalludu", "Kodalu", "Viyyankudu"]);
+    expect([te("Pinni's brother"), te("Pinni's niece"), te("Pinni's father")]).toEqual(["Mavayya", "Maradalu", "Thathayya"]); // not "Pinni annayya", "Pinni menakodalu"
+    expect(te("Wife's grandmother")).toBe("Ammamma"); // her mother's mother
+    expect([te("Elder brother's wife"), en("Thammudu's wife's father")]).toEqual(["Peddamma", "Brother's wife's father"]); // unchanged
   });
 
   test("great-great-grandparents", () => {
