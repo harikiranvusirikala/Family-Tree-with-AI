@@ -7,7 +7,7 @@ import { createTestDatabase } from "@test/db";
 import { accessState, decideRequest, listRequests, MAX_PENDING_REQUESTS, myRequests, pendingRequestCounts, requestAccess } from "./access-requests";
 import { collections, ensureIndexes } from "./documents";
 import { createGroup, deleteGroup, listGroupsForUser, roleInGroup } from "./groups";
-import { createInviteLink, inviteLinkForToken, joinByLink, listInviteLinks, revokeInviteLink } from "./invite-links";
+import { createInviteLink, extendInviteLink, inviteLinkForToken, joinByLink, listInviteLinks, revokeInviteLink } from "./invite-links";
 import { acceptInvite, createInvite, declineInvite, INVALID_INVITE, inviteForToken, invitesForUser, listInvites, revokeInvite } from "./invites";
 import { changeRole, leaveGroup, listMembers, memberCounts, removeMember, transferOwnership } from "./members";
 
@@ -344,6 +344,36 @@ describe("invite links (an owner request, 2026-10-24)", () => {
     await expect(revokeInviteLink(database.db, groupId, maintainer.id, link.id)).rejects.toThrow(NoAccessError);
     expect(await inviteLinkForToken(database.db, token)).not.toBeNull();
     await expect(listInviteLinks(database.db, "not-an-id")).rejects.toThrow();
+  });
+
+  test("extending (owner request, 2026-10-25): Admins add 1 or 7 days to the expiry, never past 30 days from now, only on links that still work", async () => {
+    const { groupId, owner, members } = await group(["view", "maintain", "admin"]);
+    const [viewer, maintainer, admin] = members;
+    const now = new Date();
+    const day = 86_400_000;
+    await createInviteLink(database.db, groupId, owner.id, { role: "view", days: 7 }, now);
+    const [link] = await listInviteLinks(database.db, groupId, now);
+    for (const who of [viewer, maintainer]) await expect(extendInviteLink(database.db, groupId, who.id, link.id, 7, now)).rejects.toThrow(NoAccessError);
+
+    expect(await extendInviteLink(database.db, groupId, admin.id, link.id, 7, now)).toEqual(new Date(now.getTime() + 14 * day));
+    expect(await extendInviteLink(database.db, groupId, owner.id, link.id, 1, now)).toEqual(new Date(now.getTime() + 15 * day));
+    expect((await listInviteLinks(database.db, groupId, now))[0].expiresAt).toEqual(new Date(now.getTime() + 15 * day));
+    const later = new Date(now.getTime() + 13 * day); // the link reaches 15 days from now: at most 30 from `later`
+    await extendInviteLink(database.db, groupId, owner.id, link.id, 7, later); // 22 days from now
+    await extendInviteLink(database.db, groupId, owner.id, link.id, 7, later); // 29
+    expect(await extendInviteLink(database.db, groupId, owner.id, link.id, 1, now)).toEqual(new Date(now.getTime() + 30 * day)); // exactly 30
+    await expect(extendInviteLink(database.db, groupId, owner.id, link.id, 1, now)).rejects.toThrow("A link can work at most 30 days from today.");
+    await expect(extendInviteLink(database.db, groupId, owner.id, link.id, 30, now)).rejects.toThrow("Extend by 1 or 7 days.");
+
+    const gone = "This link has expired, reached its limit or been revoked.";
+    await expect(extendInviteLink(database.db, groupId, owner.id, link.id, 1, new Date(now.getTime() + 40 * day))).rejects.toThrow(gone);
+    await revokeInviteLink(database.db, groupId, owner.id, link.id);
+    await expect(extendInviteLink(database.db, groupId, owner.id, link.id, 1, now)).rejects.toThrow(gone);
+    const once = await createInviteLink(database.db, groupId, owner.id, { role: "view", days: 7, maxUses: 1 });
+    await joinByLink(database, once.token, await newUser("Only One"));
+    const used = (await listInviteLinks(database.db, groupId)).find((l) => l.token === once.token)!;
+    await expect(extendInviteLink(database.db, groupId, owner.id, used.id, 1)).rejects.toThrow(gone);
+    await expect(extendInviteLink(database.db, groupId, owner.id, "not-an-id", 1)).rejects.toThrow(gone);
   });
 
   test("joining closes the other routes: the higher email invite's role wins, and a request (even denied) is approved", async () => {

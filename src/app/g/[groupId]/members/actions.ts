@@ -1,12 +1,13 @@
 "use server";
 
 import { z } from "zod";
+import { shortDate } from "@/components/short-date";
 import { getDatabase, type Database } from "@/server/db";
 import { groupChanged } from "@/server/group-changed";
 import { GRANTABLE_ROLES, inviteLinkProblem, MemberError } from "@/server/members-rules";
 import { requireUser, type SessionUser } from "@/server/permissions";
 import { decideRequest } from "@/server/repositories/access-requests";
-import { createInviteLink, revokeInviteLink } from "@/server/repositories/invite-links";
+import { createInviteLink, extendInviteLink, revokeInviteLink } from "@/server/repositories/invite-links";
 import { createInvite, revokeInvite } from "@/server/repositories/invites";
 import { changeRole, removeMember } from "@/server/repositories/members";
 import { NoAccessError } from "@/server/roles";
@@ -68,6 +69,15 @@ export async function createInviteLinkAction(groupId: string, _previous: MemberF
   return attempt(groupId, async (user, { db }) => {
     const { token } = await createInviteLink(db, groupId, user.id, input as Parameters<typeof createInviteLink>[3]);
     return { token, done: "Your link is ready. Share it with your family:" };
+  });
+}
+
+/** 1 or 7 more days for an active invite link (an owner request, 2026-10-25). */
+export async function extendInviteLinkAction(groupId: string, linkId: string, _previous: MemberFormState, formData: FormData): Promise<MemberFormState> {
+  const days = Number(formData.get("days"));
+  return attempt(groupId, async (user, { db }) => {
+    const expiresAt = await extendInviteLink(db, groupId, user.id, linkId, days);
+    return { done: `Now expires ${shortDate(expiresAt)}.` };
   });
 }
 

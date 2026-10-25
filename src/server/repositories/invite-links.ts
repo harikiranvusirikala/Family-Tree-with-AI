@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { ObjectId, type Db } from "mongodb";
 import type { Database } from "../db";
 import { InvalidIdError, toObjectId } from "../ids";
-import { inviteLinkProblem, joiningRole, MemberError, normalizeEmail, type LinkRole } from "../members-rules";
+import { extendedExpiry, inviteLinkProblem, joiningRole, MemberError, normalizeEmail, type LinkRole } from "../members-rules";
 import { MIN_ROLE } from "../roles";
 import { collections } from "./documents";
 import { roleInGroup } from "./groups";
@@ -100,6 +100,31 @@ export async function revokeInviteLink(db: Db, groupId: string, actorId: string,
     { _id: id, groupId: toObjectId(groupId), status: "active" },
     { $set: { status: "revoked", revokedBy: actorId, revokedAt: now } },
   );
+}
+
+/**
+ * Admin and up give an active link 1 or 7 more days, added to its current expiry, never past 30 days
+ * from now (an owner request, 2026-10-25). Not a revoked, expired or used-up one. The new expiry.
+ */
+export async function extendInviteLink(db: Db, groupId: string, actorId: string, linkId: string, days: number, now = new Date()): Promise<Date> {
+  await roleInGroup(db, groupId, actorId, MIN_ROLE.manageMembers);
+  const gone = new MemberError("This link has expired, reached its limit or been revoked.");
+  let id;
+  try {
+    id = toObjectId(linkId);
+  } catch (error) {
+    if (error instanceof InvalidIdError) throw gone;
+    throw error;
+  }
+  const { inviteLinks } = collections(db);
+  const link = await inviteLinks.findOne({ _id: id, groupId: toObjectId(groupId), ...working(now) });
+  if (!link) throw gone;
+  const next = extendedExpiry(link.expiresAt, days, now);
+  if ("problem" in next) throw new MemberError(next.problem);
+  // Only the expiry just read: another Admin's extension meanwhile isn't lost or doubled past the ceiling.
+  const { modifiedCount } = await inviteLinks.updateOne({ _id: link._id, $and: [{ expiresAt: link.expiresAt }, working(now)] }, { $set: { expiresAt: next.expiresAt } });
+  if (modifiedCount !== 1) throw new MemberError("The link just changed. Try again.");
+  return next.expiresAt;
 }
 
 /** The link behind /join/{token}, if it still lets people in and its group still exists. */

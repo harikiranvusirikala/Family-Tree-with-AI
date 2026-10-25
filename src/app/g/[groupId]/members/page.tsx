@@ -20,7 +20,7 @@ import { listInviteLinks } from "@/server/repositories/invite-links";
 import { listInvites } from "@/server/repositories/invites";
 import { listMembers } from "@/server/repositories/members";
 import { can } from "@/server/roles";
-import { changeRoleAction, createInviteLinkAction, decideRequestAction, inviteAction, removeMemberAction, revokeInviteAction, revokeInviteLinkAction } from "./actions";
+import { changeRoleAction, createInviteLinkAction, decideRequestAction, extendInviteLinkAction, inviteAction, removeMemberAction, revokeInviteAction, revokeInviteLinkAction } from "./actions";
 import { MEMBER_COLUMNS } from "./columns";
 import { CreateLinkButton, InviteButton, InviteRow, LinkRow, MemberRow, RequestRow } from "./MembersForms";
 
@@ -144,6 +144,7 @@ async function GroupMembers({ params }: Pick<PageProps<"/g/[groupId]/members">, 
                 <LinkRow
                   key={l.id}
                   link={{ role: l.role, token: l.token, createdBy: l.createdBy, expires: shortDate(l.expiresAt), uses: l.uses, maxUses: l.maxUses, joined: l.joined }}
+                  extend={extendInviteLinkAction.bind(null, groupId, l.id)}
                   revoke={revokeInviteLinkAction.bind(null, groupId, l.id)}
                 />
               ))}

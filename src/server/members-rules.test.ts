@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, test } from "vitest";
-import { inviteLinkProblem, joiningRole, leaveProblem, maskEmail, MAX_LINK_USES, memberChangeProblem, normalizeEmail, transferProblem } from "./members-rules";
+import { extendedExpiry, inviteLinkProblem, joiningRole, leaveProblem, maskEmail, MAX_LINK_USES, memberChangeProblem, normalizeEmail, transferProblem } from "./members-rules";
 import { ROLES, type Role } from "./roles";
 
 describe("emails (F3)", () => {
@@ -66,5 +66,23 @@ describe("invite links (an owner request, 2026-10-24)", () => {
     expect(joiningRole("view", ["maintain"])).toBe("maintain");
     expect(joiningRole("maintain", ["view"])).toBe("maintain");
     expect(joiningRole("view", ["view", "admin"])).toBe("admin");
+  });
+});
+
+describe("extending an invite link (an owner request, 2026-10-25)", () => {
+  const now = new Date("2026-10-25T12:00:00Z");
+  const day = 86_400_000;
+  const at = (days: number) => new Date(now.getTime() + days * day);
+
+  test("adds 1 or 7 days to the current expiry, however close it is", () => {
+    expect(extendedExpiry(at(2), 7, now)).toEqual({ expiresAt: at(9) });
+    expect(extendedExpiry(at(0.01), 1, now)).toEqual({ expiresAt: at(1.01) });
+    for (const days of [0, 2, 30, "7", -7]) expect(extendedExpiry(at(2), days, now)).toEqual({ problem: "Extend by 1 or 7 days." });
+  });
+
+  test("never past 30 days from today", () => {
+    expect(extendedExpiry(at(23), 7, now)).toEqual({ expiresAt: at(30) }); // exactly 30: allowed
+    expect(extendedExpiry(at(24), 7, now)).toEqual({ problem: "A link can work at most 30 days from today." });
+    expect(extendedExpiry(at(29.5), 1, now)).toEqual({ problem: "A link can work at most 30 days from today." });
   });
 });

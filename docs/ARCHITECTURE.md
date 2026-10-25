@@ -100,7 +100,7 @@ src/
       groups.ts                          roleInGroup, createGroup, applyGroupChanges, list, rename, delete
       members.ts                         listMembers, changeRole, removeMember, leaveGroup, transferOwnership
       invites.ts                         create, list, revoke, accept and decline invites
-      invite-links.ts                    create, list and revoke invite links; join by one (F3b)
+      invite-links.ts                    create, list, extend and revoke invite links; join by one (F3b)
       access-requests.ts                 request access, the no-access page's state, list, approve or deny
       chat-usage.ts                      the chat's daily cap (atomic count)
     operations/                          the single write path
@@ -405,6 +405,7 @@ sequenceDiagram
 
 - A link gives View or Maintain, never Admin, for 1, 7 or 30 days; any number of links per group. Opening it never joins anyone (link previews and prefetches open it too): only Join does.
 - Unlike F3's invites, whoever the link reaches can join (an accepted risk, §11). The safeguards: the expiry, the optional limit (checked in the same update that counts the use, so people joining at once can't pass it), Revoke, and who joined through each link, listed on the members page ("Joined by link"). Removing someone doesn't stop the link: they could join again until it's revoked.
+- An active link that isn't used up can be extended by 1 or 7 days, added to its expiry, never past 30 days from today (an owner request, 2026-10-25).
 - Joining gives the higher of the link's role and a pending email invite's, marks pending email invites accepted, and approves the person's access request, even a denied one (the Admin chose to share the link).
 
 ### F4. Request access from a tree link

@@ -406,6 +406,15 @@ test("an invite link (owner request): signed out, it goes through sign-in; two p
     await expect(row(page, "People", "Asha Rao")).toContainText("Joined by link");
     await expect(row(page, "People", "Asha Rao").getByRole("button", { name: "Role for Asha Rao: View" })).toBeVisible();
 
+    // Extend (owner request, 2026-10-25): 7 more days moves the row's date.
+    const expires = /expires (\d{1,2} \w{3} \d{4})/;
+    const before = new Date(`${(await links.getByRole("listitem").textContent())!.match(expires)![1]} UTC`);
+    await links.getByRole("button", { name: "Extend View link" }).click();
+    await page.getByRole("menu", { name: "Extend View link" }).getByRole("menuitem", { name: "7 more days" }).click();
+    const after = new Date(before.getTime() + 7 * 86_400_000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+    await expect(links.getByRole("status")).toHaveText(`Now expires ${after}.`);
+    await expect(links.getByRole("listitem")).toContainText(`expires ${after}`);
+
     await links.getByRole("button", { name: "Revoke View link" }).click();
     const dialog = page.getByRole("dialog", { name: "Revoke this link?" });
     await dialog.getByRole("button", { name: "Revoke", exact: true }).click();

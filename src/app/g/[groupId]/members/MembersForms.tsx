@@ -9,7 +9,7 @@ import { Dialog, DialogActions, DialogButton } from "@/components/ui/Dialog";
 import { choice, choiceLabel, compactField, field, fieldHint, fieldLabel, formError, formSuccess, menuField } from "@/components/ui/field";
 import { LineIcon } from "@/components/ui/icons";
 import { dangerMenuItem, Menu, menuItem } from "@/components/ui/Menu";
-import { GRANTABLE_ROLES, LINK_DAYS, LINK_ROLES, MAX_LINK_USES, ROLE_HINTS, ROLE_LABELS, type GrantableRole, type LinkRole } from "@/server/members-rules";
+import { EXTEND_DAYS, GRANTABLE_ROLES, LINK_DAYS, LINK_ROLES, MAX_LINK_USES, ROLE_HINTS, ROLE_LABELS, type GrantableRole, type LinkRole } from "@/server/members-rules";
 import type { Role } from "@/server/roles";
 import type { MemberFormState } from "./actions";
 import { MEMBER_COLUMNS } from "./columns";
@@ -520,14 +520,53 @@ function CreateLinkForm({ action, onDone }: { action: FormAction; onDone: () => 
   );
 }
 
-/** An invite link: its role, expiry, who joined, Copy link, Share and Revoke (after a confirmation). */
+/** Extend: a menu of how many more days an active link gets; choosing one saves it. */
+function ExtendMenu({ name, onExtend, disabled }: { name: string; onExtend: (days: number) => void; disabled: boolean }) {
+  return (
+    <Menu
+      label={`Extend ${name}`}
+      buttonLabel={`Extend ${name}`}
+      buttonClassName={button("ghost", "sm")}
+      menuClassName="w-44"
+      button={
+        <>
+          <LineIcon name="clock" className="size-4" />
+          Extend
+        </>
+      }
+    >
+      {(close) =>
+        EXTEND_DAYS.map((days) => (
+          <button
+            key={days}
+            type="button"
+            role="menuitem"
+            disabled={disabled}
+            onClick={() => {
+              close();
+              onExtend(days);
+            }}
+            className={menuItem}
+          >
+            {days === 1 ? "1 more day" : `${days} more days`}
+          </button>
+        ))
+      }
+    </Menu>
+  );
+}
+
+/** An invite link: its role, expiry, who joined, Copy link, Share, Extend and Revoke (after a confirmation). */
 export function LinkRow({
   link,
+  extend,
   revoke,
 }: {
   link: { role: LinkRole; token: string; createdBy: string; expires: string; uses: number; maxUses?: number; joined: string[] };
+  extend: FormAction;
   revoke: ButtonAction;
 }) {
+  const [extendState, extendAction, extending] = useActionState(extend, {});
   const [showLink, setShowLink] = useState(false);
   const [revoking, setRevoking] = useState(false);
   const usedUp = link.maxUses !== undefined && link.uses >= link.maxUses;
@@ -555,6 +594,15 @@ export function LinkRow({
             <>
               <CopyLinkButton token={link.token} email={name} path="join" onFail={() => setShowLink(true)} />
               <ShareButton token={link.token} label={name} size="sm" />
+              <ExtendMenu
+                name={name}
+                disabled={extending}
+                onExtend={(days) => {
+                  const form = new FormData();
+                  form.set("days", String(days));
+                  startTransition(() => extendAction(form));
+                }}
+              />
             </>
           )}
           <button type="button" aria-haspopup="dialog" aria-label={`Revoke ${name}`} onClick={() => setRevoking(true)} className={button("dangerGhost", "sm")}>
@@ -569,6 +617,12 @@ export function LinkRow({
         </details>
       )}
       {showLink && <InviteLink token={link.token} label={`Invite link: ${name}`} path="join" />}
+      {!extending && extendState.done && (
+        <p role="status" className="text-sm text-green-700 dark:text-green-400">
+          {extendState.done}
+        </p>
+      )}
+      {!extending && <Problem state={extendState} />}
       <Dialog
         open={revoking}
         onClose={() => setRevoking(false)}

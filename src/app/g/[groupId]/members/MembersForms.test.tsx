@@ -141,7 +141,7 @@ describe("invite links (an owner request, 2026-10-24)", () => {
   });
 
   test("a link's row: how many joined and who, Copy link; Share only where the browser has a share sheet", () => {
-    const { unmount } = render(<ul><LinkRow link={link} revoke={removed()} /></ul>);
+    const { unmount } = render(<ul><LinkRow link={link} extend={done()} revoke={removed()} /></ul>);
     expect(screen.getByText(/2 people joined · made by Olivia Owner · expires 31 Oct 2026/)).toBeDefined();
     expect(screen.getByText("Asha, Ravi")).toBeDefined();
     expect(screen.getByRole("button", { name: /Copy link/ })).toBeDefined();
@@ -151,7 +151,7 @@ describe("invite links (an owner request, 2026-10-24)", () => {
     const share = vi.fn(async () => {});
     Object.defineProperty(navigator, "share", { value: share, configurable: true });
     try {
-      render(<ul><LinkRow link={{ ...link, maxUses: 5 }} revoke={removed()} /></ul>);
+      render(<ul><LinkRow link={{ ...link, maxUses: 5 }} extend={done()} revoke={removed()} /></ul>);
       expect(screen.getByText(/2 of 5 joined/)).toBeDefined();
       fireEvent.click(screen.getByRole("button", { name: "Share View link" }));
       expect(share).toHaveBeenCalledWith({ title: "Join our family tree", url: `${window.location.origin}/join/${link.token}` });
@@ -162,14 +162,30 @@ describe("invite links (an owner request, 2026-10-24)", () => {
 
   test("a used-up link says so and offers only Revoke, which asks first", async () => {
     const revoke = removed();
-    render(<ul><LinkRow link={{ ...link, maxUses: 2 }} revoke={revoke} /></ul>);
+    render(<ul><LinkRow link={{ ...link, maxUses: 2 }} extend={done()} revoke={revoke} /></ul>);
     expect(screen.getByText("Used up")).toBeDefined();
     expect(screen.queryByRole("button", { name: /Copy link/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Extend View link" })).toBeNull(); // more time lets nobody else in
     fireEvent.click(screen.getByRole("button", { name: "Revoke View link" }));
     const dialog = within(screen.getByRole("dialog", { name: "Revoke this link?" }));
     expect(document.activeElement?.textContent).toBe("Cancel");
     await act(async () => fireEvent.click(dialog.getByRole("button", { name: "Revoke" })));
     expect(revoke).toHaveBeenCalledOnce();
+  });
+
+  test("Extend: 1 or 7 more days, saved at once, then the new date or the reason it's refused (owner request, 2026-10-25)", async () => {
+    const extend = vi.fn<FormAction>(async (_previous, form) => (form.get("days") === "7" ? { done: "Now expires 7 Nov 2026." } : { error: "A link can work at most 30 days from today." }));
+    render(<ul><LinkRow link={link} extend={extend} revoke={removed()} /></ul>);
+    fireEvent.click(screen.getByRole("button", { name: "Extend View link" }));
+    const menu = within(screen.getByRole("menu", { name: "Extend View link" }));
+    expect(menu.getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["1 more day", "7 more days"]);
+    await act(async () => fireEvent.click(menu.getByRole("menuitem", { name: "7 more days" })));
+    expect(extend.mock.calls[0][1].get("days")).toBe("7");
+    expect(screen.getByRole("status").textContent).toBe("Now expires 7 Nov 2026.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Extend View link" }));
+    await act(async () => fireEvent.click(screen.getByRole("menuitem", { name: "1 more day" })));
+    expect(screen.getByRole("alert").textContent).toBe("A link can work at most 30 days from today.");
   });
 
   test("a member who joined by link is marked", () => {

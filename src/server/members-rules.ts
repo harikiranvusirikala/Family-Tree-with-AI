@@ -75,6 +75,24 @@ export type LinkRole = (typeof LINK_ROLES)[number];
 /** How long an invite link can work, in days; the first is the default. No "never": a link always stops. */
 export const LINK_DAYS = [7, 1, 30] as const;
 
+/** How many days an active link can be extended by (an owner request, 2026-10-25). */
+export const EXTEND_DAYS = [1, 7] as const;
+
+/** A link never works for more than this many days ahead, however often it's extended. */
+const LONGEST_LINK_DAYS = Math.max(...LINK_DAYS);
+const DAY = 86_400_000;
+
+/**
+ * A link's new expiry after adding `days` to its current one, or why it can't be extended: only by 1
+ * or 7 days, and never past 30 days from `now` (a link always stops).
+ */
+export function extendedExpiry(expiresAt: Date, days: unknown, now: Date): { expiresAt: Date } | { problem: string } {
+  if (!EXTEND_DAYS.includes(days as (typeof EXTEND_DAYS)[number])) return { problem: "Extend by 1 or 7 days." };
+  const next = new Date(expiresAt.getTime() + (days as number) * DAY);
+  if (next.getTime() > now.getTime() + LONGEST_LINK_DAYS * DAY) return { problem: `A link can work at most ${LONGEST_LINK_DAYS} days from today.` };
+  return { expiresAt: next };
+}
+
 /** At most this many people per link, when the Admin sets a limit. */
 export const MAX_LINK_USES = 500;
 

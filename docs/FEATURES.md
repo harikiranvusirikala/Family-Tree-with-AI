@@ -198,6 +198,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 - A link gives View or Maintain, never Admin. It works for 1, 7 or 30 days (7 by default; no "never"), optionally for at most a number of people. A group can have any number of links.
 - Opening the link shows Join and Not now; nothing happens until Join. A member who opens it keeps their role.
 - If the person also has a pending email invite with a higher role, they join with the higher one. Someone whose access request was denied may still join by link.
+- An active link can be extended by 1 or 7 more days, added to its current expiry, but never to more than 30 days from today; a used-up link can't (2026-10-25).
 - The members page lists each link with how many joined and who, and members who joined by link are marked. Revoke stops a link; those who joined stay.
 
 ### Photos (step 7)
