@@ -72,6 +72,7 @@ src/
       members/                           access requests, members, invite links, invites as cards (Admin and up; F3, F3b, F4); Invite people, Create a link and Remove in dialogs, roles as menus
     invite/[token]/                      accept or decline an invite (F3)
     join/[token]/                        join by an invite link (F3b)
+    admin/                               Site stats: how the site is used, counts only, for SITE_ADMIN_EMAILS only (others get "not found")
     dev/tree/                            developer-only pages (404 on Vercel): layout playground; db/ draws the seeded family
     api/
       auth/[...all]/route.ts             Better Auth handler
@@ -84,7 +85,9 @@ src/
     auth-options.ts                      its settings, shared with the e2e sign-in fixture
     auth-urls.ts                         base URL and trusted origins for each environment (pure)
     proxy-rules.ts                       what proxy.ts does with a request (pure)
-    permissions.ts                       getUser, requireUser, requireRole
+    permissions.ts                       getUser, requireUser, requireRole, requireSiteAdmin
+    site-admin.ts                        isSiteAdmin: the site's owners from SITE_ADMIN_EMAILS (pure)
+    site-stats.ts, site-stats-rules.ts   siteStats: the counts on /admin, across every group (read-only); weeks and days (pure)
     roles.ts                             the §8 role table, NoAccessError (pure)
     group-changed.ts                     revalidates the dashboard and a group's pages after a change
     cloudinary.ts                        signs uploads and deletes photos (no Cloudinary SDK)
@@ -773,6 +776,7 @@ Model and prompt (built in step 9):
 | `CHAT_API_URL`, `E2E_MODEL_URL` | Tests only | The e2e stand-in for the Messages API (`e2e/model-stub.mts`); the app defaults to `https://api.anthropic.com` |
 | `SMOKE_URL` | Smoke test | The site the smoke test checks; this app's production unless set. `smoke.yml` takes it from the repository variable of the same name (a fork sets its own); `npm run test:smoke` from the environment |
 | `CLOUDINARY_API_URL`, `E2E_CLOUDINARY_URL` | Tests only | The e2e stand-in for Cloudinary's API (`e2e/cloudinary-stub.mts`); the app defaults to `https://api.cloudinary.com` |
+| `SITE_ADMIN_EMAILS` | App (Vercel Production and Preview, `.env.local`) | The site's owners, comma-separated (compared like invites): only they see Site stats (`/admin`). Without it, nobody. Read on the server only; the e2e server gets one address per run (`E2E_SITE_ADMIN_EMAIL`) |
 | `GTM_ID` | App (Vercel Production only) | The owner's Google Tag Manager container (`GTM-KZDLK4PQ`), loaded on the landing page only; read when the site is built. Not set in Preview or locally, and cleared for the e2e build (`playwright.config.ts`); anything but a container ID is ignored |
 
 ## 14. Limits and when to upgrade

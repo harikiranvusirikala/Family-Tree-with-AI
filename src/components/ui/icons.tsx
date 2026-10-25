@@ -167,6 +167,7 @@ const PATHS = {
       <path d="M7.2 8.3l3.6 7.4M16.8 8.3l-3.6 7.4M8.5 6h7" />
     </>
   ),
+  chart: <path d="M3.5 3.5v17h17M8 16v-4M12.5 16V8M17 16v-6" />,
   list: <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />,
   crop: <path d="M6 2.5V16a2 2 0 0 0 2 2h13.5M2.5 6H16a2 2 0 0 1 2 2v13.5" />,
   camera: (

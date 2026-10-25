@@ -1,11 +1,12 @@
 import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "./auth";
 import { getDatabase } from "./db";
 import { roleInGroup } from "./repositories/groups";
 import { NoAccessError, type Role } from "./roles";
+import { isSiteAdmin } from "./site-admin";
 
 export { NoAccessError, type Role } from "./roles";
 
@@ -38,6 +39,16 @@ export const getUser = cache(async (): Promise<SessionUser | null> => {
 export async function requireUser(): Promise<SessionUser> {
   const user = await getUser();
   if (!user) redirect("/");
+  return user;
+}
+
+/**
+ * The site's owners only (SITE_ADMIN_EMAILS), for the site stats at /admin: anyone else signed in
+ * gets the ordinary "not found", so the page looks absent.
+ */
+export async function requireSiteAdmin(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (!isSiteAdmin(user.email)) notFound();
   return user;
 }
 

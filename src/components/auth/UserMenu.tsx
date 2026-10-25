@@ -22,10 +22,18 @@ export interface HeaderLink {
 
 /**
  * The signed-in user's Google photo (or initials without one), opening their name and email, Buy me a
- * coffee (a new tab) and Sign out. On phones the menu also holds the group's pages and the day/night
+ * coffee (a new tab) and Sign out; for the site's owners, Site stats (/admin). On phones the menu also holds the group's pages and the day/night
  * switch, and the photo carries the pages' badge. The button's name is the user's name (shown to screen readers only).
  */
-export function UserMenu({ user, links = [] }: { user: { name: string; email: string; image?: string | null }; links?: HeaderLink[] }) {
+export function UserMenu({
+  user,
+  links = [],
+  siteAdmin = false,
+}: {
+  user: { name: string; email: string; image?: string | null };
+  links?: HeaderLink[];
+  siteAdmin?: boolean;
+}) {
   const hydrated = useHydrated();
   // Calls /api/auth/get-session, which extends the session while the user is active (permissions.ts).
   const session = authClient.useSession();
@@ -94,6 +102,12 @@ export function UserMenu({ user, links = [] }: { user: { name: string; email: st
           <div className="md:hidden">
             <MenuSeparator />
           </div>
+          {siteAdmin && (
+            <Link href="/admin" role="menuitem" onClick={close} className={menuItem}>
+              <LineIcon name="chart" className="size-4 shrink-0" />
+              Site stats
+            </Link>
+          )}
           <a
             href={SUPPORT_URL}
             target="_blank"

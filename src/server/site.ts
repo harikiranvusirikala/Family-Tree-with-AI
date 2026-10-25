@@ -21,7 +21,7 @@ export function siteUrl(env: AuthUrlEnv): string {
 export const isLiveSite = (env: AuthUrlEnv) => env.VERCEL_ENV === "production";
 
 /** Pages that need signing in, the API and the developer pages: nothing there for search engines. */
-const PRIVATE_PATHS = ["/api/", "/dashboard", "/g/", "/invite/", "/join/", "/dev/"];
+const PRIVATE_PATHS = ["/api/", "/dashboard", "/g/", "/invite/", "/join/", "/dev/", "/admin"];
 
 export function robotsFor(env: AuthUrlEnv): MetadataRoute.Robots {
   if (!isLiveSite(env)) return { rules: { userAgent: "*", disallow: "/" } };

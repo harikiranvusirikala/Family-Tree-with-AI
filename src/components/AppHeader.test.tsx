@@ -7,6 +7,7 @@ vi.mock("./auth/auth-client", () => ({ authClient: { useSession: () => ({ data: 
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllEnvs();
   localStorage.clear();
   document.documentElement.classList.remove("dark");
 });
@@ -83,5 +84,26 @@ describe("the app's header (the production look)", () => {
       "Sign out",
     ]);
     expect(menu.getByRole("group", { name: "Theme" })).toBeDefined();
+  });
+
+  test("Site stats is in the account menu only for the site's owners (SITE_ADMIN_EMAILS)", () => {
+    const items = () => {
+      fireEvent.click(banner().getByRole("button", { name: "Carla Cruz" }));
+      const names = within(screen.getByRole("menu", { name: "Account" }))
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent);
+      cleanup();
+      return names;
+    };
+    vi.stubEnv("SITE_ADMIN_EMAILS", "someone.else@example.com");
+    render(<AppHeader user={user} />);
+    expect(items()).not.toContain("Site stats");
+
+    vi.stubEnv("SITE_ADMIN_EMAILS", "someone.else@example.com, Carla.Cruz@example.com");
+    render(<AppHeader user={user} />);
+    expect(items()).toEqual(["Site stats", "Buy me a coffee", "Sign out"]);
+    render(<AppHeader user={user} />);
+    fireEvent.click(banner().getByRole("button", { name: "Carla Cruz" }));
+    expect(screen.getByRole("menuitem", { name: "Site stats" }).getAttribute("href")).toBe("/admin");
   });
 });

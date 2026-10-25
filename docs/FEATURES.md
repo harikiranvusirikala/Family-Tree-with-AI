@@ -201,6 +201,12 @@ This is a Family Tree Web Application that can be accessed via Web.
 - An active link can be extended by 1 or 7 more days, added to its current expiry, but never to more than 30 days from today; a used-up link can't (2026-10-25).
 - The members page lists each link with how many joined and who, and members who joined by link are marked. Revoke stops a link; those who joined stay.
 
+### Site stats (owner request, 2026-10-25)
+
+- The site's owners (the emails in `SITE_ADMIN_EMAILS`) get a Site stats page at `/admin`, linked from their account menu. Anyone else sees "This page isn't here".
+- Counts only: totals, new users and groups per week, active people, editing, the assistant's use, sharing, and a groups table by short id. No names, emails, group names or family content.
+- Read from what the database already holds. Nothing new is measured: no page views, no feature counts, no outside analytics (IDEAS.md's Analytics stays an idea).
+
 ### Photos (step 7)
 
 - Maintain and up add, change or remove a person's photo from their panel. JPEG, PNG, WebP or HEIC (iPhone), up to 10 MB uploaded (since 2026-10-23, files up to 50 MB can be chosen: the browser shrinks them first).

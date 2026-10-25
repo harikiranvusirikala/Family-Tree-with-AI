@@ -22,6 +22,8 @@ const cloudinary = { CLOUDINARY_API_KEY: "123456789012345", CLOUDINARY_API_SECRE
 // The AI chat talks to a stand-in for the Messages API (e2e/model-stub.mts), never to Anthropic. The
 // ANTHROPIC_* variables a Claude Code session sets (its gateway) are cleared for the app.
 process.env.E2E_MODEL_URL ??= `http://localhost:${MODEL_STUB_PORT}`;
+// The site stats' owner (/admin): one address per run, so the user it belongs to is new in each run's database.
+process.env.E2E_SITE_ADMIN_EMAIL ??= `site.admin.${randomBytes(3).toString("hex")}@example.com`;
 const chatKey = { CHAT_API_KEY: "e2e-placeholder-key" };
 // Locally, use the installed Google Chrome (Playwright's own browser download is blocked on some
 // networks). CI installs Playwright's Chromium.
@@ -81,6 +83,7 @@ export default defineConfig({
         // No Google Tag Manager in tests, even if .env.local or .env sets GTM_ID: Next.js never
         // replaces a variable that is already set, even to nothing (e2e/security.spec.ts checks).
         GTM_ID: "",
+        SITE_ADMIN_EMAILS: process.env.E2E_SITE_ADMIN_EMAIL,
       },
     },
     {

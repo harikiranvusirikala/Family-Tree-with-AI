@@ -97,6 +97,8 @@ export interface UserDoc {
   email: string;
   /** Google's photo address (Better Auth's `image`), kept current at each sign-in; null or absent without one. */
   image?: string | null;
+  /** When they first signed in (Better Auth sets it; tests may leave it out); the site stats count new users by it. */
+  createdAt?: Date;
 }
 
 export interface PersonDoc extends Audit {

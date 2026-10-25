@@ -55,6 +55,7 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | – | Invite links for the whole family (owner request) | Done 2026-10-24 on `invite-links` (unit tests: 554 passed; database: 48 passed, the new ones in every run, others timing out on a slow connection; e2e: 105 passed in the owner's terminal). `db:setup` run on `familytree_preview` and `familytree` by the owner. See its section at the end |
 | – | The account's Google photo (owner request) | Built 2026-10-25 on `account-photo`, with the members page and access requests (unit tests: 561 passed; database: 49 passed; e2e: 106 passed). See its section at the end |
 | – | Extend an invite link (owner request) | Built 2026-10-25 on `extend-invite-links` (unit tests: 564 passed; database: 50 passed; e2e: 106 passed). No new indexes. See its section at the end |
+| – | Site stats for the owner (owner request) | Built 2026-10-25 on `owner-stats` (unit tests: 574 passed; database: 57 passed; e2e: 109 passed). No new indexes. Needs `SITE_ADMIN_EMAILS` in `.env.local` and Vercel. See its section at the end |
 
 ## How we work
 
@@ -74,8 +75,8 @@ The app is built in small steps. Each step ends with its tests passing, a check 
 | Where | Variables |
 |---|---|
 | `.env.local` (local, git-ignored) | Everything in [.env.example](../.env.example). `MONGODB_DB=familytree_dev`, `BETTER_AUTH_URL=http://localhost:3000` |
-| Vercel, Production | `MONGODB_URI`, `MONGODB_DB=familytree`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (own value), `BETTER_AUTH_URL=https://family-tree-with-ai.vercel.app`, `OAUTH_PROXY_SECRET` (same value as Preview), `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CHAT_API_KEY`, `CHAT_MODEL=claude-haiku-5-5`, `CHAT_DAILY_LIMIT=50` |
-| Vercel, Preview | `MONGODB_URI`, `MONGODB_DB=familytree_preview`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (a different value), `OAUTH_PROXY_SECRET` (same value as Production), the same three `CLOUDINARY_*` and three `CHAT_*` as Production. No `BETTER_AUTH_URL`: the app uses Vercel's `VERCEL_BRANCH_URL` and `VERCEL_URL` |
+| Vercel, Production | `MONGODB_URI`, `MONGODB_DB=familytree`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (own value), `BETTER_AUTH_URL=https://family-tree-with-ai.vercel.app`, `OAUTH_PROXY_SECRET` (same value as Preview), `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CHAT_API_KEY`, `CHAT_MODEL=claude-haiku-5-5`, `CHAT_DAILY_LIMIT=50`, `SITE_ADMIN_EMAILS` (the owner's email, from the site stats) |
+| Vercel, Preview | `MONGODB_URI`, `MONGODB_DB=familytree_preview`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET` (a different value), `OAUTH_PROXY_SECRET` (same value as Production), the same three `CLOUDINARY_*` and three `CHAT_*` as Production, and `SITE_ADMIN_EMAILS`. No `BETTER_AUTH_URL`: the app uses Vercel's `VERCEL_BRANCH_URL` and `VERCEL_URL` |
 | Vercel, Development | Nothing; local work uses `.env.local` |
 | GitHub Actions secrets | `MONGODB_URI` for a separate read/write test user (CI); `MONGODB_BACKUP_URI` and `BACKUP_ENCRYPTION_KEY` (the nightly backup, from step 11). Repo → Settings → Secrets and variables → Actions. Optional repository variable `SMOKE_URL`: the site `smoke.yml` checks (production unless set; a fork sets its own) |
 
@@ -1808,3 +1809,21 @@ The app is built in small steps. Each step ends with its tests passing, a check 
   2. A link never reaches more than 30 days from today: an extension past that is refused, "A link can work at most 30 days from today." (so a link always stops, the 2026-10-24 decision).
   3. A used-up link offers no Extend (more time lets nobody else in); expired and revoked links aren't listed, as before.
 - **Tests:** unit: `extendedExpiry` (added to the expiry, the 30-day ceiling exactly, 1 or 7 only); the row's menu (items, what it sends, no Extend when used up). Database: an Admin extends, a Viewer and a Maintainer can't, past the ceiling is refused, a revoked, expired or used-up link isn't extended. E2E: in the main invite-link test, Extend by 7 days moves the row's date.
+
+## After the final check: site stats for the owner (owner request, 2026-10-25)
+- **Why:** the owner of the whole site wants to see how people use it: how many sign up and come back, how much they build, how much they use the assistant and sharing.
+- **Decisions (owner, 2026-10-25):**
+  1. **Counts only.** No names, emails, group names or family content: groups show as a short id (the last 6 characters of their id). The owner stays out of families' private data, and the landing page's privacy answers stay true.
+  2. **Database stats only.** Nothing new is measured: no page views, no Vercel Web Analytics, no Google Analytics in the app (IDEAS.md's Analytics stays an idea).
+  3. **No feature counts** (Wheel, Network, Export…): that would need a new collection. Not now.
+- **Who sees it:** `/admin`, only for the emails in `SITE_ADMIN_EMAILS` (comma-separated, compared with `normalizeEmail`; server-only, set in Vercel's Production and Preview and in `.env.local`). Everyone else, signed in, gets the ordinary "This page isn't here" (`notFound()`), so the page looks absent; signed out, the proxy sends them to sign in as for any private page. Without the variable nobody sees it. The check runs in the page itself on every request (`requireSiteAdmin()` in `permissions.ts`: `requireUser()` plus the pure `isSiteAdmin(email, env)` in `src/server/site-admin.ts`). The account menu shows "Site stats" only to them (`AppHeader` works it out on the server; only a yes/no reaches the browser). `/admin` joins `PRIVATE_PATHS` (robots).
+- **What it shows** (`siteStats(db, { now, chatLimit })` in `src/server/site-stats.ts`, read-only aggregations; deleted groups, people and sheets left out):
+  - **Totals:** users, groups, people, couples, sheets, photos (distinct `photoId`s), memberships.
+  - **Growth:** new users and new groups per week (Monday to Sunday, UTC) for the last 12 weeks (`weeklyCounts`, pure).
+  - **Active people:** users with a session used, or a sign-in, in the last 1, 7 and 30 days (`sessions.updatedAt`, which Better Auth renews at most once a day while someone uses the site, and `accounts.updatedAt`, renewed at each sign-in). Sessions last 30 days, so these are close counts, not exact.
+  - **Building:** in the last 7 and 30 days, people added, people changed, and groups with any change (people, couples or sheets).
+  - **Assistant:** messages per day for the last 30 days (`chatUsage`, which keeps 30 days), people who used it, and days someone reached the daily limit (`CHAT_DAILY_LIMIT`).
+  - **Sharing:** email invites by status, invite links made and joins through them, access requests by status.
+  - **Groups:** one row per group: short id, created, members, people, sheets, last change; most recently changed first.
+- **The page:** `src/app/admin/page.tsx` (the dashboard's pattern: `<Suspense>`, then the check, then the queries), with `AppHeader`, a `PageHeader` "Site stats", number tiles (`card`) and plain tables; weekly growth and daily chat as rows of small bars drawn with CSS (no chart library). Day and night like every page.
+- **Tests:** unit: `isSiteAdmin` (listed, gmail dots and case, empty or missing variable), `weeklyCounts` (week edges, older dates ignored); `AppHeader` shows "Site stats" only to an admin. Database: `siteStats` on a small seeded set (deleted records left out, the windows, chat days at the limit, the groups table). E2E (`admin.spec.ts`; the e2e server gets `SITE_ADMIN_EMAILS` for a fixed test address): the admin opens "Site stats" from the account menu and sees the totals; another user sees no menu item and "This page isn't here" at `/admin` (screenshots `admin.png`, `night-admin.png`).

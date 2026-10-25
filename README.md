@@ -318,6 +318,7 @@ Keep local settings in `.env.local`: Next.js also reads a `.env` file, but only 
    | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | from step 5 (optional) | the same |
    | `CHAT_API_KEY`, `CHAT_MODEL`, `CHAT_DAILY_LIMIT` | from step 6 (optional) | the same |
    | `GTM_ID` | your Google Tag Manager container, `GTM-…` (optional) | **not set**: previews load no Tag Manager |
+   | `SITE_ADMIN_EMAILS` | your Google email (optional; several, comma-separated) | the same |
 
    With `GTM_ID`, the sign-in page, and only it, loads Google Tag Manager, and that page's security policy allows Google Analytics. It doesn't load when the page's address carries `?returnTo=` (the link a signed-out visitor opened, which can hold an invite's token), so those links never reach Google. Analytics sets cookies, so visitors in the EU would need a consent banner, which the app doesn't have.
 
@@ -359,6 +360,7 @@ Sign in at `https://YOUR-APP.vercel.app`. From then on, every push to `main` upd
 | The backup's time (UTC) | `cron` in `.github/workflows/backup.yml` (now 21:17 UTC) |
 | The chat model and daily limit | `CHAT_MODEL`, `CHAT_DAILY_LIMIT` in Vercel |
 | Database names, if you must change them | `MONGODB_DB` everywhere, plus `BACKUP_DB` in backup.yml's backup step |
+| Who sees Site stats (`/admin`: counts only, no names) | `SITE_ADMIN_EMAILS` in `.env.local` and Vercel |
 | Visitor numbers on the sign-in page (optional) | `GTM_ID` in Vercel, Production only (step 9), then redeploy |
 | Google Search Console's ownership code: yours, or none | `GOOGLE_SITE_VERIFICATION` in `src/components/landing/content.ts` (the original's only works for its own site) |
 | The landing page's link to the code | `SOURCE_URL` in the same file (the coffee link is `SUPPORT_URL` in `src/components/support.ts`) |
@@ -395,6 +397,7 @@ The documents in `docs/` record how the original was built and mention its addre
 | `MONGODB_BACKUP_URI`, `BACKUP_ENCRYPTION_KEY` | only for `npm run backup` | | | ✓ | `npm run restore` asks for the key |
 | `VERCEL_*` system variables | | auto | auto | | "Automatically expose System Environment Variables" |
 | `SMOKE_URL` | for `npm run test:smoke` | | | a repository **variable** | The site the smoke test checks; the original app's site unless set |
+| `SITE_ADMIN_EMAILS` | optional | optional | optional | | Your email: Site stats in your account menu. Without it, nobody sees them |
 | `GTM_ID` | | optional | | | Your Google Tag Manager container, loaded on the sign-in page only; read at build time. Never in Preview |
 
 Secrets live only in `.env.local` (git-ignored), Vercel and GitHub Secrets.

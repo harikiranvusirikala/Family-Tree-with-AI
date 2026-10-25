@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { isSiteAdmin } from "@/server/site-admin";
 import { UserMenu, type HeaderLink } from "./auth/UserMenu";
 import { GroupSwitcher, type GroupChoice } from "./GroupSwitcher";
 import { ThemeMenu } from "./ThemeMenu";
@@ -43,7 +44,8 @@ export function groupLinks(nav: GroupNav): (HeaderLink & { key: GroupNav["active
  * The bar on signed-in pages (the production look, an owner request): the app's icon and name (to
  * the dashboard); on a group's pages, the group's switcher and its pages as tabs; the theme; the
  * account. On phones the tabs and the theme move into the account menu, so the group's name has room;
- * on group pages the app's name shows from 1024 px.
+ * on group pages the app's name shows from 1024 px. The site's owners also get Site stats in the
+ * account menu (worked out here, on the server: only yes or no reaches the browser).
  */
 export function AppHeader({ user, nav }: { user: { name: string; email: string; image?: string | null }; nav?: GroupNav }) {
   const links = nav ? groupLinks(nav) : [];
@@ -93,7 +95,11 @@ export function AppHeader({ user, nav }: { user: { name: string; email: string; 
         <div className="hidden md:block">
           <ThemeMenu />
         </div>
-        <UserMenu user={{ name: user.name, email: user.email, image: user.image }} links={links.map(({ href, label, icon, ariaLabel, badge }) => ({ href, label, icon, ariaLabel, badge }))} />
+        <UserMenu
+          user={{ name: user.name, email: user.email, image: user.image }}
+          siteAdmin={isSiteAdmin(user.email)}
+          links={links.map(({ href, label, icon, ariaLabel, badge }) => ({ href, label, icon, ariaLabel, badge }))}
+        />
       </div>
     </header>
   );

@@ -266,6 +266,7 @@ flowchart TB
     set["/g/{groupId}/settings<br/>rename, hand over,<br/>delete, leave"]
     inv["/invite/{token}<br/>accept or decline<br/>an invitation"]
     join["/join/{token}<br/>join by an invite link<br/>(anyone it reaches)"]
+    admin["/admin<br/>Site stats: counts only,<br/>for the site's owners"]
 
     root -->|"after sign-in"| dash
     dash --> g --> s
@@ -274,6 +275,7 @@ flowchart TB
     s --> set
     inv -->|"accepted"| g
     join -->|"joined"| g
+    dash -.->|"account menu"| admin
 ```
 
 | Address | Files | Who can see it |
@@ -286,6 +288,7 @@ flowchart TB
 | `/g/{groupId}/settings` | [settings/page.tsx](../src/app/g/[groupId]/settings/page.tsx), `SettingsForms.tsx`, `SettingsNav.tsx`, `actions.ts` | Members (the Owner sees rename, hand over and delete; others see Leave) |
 | `/invite/{token}` | [invite/[token]/page.tsx](../src/app/invite/[token]/page.tsx), `InviteAnswer.tsx`, `actions.ts` | The person invited |
 | `/join/{token}` | [join/[token]/page.tsx](../src/app/join/[token]/page.tsx), `JoinAnswer.tsx`, `actions.ts` | Anyone signed in who has an invite link (Join adds them; nothing happens before) |
+| `/admin` | [admin/page.tsx](../src/app/admin/page.tsx) | Only the site's owners (`SITE_ADMIN_EMAILS`); everyone else gets "This page isn't here" |
 | `/dev/tree` | [dev/](../src/app/dev/) | Developers only (404 on the real site) |
 
 The API endpoints (they answer with data, not pages):
@@ -541,7 +544,9 @@ flowchart TB
 |---|---|
 | [db.ts](../src/server/db.ts) | Opens the MongoDB connection once and reuses it |
 | [auth.ts](../src/server/auth.ts), [auth-options.ts](../src/server/auth-options.ts), [auth-urls.ts](../src/server/auth-urls.ts) | Sets up Better Auth (Google sign-in): its settings and the site addresses it trusts |
-| [permissions.ts](../src/server/permissions.ts) | `getUser()`, `requireUser()`, `requireRole()`: who you are and what you may do |
+| [permissions.ts](../src/server/permissions.ts) | `getUser()`, `requireUser()`, `requireRole()`: who you are and what you may do; `requireSiteAdmin()` for Site stats |
+| [site-admin.ts](../src/server/site-admin.ts) | `isSiteAdmin()`: is this email one of the site's owners (`SITE_ADMIN_EMAILS`)? |
+| [site-stats.ts](../src/server/site-stats.ts) | `siteStats()`: the counts on `/admin`, across every group (the one reader outside `repositories/`), with weeks and days in [site-stats-rules.ts](../src/server/site-stats-rules.ts) |
 | [roles.ts](../src/server/roles.ts) | The table of roles and actions (`can(role, action)`) |
 | [proxy-rules.ts](../src/server/proxy-rules.ts) | The rules behind `src/proxy.ts`: which pages are public |
 | [members-rules.ts](../src/server/members-rules.ts) | Who may change whose role; email tidying (Gmail dots, `+tags`); invite links' roles, days and limits |
