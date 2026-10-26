@@ -19,6 +19,7 @@ test("the site's owner opens Site stats from the account menu and sees counts, n
   await expect(totals).toBeVisible();
   expect(Number((await page.getByTestId("total-people").textContent())!.replace(/\D/g, ""))).toBeGreaterThanOrEqual(36);
   expect(Number((await page.getByTestId("total-users").textContent())!.replace(/\D/g, ""))).toBeGreaterThanOrEqual(1);
+  await expect(page.getByTestId("total-photos-note")).toHaveText(/^from \d+ uploads?$/); // pictures, and the uploads they come from
   for (const name of ["Active people", "Building", "New users per week", "New groups per week", "Assistant", "Sharing", "Groups"]) {
     await expect(page.getByRole("region", { name, exact: true })).toBeVisible();
   }

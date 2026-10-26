@@ -1,5 +1,5 @@
 import type { Collection, Db, Filter, ObjectId } from "mongodb";
-import { daysAgo, lastDays, shortGroupId, startOfWeek, weeklyCounts, type WeekCount } from "./site-stats-rules";
+import { daysAgo, lastDays, pictureKey, shortGroupId, startOfWeek, weeklyCounts, type WeekCount } from "./site-stats-rules";
 import { collections } from "./repositories/documents";
 
 const WEEKS = 12;
@@ -23,7 +23,18 @@ export interface GroupRow {
 }
 
 export interface SiteStats {
-  totals: { users: number; groups: number; people: number; couples: number; sheets: number; photos: number; memberships: number };
+  totals: {
+    users: number;
+    groups: number;
+    people: number;
+    couples: number;
+    sheets: number;
+    /** People's pictures: each rectangle marked in a shared photo counts, and a photo used whole counts once (pictureKey). */
+    photos: number;
+    /** The uploaded photos those pictures come from (distinct photoIds). */
+    photoFiles: number;
+    memberships: number;
+  };
   growth: { users: WeekCount[]; groups: WeekCount[] };
   active: { day: number; week: number; month: number };
   building: { peopleAdded: Recent; peopleChanged: Recent; groupsChanged: Recent };
@@ -59,7 +70,7 @@ export async function siteStats(db: Db, { now = new Date(), chatLimit }: { now?:
     persons.countDocuments(inLiveGroup),
     unions.countDocuments(inLiveGroup),
     sheets.countDocuments(inLiveGroup),
-    persons.distinct("photoId", { ...inLiveGroup, photoId: { $exists: true } }),
+    persons.find({ ...inLiveGroup, photoId: { $exists: true } }, { projection: { photoId: 1, photoCrop: 1 } }).toArray(),
     memberships.countDocuments({ groupId: { $in: groupIds } }),
     users.find({ createdAt: { $gte: growthFrom } }, { projection: { createdAt: 1 } }).toArray(),
     activeUsers(db, since.month),
@@ -111,7 +122,16 @@ export async function siteStats(db: Db, { now = new Date(), chatLimit }: { now?:
   for (const row of chatRows) messages.set(row.day, (messages.get(row.day) ?? 0) + row.count);
 
   return {
-    totals: { users: userCount, groups: liveGroups.length, people, couples, sheets: sheetCount, photos: photos.length, memberships: membershipCount },
+    totals: {
+      users: userCount,
+      groups: liveGroups.length,
+      people,
+      couples,
+      sheets: sheetCount,
+      photos: new Set(photos.map((p) => pictureKey(p.photoId!, p.photoCrop))).size,
+      photoFiles: new Set(photos.map((p) => p.photoId)).size,
+      memberships: membershipCount,
+    },
     growth: { users: weeklyCounts(newUsers.flatMap((u) => (u.createdAt ? [u.createdAt] : [])), now, WEEKS), groups: weeklyCounts(liveGroups.map((g) => g.createdAt), now, WEEKS) },
     active: {
       day: [...activeIds.values()].filter((d) => d >= since.day).length,

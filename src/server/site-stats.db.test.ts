@@ -45,11 +45,12 @@ beforeAll(async () => {
     { _id: new ObjectId(), groupId: deleted, userId: chen, role: "owner", addedBy: "x", createdAt: ago(3) },
   ]);
   await c.persons.insertMany([
-    person(live, ago(2), ago(2), { photoId: `groups/${live}/a` }), // added this week
-    person(live, ago(20), ago(3), { photoId: `groups/${live}/a` }), // added this month, changed this week; the same photo
-    person(live, ago(60), ago(1), { photoId: `groups/${live}/b` }), // changed yesterday: the group's last change
-    person(live, ago(60), ago(1), { deletedAt: ago(1) }), // deleted: not counted
-    person(quiet, ago(100)),
+    // A group photo with two people marked in it: two pictures from one upload.
+    person(live, ago(2), ago(2), { photoId: `groups/${live}/a`, photoCrop: { x: 0.1, y: 0.1, w: 0.3, h: 0.3 } }), // added this week
+    person(live, ago(20), ago(3), { photoId: `groups/${live}/a`, photoCrop: { x: 0.5, y: 0.1, w: 0.3, h: 0.3 } }), // added this month, changed this week
+    person(live, ago(60), ago(1), { photoId: `groups/${live}/b` }), // changed yesterday: the group's last change; a photo used whole
+    person(live, ago(60), ago(1), { deletedAt: ago(1), photoId: `groups/${live}/e` }), // deleted: not counted
+    person(quiet, ago(100), ago(100), { photoId: `groups/${quiet}/d`, photoCrop: { x: 0.1, y: 0.1, w: 0.3, h: 0.3 } }),
     person(deleted, ago(3), ago(3), { photoId: `groups/${deleted}/c` }), // in a deleted group
   ]);
   await c.unions.insertOne({ _id: new ObjectId(), groupId: live, partnerIds: [], childIds: [], status: "married", ...audit(ago(60)) });
@@ -88,9 +89,10 @@ afterAll(async () => {
 });
 
 describe("the site stats (an owner request)", () => {
-  test("totals leave out deleted groups, people and what's in deleted groups; photos are counted once", async () => {
+  test("totals leave out deleted groups, people and what's in deleted groups; each person marked in a shared photo is a picture", async () => {
     const { totals } = await siteStats(database.db, { now, chatLimit: 5 });
-    expect(totals).toEqual({ users: 3, groups: 2, people: 4, couples: 1, sheets: 2, photos: 2, memberships: 3 });
+    // Pictures: a's two rectangles, b whole, d's rectangle; uploads: a, b and d.
+    expect(totals).toEqual({ users: 3, groups: 2, people: 4, couples: 1, sheets: 2, photos: 4, photoFiles: 3, memberships: 3 });
   });
 
   test("new users and groups by week, this week last", async () => {

@@ -43,7 +43,7 @@ async function Stats() {
           <Tile label="People" value={totals.people} />
           <Tile label="Couples" value={totals.couples} />
           <Tile label="Sheets" value={totals.sheets} />
-          <Tile label="Photos" value={totals.photos} />
+          <Tile label="Photos" value={totals.photos} note={`from ${totals.photoFiles} ${totals.photoFiles === 1 ? "upload" : "uploads"}`} />
           <Tile label="Memberships" value={totals.memberships} />
         </section>
 
@@ -113,13 +113,18 @@ function Card({ title, text, children }: { title: string; text: string; children
   );
 }
 
-function Tile({ label, value }: { label: string; value: number }) {
+function Tile({ label, value, note }: { label: string; value: number; note?: string }) {
   return (
     <div className={`${card} px-4 py-3`}>
       <p className="text-[13px] text-zinc-500 dark:text-zinc-400">{label}</p>
       <p className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900 tabular-nums dark:text-zinc-100" data-testid={`total-${label.toLowerCase()}`}>
         {value.toLocaleString("en-GB")}
       </p>
+      {note && (
+        <p className="text-xs text-zinc-500 dark:text-zinc-400" data-testid={`total-${label.toLowerCase()}-note`}>
+          {note}
+        </p>
+      )}
     </div>
   );
 }

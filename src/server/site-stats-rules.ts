@@ -1,4 +1,5 @@
 // Pure helpers for the site stats (an owner request, 2026-10-25). Days and weeks are UTC.
+import type { PhotoCrop } from "@/tree/types";
 
 const DAY = 86_400_000;
 
@@ -43,4 +44,14 @@ export function lastDays(now: Date, days: number): string[] {
 /** A group as the stats show it: the last 6 characters of its id, never its name. */
 export function shortGroupId(id: string): string {
   return id.slice(-6);
+}
+
+/**
+ * One person's picture, for counting photos (an owner request, 2026-10-26): a photo shared by several
+ * people counts once per rectangle marked in it ("Which one is …?"), and once for everyone who uses it
+ * whole. Rounded to 4 decimals, as photoUrl writes the crop, so the same rectangle always matches.
+ */
+export function pictureKey(photoId: string, crop?: PhotoCrop | null): string {
+  if (!crop) return photoId;
+  return [photoId, crop.x, crop.y, crop.w, crop.h].map((part) => (typeof part === "number" ? part.toFixed(4) : part)).join("|");
 }

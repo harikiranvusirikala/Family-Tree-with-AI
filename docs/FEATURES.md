@@ -204,6 +204,7 @@ This is a Family Tree Web Application that can be accessed via Web.
 ### Site stats (owner request, 2026-10-25)
 
 - The site's owners (the emails in `SITE_ADMIN_EMAILS`) get a Site stats page at `/admin`, linked from their account menu. Anyone else sees "This page isn't here".
+- Photos counts each person's picture: every rectangle marked in a shared photo once, a photo used whole once; the uploaded files are shown under it (2026-10-26).
 - Counts only: totals, new users and groups per week, active people, editing, the assistant's use, sharing, and a groups table by short id. No names, emails, group names or family content.
 - Read from what the database already holds. Nothing new is measured: no page views, no feature counts, no outside analytics (IDEAS.md's Analytics stays an idea).
 

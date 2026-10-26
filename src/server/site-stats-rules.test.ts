@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, test } from "vitest";
-import { lastDays, shortGroupId, startOfWeek, weeklyCounts } from "./site-stats-rules";
+import { lastDays, pictureKey, shortGroupId, startOfWeek, weeklyCounts } from "./site-stats-rules";
 
 // Sunday 25 October 2026, afternoon (UTC): the last day of the week that began on Monday 19 October.
 const now = new Date("2026-10-25T15:00:00Z");
@@ -32,5 +32,15 @@ describe("the site stats' weeks and days", () => {
 
   test("a group shows as the end of its id", () => {
     expect(shortGroupId("0123456789abcdef01234567")).toBe("234567");
+  });
+
+  test("a picture is its photo and its rectangle; without one, the photo alone (owner request)", () => {
+    const group = "groups/g/family";
+    const asha = { x: 0.1, y: 0.2, w: 0.3, h: 0.4 };
+    expect(pictureKey(group, asha)).toBe("groups/g/family|0.1000|0.2000|0.3000|0.4000");
+    expect(pictureKey(group, { ...asha, x: 0.6 })).not.toBe(pictureKey(group, asha)); // someone else in it
+    expect(pictureKey(group, { ...asha, x: 0.10000000001 })).toBe(pictureKey(group, asha)); // the same rectangle
+    expect(pictureKey(group)).toBe(group);
+    expect(pictureKey(group, null)).toBe(group);
   });
 });
